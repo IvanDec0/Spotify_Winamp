@@ -1,0 +1,36 @@
+# Go
+/bin/
+/build/bin/
+/dist/
+*.test
+*.out
+*.prof
+
+# Wails
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.svelte-kit/
+/frontend/.vite/
+/frontend/build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local secrets and personal skins
+skins-local/
+.env
+.env.*
+!.env.example
+*.local
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

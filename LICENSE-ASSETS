@@ -1,0 +1,24 @@
+Original visual assets, skins and documentation illustrations in this repository
+are licensed under the Creative Commons Attribution-ShareAlike 4.0 International
+License (CC BY-SA 4.0).
+
+You may obtain a copy of the license at:
+
+    https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+You are free to share and adapt the material for any purpose, provided you give
+appropriate credit and distribute your contributions under the same license.
+
+Scope:
+
+- The default Clarity skin, its original CSS, SVG, textures and theme palettes.
+- Original project artwork and documentation illustrations.
+
+Excluded:
+
+- Third-party trademarks and logos.
+- Third-party fonts, which remain under their own licenses.
+- Downloaded Winamp skins and copyrighted recreations. These are personal-use
+  references only and must not be committed to this repository or distributed
+  with its releases.
+- Code, which is licensed under the MIT License in LICENSE.
