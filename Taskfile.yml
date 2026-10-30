@@ -1,0 +1,73 @@
+version: '3'
+
+vars:
+  APP_NAME: cadence
+  APP_VERSION: 0.1.0
+  BIN_DIR: bin
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+
+includes:
+  common: ./build/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application for Linux
+    cmds:
+      - task: linux:build
+
+  package:
+    summary: Builds AppImage and tar.gz release artifacts
+    cmds:
+      - task: linux:package
+
+  run:
+    summary: Runs the built application
+    cmds:
+      - task: linux:run
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  test:
+    summary: Builds the frontend, then runs Go and frontend tests
+    deps:
+      - task: common:build:frontend
+    cmds:
+      - go test $(go list ./... | grep -v '/node_modules/')
+      - task: common:test:frontend
+
+  check:
+    summary: Runs Go vet, Svelte type checks, ESLint and Prettier checks
+    deps:
+      - task: common:build:frontend
+    cmds:
+      - go vet $(go list ./... | grep -v '/node_modules/')
+      - task: common:check:frontend
+
+  lint:
+    summary: Runs Go vet, ESLint and Prettier checks
+    deps:
+      - task: common:build:frontend
+    cmds:
+      - go vet $(go list ./... | grep -v '/node_modules/')
+      - task: common:lint:frontend
+
+  format:
+    summary: Checks Go and frontend formatting
+    cmds:
+      - test -z "$(gofmt -l $(go list -f '{{"{{.Dir}}"}}' ./... | grep -v '/node_modules/'))"
+      - task: common:format:frontend
+
+  format:write:
+    summary: Formats Go and frontend sources
+    cmds:
+      - gofmt -w $(go list -f '{{"{{.Dir}}"}}' ./... | grep -v '/node_modules/')
+      - task: common:format:write:frontend
+
+  clean:
+    summary: Removes build outputs and generated bindings
+    cmds:
+      - rm -rf {{.BIN_DIR}} frontend/dist frontend/bindings build/linux/appimage/build

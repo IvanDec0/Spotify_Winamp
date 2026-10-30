@@ -1,0 +1,76 @@
+version: '3'
+
+includes:
+  common: ../Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application natively on Linux
+    deps:
+      - task: common:go:mod:tidy
+      - task: common:build:frontend
+        vars:
+          DEV: '{{.DEV}}'
+          BUILD_FLAGS: '{{.BUILD_FLAGS}}'
+    cmds:
+      - go build {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"
+    vars:
+      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
+      OUTPUT: '{{.OUTPUT | default .DEFAULT_OUTPUT}}'
+    env:
+      GOOS: linux
+      CGO_ENABLED: 1
+
+  run:
+    summary: Runs the built application
+    cmds:
+      - './{{.BIN_DIR}}/{{.APP_NAME}}'
+
+  package:
+    summary: Creates AppImage and tar.gz artifacts with checksums
+    deps:
+      - task: build
+    cmds:
+      - task: create:appimage
+      - task: create:tarball
+      - task: checksums
+
+  create:appimage:
+    summary: Creates an AppImage
+    deps:
+      - task: build
+      - task: generate:dotdesktop
+    dir: build/linux/appimage
+    cmds:
+      - cp "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}" "{{.APP_NAME}}"
+      - cp "{{.ROOT_DIR}}/build/appicon.png" "{{.APP_NAME}}.png"
+      - wails3 generate appimage -binary "{{.APP_NAME}}" -icon "{{.APP_NAME}}.png" -desktopfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -outputdir "{{.ROOT_DIR}}/{{.BIN_DIR}}" -builddir "{{.ROOT_DIR}}/build/linux/appimage/build"
+
+  create:tarball:
+    summary: Creates a portable tar.gz archive
+    deps:
+      - task: build
+      - task: generate:dotdesktop
+    dir: '{{.ROOT_DIR}}/{{.BIN_DIR}}'
+    cmds:
+      - mkdir -p "{{.APP_NAME}}-{{.APP_VERSION}}"
+      - cp "{{.APP_NAME}}" "{{.APP_NAME}}-{{.APP_VERSION}}/"
+      - cp "{{.ROOT_DIR}}/build/appicon.png" "{{.APP_NAME}}-{{.APP_VERSION}}/{{.APP_NAME}}.png"
+      - cp "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" "{{.APP_NAME}}-{{.APP_VERSION}}/"
+      - cp "{{.ROOT_DIR}}/LICENSE" "{{.ROOT_DIR}}/LICENSE-ASSETS" "{{.ROOT_DIR}}/README.md" "{{.APP_NAME}}-{{.APP_VERSION}}/"
+      - tar -czf "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.tar.gz" "{{.APP_NAME}}-{{.APP_VERSION}}"
+      - rm -rf "{{.APP_NAME}}-{{.APP_VERSION}}"
+
+  checksums:
+    summary: Writes SHA-256 checksums for release artifacts
+    dir: '{{.ROOT_DIR}}/{{.BIN_DIR}}'
+    cmds:
+      - sha256sum *.AppImage *.tar.gz > "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
+
+  generate:dotdesktop:
+    summary: Generates the Linux .desktop entry
+    dir: build
+    cmds:
+      - mkdir -p linux
+      - wails3 generate .desktop -name "{{.APP_NAME}}" -exec "{{.APP_NAME}}" -icon "{{.APP_NAME}}" -outputfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -categories "AudioVideo;Audio;"

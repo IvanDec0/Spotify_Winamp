@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and build (Arch Linux)
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+
+    steps:
+      - name: Install system dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            go nodejs npm git pkgconf \
+            gtk4 webkitgtk-6.0 libsoup3
+
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install pinned CLI tools
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34
+          go install github.com/go-task/task/v3/cmd/task@v3.54.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend checks
+        working-directory: frontend
+        run: |
+          npm run check
+          npm run lint
+          npm run format
+          npm run test
+          npm run build
+
+      - name: Go checks
+        run: |
+          go test $(go list ./... | grep -v '/node_modules/')
+          go vet $(go list ./... | grep -v '/node_modules/')
+
+      - name: Wails build
+        run: wails3 build

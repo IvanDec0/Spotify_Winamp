@@ -55,7 +55,9 @@ Pinned stack: Go 1.26+ (environment 1.27.3), Wails `v3.0.0-beta.34`, Svelte 5.57
 | Spotify Developer app created | User action pending |
 | Fixed OAuth callback port registered | User action pending |
 | Final app name and bundle ID | Non-blocking; working name Cadence |
-| Wails project scaffold | First development task (M0) |
+| Wails project scaffold | Done (M0) |
+| Frontend toolchain pinned and linted | Done (M0) |
+| CI skeleton | Done (M0) |
 
 ### Toolchain note
 
@@ -85,21 +87,23 @@ npm 12.2.1
 
 **Goal:** a clean Wails v3 + Svelte project that builds and runs, with the existing docs preserved.
 
+**Status: complete.** The scaffold is pinned to Wails `v3.0.0-beta.34`, the demo service and time event were removed, and the Linux-only Taskfile now builds a frameless 420×220 shell.
+
 Tasks:
 
-- Scaffold Wails v3 with the `svelte` template in a temporary directory.
-- Merge the generated `main.go`, `go.mod`, `frontend/`, `build/` and Wails configuration into the repository root without overwriting `plan/`, `docs/` or the design document.
-- Add the project `Taskfile.yml` and verify `wails3 dev`.
-- Add `.gitignore`, `.editorconfig`, README and license files (already prepared).
-- Add the CI skeleton.
-- Record the exact scaffold version and any template changes.
+- [x] Scaffold Wails v3 with the `svelte` template in a temporary directory.
+- [x] Merge the generated `main.go`, `go.mod`, `frontend/`, `build/` and Wails configuration into the repository root without overwriting `plan/`, `docs/` or the design document.
+- [x] Add the project `Taskfile.yml` and verify `wails3 dev`.
+- [x] Add `.gitignore`, `.editorconfig`, README and license files.
+- [x] Add the CI skeleton.
+- [x] Record the exact scaffold version and template changes.
 
 Exit criteria:
 
-- `wails3 dev` opens the default window.
-- `go test ./...` and frontend checks pass on the scaffold.
-- The repository contains no generated secrets or local-only files.
-- The docs and plan are still intact.
+- [x] `wails3 dev` opens the Cadence window.
+- [x] Filtered Go tests and frontend checks pass on the scaffold.
+- [x] The repository contains no generated secrets or local-only files.
+- [x] The docs and plan are still intact.
 
 ### M1 — Demo player and Clarity skin
 
@@ -306,8 +310,8 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 1. Create the Spotify Developer app and register `http://127.0.0.1:43821/callback` (see `docs/spotify-setup.md`).
 2. Add `$(go env GOPATH)/bin` to `PATH`.
-3. Start M0: scaffold Wails v3 with the `svelte` template in a temporary directory and merge it into this repository.
-4. Run the M0 test gate.
-5. Begin M1 with `PlayerState`, the demo provider and the Clarity shell.
+3. Begin M1 with `PlayerState`, the demo provider and the Clarity shell.
+4. Build the queue expansion, the four visualizer modes and the six themes.
+5. Run the M1 test gate.
 
 Do not begin with Spotify OAuth, native Winamp importers or level 3 modules.

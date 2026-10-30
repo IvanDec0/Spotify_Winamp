@@ -4,6 +4,7 @@
 |---|---|
 | [`../documentacion-cliente-musical-skins.md`](../documentacion-cliente-musical-skins.md) | Full v1 technical design |
 | [`../plan/nombre_plan.md`](../plan/nombre_plan.md) | Implementation plan and test gates |
+| [`development.md`](development.md) | Local setup, commands and tooling notes |
 | [`spotify-setup.md`](spotify-setup.md) | Spotify Developer app and OAuth setup |
 | [`archive/documentacion-cliente-musical-skins.es.md`](archive/documentacion-cliente-musical-skins.es.md) | Original Spanish design document (archived) |
 

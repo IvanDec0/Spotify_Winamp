@@ -6,12 +6,19 @@
 *.out
 *.prof
 
-# Wails
+# Wails / Task
+/.task/
 /frontend/node_modules/
 /frontend/dist/
 /frontend/.svelte-kit/
 /frontend/.vite/
 /frontend/build/
+
+# Generated Linux packaging files
+/build/linux/cadence.desktop
+/build/linux/appimage/build/
+/build/linux/appimage/cadence
+/build/linux/appimage/cadence.png
 
 # Node
 node_modules/

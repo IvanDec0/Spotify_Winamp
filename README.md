@@ -4,10 +4,11 @@
 
 ## Status
 
-**Pre-development.** The v1 design and implementation plan are locked. The application scaffold has not been created yet.
+**M0 complete.** The Wails v3 scaffold builds, runs and opens the frameless 420×220 Cadence shell. The next milestone is M1: the demo player and the original Clarity skin.
 
 - Design source of truth: [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md)
 - Implementation plan: [`plan/nombre_plan.md`](plan/nombre_plan.md)
+- Development workflow: [`docs/development.md`](docs/development.md)
 - Spotify setup: [`docs/spotify-setup.md`](docs/spotify-setup.md)
 
 ## What it is
@@ -32,7 +33,7 @@ The app uses a single compact window (420×220 by default) with an expandable qu
 - Svelte 5.57.2
 - Vite 8.3.5
 - TypeScript 6.0.3
-- CSS
+- Vitest 5.0.5, ESLint 10.13.0, Prettier 3.9.10
 - Node.js 26.12.1 / npm 12.2.1
 
 TypeScript 7 is intentionally not used because `svelte-check` 4.7.7 and `typescript-eslint` 8.72.0 are not compatible with it.
@@ -47,6 +48,7 @@ Arch Linux x86_64 only in v1.
 |---|---|
 | [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md) | Full v1 technical design |
 | [`plan/nombre_plan.md`](plan/nombre_plan.md) | Actionable implementation plan and test gates |
+| [`docs/development.md`](docs/development.md) | Local setup, commands and tooling notes |
 | [`docs/spotify-setup.md`](docs/spotify-setup.md) | Spotify Developer app and OAuth setup |
 | [`docs/archive/documentacion-cliente-musical-skins.es.md`](docs/archive/documentacion-cliente-musical-skins.es.md) | Original Spanish design document (archived) |
 
@@ -62,7 +64,7 @@ Install the pinned Wails CLI and Task:
 
 ```bash
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34
-go install github.com/go-task/task/v3/cmd/task@latest
+go install github.com/go-task/task/v3/cmd/task@v3.54.0
 ```
 
 Add the Go binary directory to `PATH`:
@@ -79,29 +81,60 @@ wails3 version
 task --version
 ```
 
-## First development step
+## Development
 
-The first development task is M0: scaffold Wails v3 with the `svelte` template in a temporary directory and merge it into this repository without overwriting `plan/`, `docs/` or the design document.
+Run the application in development mode:
 
-Do not start with Spotify OAuth, native `.wsz`/`.wal` importers or level 3 modules.
+```bash
+task dev
+```
+
+Run all checks and tests:
+
+```bash
+task check
+task test
+```
+
+Build the native binary or the release artifacts:
+
+```bash
+task build     # bin/cadence
+task package   # AppImage, tar.gz and SHA-256 checksums in bin/
+```
+
+Packaging tasks are scaffolded in M0 and will be validated in M4.
+
+### Wayland and tiling compositors
+
+Cadence requests a 420×220 window, but tiling compositors such as Sway and i3 decide the final geometry. Add a floating window rule for the app:
+
+```text
+for_window [app_id="io.github.ivandec0.cadence"] floating enable
+for_window [app_id="io.github.ivandec0.cadence"] resize set 420 220
+```
+
+The custom titlebar provides the drag region; window controls are marked as non-draggable.
 
 ## Repository layout
 
 ```text
 .
-├── README.md
-├── documentacion-cliente-musical-skins.md   # v1 design source of truth
+├── main.go                          # Wails entry point and window options
+├── Taskfile.yml                     # Developer commands
+├── build/                           # Wails metadata and Linux build tasks
+├── frontend/                        # Svelte 5 + TypeScript UI
+├── documentacion-cliente-musical-skins.md
 ├── plan/
-│   └── nombre_plan.md                       # implementation plan
+│   └── nombre_plan.md
 ├── docs/
+│   ├── development.md
 │   ├── spotify-setup.md
 │   └── archive/
-│       └── documentacion-cliente-musical-skins.es.md
-├── LICENSE                                  # MIT (code)
-└── LICENSE-ASSETS                           # CC BY-SA 4.0 (original skin assets)
+├── .github/workflows/ci.yml         # Arch Linux CI skeleton
+├── LICENSE                          # MIT (code)
+└── LICENSE-ASSETS                   # CC BY-SA 4.0 (original skin assets)
 ```
-
-The Wails scaffold will add `main.go`, `go.mod`, `frontend/`, `build/` and related files.
 
 ## License
 
