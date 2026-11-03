@@ -1,0 +1,33 @@
+# Third-party notices
+
+Cadence includes or distributes the following third-party components.
+
+## go-librespot
+
+- **Project:** [go-librespot](https://github.com/devgianlu/go-librespot)
+- **Pinned revision:** `v0.10.6-0.20261102145552-522adcae8d65`
+- **License:** GNU General Public License v3.0
+- **Role:** separate local Spotify audio engine managed by Cadence
+
+Cadence does not link go-librespot into its own binary. The engine is shipped as
+an adjacent executable in the tarball and inside the AppImage. Its complete
+license text is in [`LICENSES/go-librespot-GPL-3.0.txt`](LICENSES/go-librespot-GPL-3.0.txt).
+
+The corresponding source is available from the upstream repository at the
+pinned revision. This project is intended for private personal use; if you
+redistribute the engine, comply with the GPL-3.0, including source availability.
+
+## GTK, WebKitGTK and runtime libraries
+
+The AppImage bundles GTK, WebKitGTK and their runtime dependencies. Those
+libraries remain under their respective licenses and copyrights. The tarball
+uses the GTK/WebKitGTK and audio libraries provided by the system.
+
+## Fonts and skin assets
+
+- Inter and JetBrains Mono are distributed under the SIL Open Font License.
+- Original Cadence skin assets are licensed under CC BY-SA 4.0; see
+  [`LICENSE-ASSETS`](LICENSE-ASSETS).
+
+Third-party trademarks and assets remain the property of their respective
+owners.

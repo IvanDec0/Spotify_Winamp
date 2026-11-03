@@ -35,7 +35,7 @@ The demo player remains available for development and for machines without Spoti
 | Native Winamp skins | Reference only in v1; read-only importer may be evaluated in v2 |
 | Copyrighted recreations | Personal only, under `skins-local/`, excluded from Git and releases |
 | Platform | Arch Linux x86_64 |
-| Packaging | AppImage and `.tar.gz`; engine binary distributed separately or as a sidecar artifact |
+| Packaging | AppImage and `.tar.gz`; go-librespot bundled in both artifacts |
 | License | MIT for Cadence code; CC BY-SA 4.0 for original skin assets; go-librespot is GPL-3.0 and kept as a separate process |
 
 Pinned stack: Go 1.26+ (environment 1.27.3), Wails `v3.0.0-beta.34`, Svelte 5.57.2, Vite 8.3.5, TypeScript 6.0.3, Node 26.12.1.
@@ -67,7 +67,7 @@ This is a private, personal-use project. The user explicitly accepted the use of
 | Library browsing and selection | Implemented; extended live verification in progress |
 | `task audio:build` | Done |
 | Engine documentation | Done |
-| Packaging and release | Pending (M4) |
+| Packaging and release | Implemented locally; clean Arch/VM test pending (M4) |
 
 ### Toolchain note
 
@@ -142,29 +142,33 @@ Exit criteria:
 - [x] A selected track or context starts local playback.
 - [x] The frontend never receives playback credentials.
 - [x] `--demo` still works without the engine.
-- [ ] Every transport control is verified against the local engine.
-- [ ] Pairing reset is verified from a clean state.
+- [x] Every transport control is verified against the local engine.
+- [x] Pairing reset is verified from a clean state.
 
 ### M4 — Packaging and release
 
-**Goal:** reproducible Arch Linux artifacts that include or clearly declare the audio engine.
+**Goal:** reproducible Arch Linux artifacts that include the audio engine.
+
+**Status: implemented locally.** `task package` builds `cadence-0.1.0-linux-x86_64.AppImage`, `cadence-0.1.0-linux-x86_64.tar.gz` and SHA-256 checksums. Both artifacts contain `go-librespot`; the AppImage adds it to `usr/bin` and the tarball places it next to Cadence. The AppImage and tarball were extracted and launched in demo mode on Arch. CI packaging and a tagged release workflow are configured. A clean Arch installation or VM test remains pending.
 
 Tasks:
 
-- Build AppImage and `.tar.gz` artifacts in an Arch Linux CI container.
-- Bundle `bin/go-librespot` or document it as a required sidecar artifact.
-- Add GitHub Actions test/build/release workflows.
-- Generate SHA-256 checksums.
-- Write installation and first-run documentation.
-- Test on a clean Arch installation or VM.
-- Finalize licenses, README, screenshots and skin authoring docs.
+- [x] Build AppImage and `.tar.gz` artifacts in an Arch Linux CI container workflow.
+- [x] Bundle `bin/go-librespot` in both artifacts.
+- [x] Add GitHub Actions test/package/release workflows.
+- [x] Generate SHA-256 checksums and verify them.
+- [x] Write installation and first-run documentation.
+- [ ] Test on a clean Arch installation or VM.
+- [x] Finalize licenses, README and installation docs.
+- [ ] Add final screenshots to the release notes/README.
 
 Exit criteria:
 
-- A clean Arch user can install Cadence, build/install the engine, pair and play.
-- Skins can be installed from the release build.
-- CI produces reproducible artifacts and checksums.
-- No Windows or macOS artifacts are produced.
+- [ ] A clean Arch user can install Cadence, pair and play.
+- [ ] Skins can be installed from the release build.
+- [ ] CI produces reproducible artifacts and checksums.
+- [x] Both artifacts include the pinned engine.
+- [x] No Windows or macOS artifacts are produced.
 
 ### M5 — v2 evaluation only
 
@@ -232,17 +236,21 @@ Do not start with native Winamp importers or level 3 modules.
 - [x] `task check`, `task test` and `wails3 build`
 - [x] live device pairing and local playback
 - [x] live library browsing, track selection and add-to-queue
-- [ ] live volume, next/previous and shuffle/repeat verification
-- [ ] live pairing reset from a clean state
+- [x] live volume, next/previous and shuffle/repeat verification
+- [x] live pairing reset from a clean state
 
 ### Gate E — after M4
 
-- clean Arch install test
-- AppImage and tarball smoke test
-- engine binary discovery in the packaged build
-- checksum verification
-- skin installation from the packaged build
-- no credentials in the repository or artifacts
+**Status: local packaging passed; clean Arch/VM test pending.**
+
+- [x] AppImage and tarball build locally
+- [x] AppImage and tarball smoke test in demo mode
+- [x] engine binary discovery in the packaged builds
+- [x] checksum verification
+- [x] bundled docs and GPL notice
+- [ ] skin installation from the packaged build
+- [x] no credentials in the repository or artifacts
+- [ ] clean Arch installation test
 
 ---
 
@@ -283,23 +291,26 @@ Do not start with native Winamp importers or level 3 modules.
 - [x] Tracks can be added to the local queue.
 - [x] No playback credential appears in the frontend, logs or repository.
 - [x] The old Spotify Connect/OAuth/keyring path is removed from the app.
-- [ ] Volume, next/previous and shuffle/repeat are verified live.
-- [ ] Pairing reset is verified from a clean state.
+- [x] Volume, next/previous and shuffle/repeat are verified live.
+- [x] Pairing reset is verified from a clean state.
 - [x] A second skin can be installed, activated and removed without recompiling.
 - [x] Invalid or malicious skins are rejected or safely rolled back.
 - [x] `--safe-mode` starts without third-party skins.
 - [x] Skin authoring documentation is sufficient for level 1–2 skins.
 - [ ] CI passes and produces AppImage and `.tar.gz` artifacts.
+- [x] Both release artifacts include the pinned engine and documentation.
+- [x] Checksums are generated and verified locally.
 - [ ] A clean Arch installation can install, pair and play.
+- [ ] Release screenshots are included.
 
 ---
 
 ## 9. Immediate next actions
 
-1. Verify volume, next/previous and shuffle/repeat against the running engine.
-2. Verify reset pairing from a clean state and confirm the new pairing code appears.
-3. Run `task format:write`, `task check`, `task test` and `wails3 build`.
-4. Commit the local-player integration.
-5. Begin M4: packaging, CI/release workflows and clean Arch verification.
+1. Run `task format:write`, `task check`, `task test` and `wails3 build` after the packaging changes.
+2. Push the M4 commit and confirm the CI package job and a `v0.1.0` release workflow on GitHub.
+3. Test the release artifacts on a clean Arch installation or VM, including skin installation.
+4. Add final screenshots to the README or release notes.
+5. Optionally add a UI scale preference for smaller displays.
 
 Do not begin with native Winamp importers or level 3 modules.

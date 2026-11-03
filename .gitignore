@@ -17,6 +17,7 @@
 # Generated Linux packaging files
 /build/linux/cadence.desktop
 /build/linux/appimage/build/
+/build/linux/appimage/out/
 /build/linux/appimage/cadence
 /build/linux/appimage/cadence.png
 

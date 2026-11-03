@@ -33,7 +33,7 @@ Run commands from the repository root. The Taskfile is Linux-only.
 | `task lint` | Run Go vet, ESLint and Prettier |
 | `task format` | Check Go and frontend formatting |
 | `task format:write` | Format Go and frontend sources |
-| `task package` | Create AppImage, tar.gz and checksums in `bin/` |
+| `task package` | Create AppImage, tar.gz (with the engine) and checksums in `bin/` |
 | `task clean` | Remove build outputs and generated bindings |
 
 The frontend scripts can also be run directly from `frontend/`:
@@ -167,8 +167,11 @@ Tests for the engine integration use `httptest` servers and do not need Spotify 
 2. `npm run check`, `npm run lint`, `npm run format`, `npm run test`, `npm run build`
 3. Filtered `go test` and `go vet`
 4. `wails3 build`
+5. On `main` or manual dispatch, `task package` and uploads the release artifacts
 
-The audio engine is built separately with `task audio:build`; CI packaging will add the required CGO audio libraries when M4 introduces release artifacts.
+`.github/workflows/release.yml` builds the same artifacts on a `v*` tag and publishes a GitHub release. The tag must match `version` in `build/config.yml`.
+
+`task package` builds the engine with `task audio:build` when it is missing, bundles `go-librespot` in both artifacts and writes SHA-256 checksums. Packaging requires the audio CGO libraries listed in [`installation.md`](installation.md).
 
 ## Troubleshooting
 

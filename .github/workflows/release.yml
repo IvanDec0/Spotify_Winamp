@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build Linux release (Arch Linux)
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+
+    steps:
+      - name: Install system dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            go nodejs npm git pkgconf \
+            gtk4 webkitgtk-6.0 libsoup3 \
+            libogg libvorbis flac mpg123 alsa-lib libpulse
+
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install pinned CLI tools
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34
+          go install github.com/go-task/task/v3/cmd/task@v3.54.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-release-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-release-
+            ${{ runner.os }}-go-
+
+      - name: Verify the release tag matches build/config.yml
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version="$(sed -n 's/^  version: "\(.*\)"/\1/p' build/config.yml)"
+          test -n "$version"
+          test "${GITHUB_REF_NAME#v}" = "$version"
+          echo "Releasing Cadence $version"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build release artifacts
+        run: task package
+
+      - name: Verify checksums
+        run: |
+          version="$(sed -n 's/^  version: "\(.*\)"/\1/p' build/config.yml)"
+          cd bin
+          sha256sum -c "cadence-$version-SHA256SUMS"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cadence-linux-x86_64
+          path: |
+            bin/*.AppImage
+            bin/*.tar.gz
+            bin/*SHA256SUMS
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            bin/*.AppImage
+            bin/*.tar.gz
+            bin/*SHA256SUMS

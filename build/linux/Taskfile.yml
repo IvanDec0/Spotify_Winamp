@@ -37,7 +37,7 @@ tasks:
       - task: checksums
 
   create:appimage:
-    summary: Creates an AppImage
+    summary: Creates an AppImage with the go-librespot engine bundled
     deps:
       - task: build
       - task: generate:dotdesktop
@@ -45,10 +45,20 @@ tasks:
     cmds:
       - cp "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}" "{{.APP_NAME}}"
       - cp "{{.ROOT_DIR}}/build/appicon.png" "{{.APP_NAME}}.png"
-      - wails3 generate appimage -binary "{{.APP_NAME}}" -icon "{{.APP_NAME}}.png" -desktopfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -outputdir "{{.ROOT_DIR}}/{{.BIN_DIR}}" -builddir "{{.ROOT_DIR}}/build/linux/appimage/build"
+      - mkdir -p out
+      - wails3 generate appimage -binary "{{.APP_NAME}}" -icon "{{.APP_NAME}}.png" -desktopfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -outputdir "{{.ROOT_DIR}}/build/linux/appimage/out" -builddir "{{.ROOT_DIR}}/build/linux/appimage/build"
+      - rm -f "{{.ROOT_DIR}}/build/linux/appimage/out/{{.APP_NAME}}-{{.ARCH}}.AppImage"
+      - cp "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/bin/go-librespot"
+      - chmod 755 "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/bin/go-librespot"
+      - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence"
+      - cp "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
+      - cp -R "{{.ROOT_DIR}}/LICENSES" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
+      - chmod -R a+rX "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence"
+      - cd "{{.ROOT_DIR}}/build/linux/appimage/build" && NO_STRIP=1 OUTPUT="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage" ./linuxdeploy-{{.ARCH}}.AppImage --appimage-extract-and-run --appdir {{.APP_NAME}}-{{.ARCH}}.AppDir --output appimage
+      - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/out"
 
   create:tarball:
-    summary: Creates a portable tar.gz archive
+    summary: Creates a portable tar.gz archive with the audio engine
     deps:
       - task: build
       - task: generate:dotdesktop
@@ -56,9 +66,11 @@ tasks:
     cmds:
       - mkdir -p "{{.APP_NAME}}-{{.APP_VERSION}}"
       - cp "{{.APP_NAME}}" "{{.APP_NAME}}-{{.APP_VERSION}}/"
+      - cp "go-librespot" "{{.APP_NAME}}-{{.APP_VERSION}}/"
       - cp "{{.ROOT_DIR}}/build/appicon.png" "{{.APP_NAME}}-{{.APP_VERSION}}/{{.APP_NAME}}.png"
       - cp "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" "{{.APP_NAME}}-{{.APP_VERSION}}/"
-      - cp "{{.ROOT_DIR}}/LICENSE" "{{.ROOT_DIR}}/LICENSE-ASSETS" "{{.ROOT_DIR}}/README.md" "{{.APP_NAME}}-{{.APP_VERSION}}/"
+      - cp "{{.ROOT_DIR}}/LICENSE" "{{.ROOT_DIR}}/LICENSE-ASSETS" "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.APP_NAME}}-{{.APP_VERSION}}/"
+      - cp -R "{{.ROOT_DIR}}/docs" "{{.ROOT_DIR}}/LICENSES" "{{.APP_NAME}}-{{.APP_VERSION}}/"
       - tar -czf "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.tar.gz" "{{.APP_NAME}}-{{.APP_VERSION}}"
       - rm -rf "{{.APP_NAME}}-{{.APP_VERSION}}"
 
@@ -66,7 +78,8 @@ tasks:
     summary: Writes SHA-256 checksums for release artifacts
     dir: '{{.ROOT_DIR}}/{{.BIN_DIR}}'
     cmds:
-      - sha256sum *.AppImage *.tar.gz > "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
+      - rm -f "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
+      - sha256sum "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage" "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.tar.gz" > "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
 
   generate:dotdesktop:
     summary: Generates the Linux .desktop entry

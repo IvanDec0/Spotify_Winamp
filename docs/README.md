@@ -5,6 +5,7 @@
 | [`../documentacion-cliente-musical-skins.md`](../documentacion-cliente-musical-skins.md) | Original design baseline (historical architecture sections) |
 | [`../plan/nombre_plan.md`](../plan/nombre_plan.md) | Implementation plan and test gates |
 | [`development.md`](development.md) | Local setup, commands and tooling notes |
+| [`installation.md`](installation.md) | Release installation, pairing and uninstall |
 | [`spotify-setup.md`](spotify-setup.md) | Local go-librespot build, pairing and troubleshooting |
 | [`archive/documentacion-cliente-musical-skins.es.md`](archive/documentacion-cliente-musical-skins.es.md) | Original Spanish design document (archived) |
 

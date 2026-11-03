@@ -3,6 +3,7 @@ version: '3'
 vars:
   APP_NAME: cadence
   APP_VERSION: 0.1.0
+  ARCH: x86_64
   BIN_DIR: bin
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
 
@@ -18,6 +19,8 @@ tasks:
 
   package:
     summary: Builds AppImage and tar.gz release artifacts
+    deps:
+      - task: audio:ensure
     cmds:
       - task: linux:package
 
@@ -37,6 +40,13 @@ tasks:
       - mkdir -p {{.BIN_DIR}}
       - GOBIN="{{.ROOT_DIR}}/{{.BIN_DIR}}" go install github.com/devgianlu/go-librespot/cmd/daemon@v0.10.6-0.20261102145552-522adcae8d65
       - mv "{{.BIN_DIR}}/daemon" "{{.BIN_DIR}}/go-librespot"
+
+  audio:ensure:
+    summary: Ensures the go-librespot engine exists before packaging
+    status:
+      - test -x "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot"
+    cmds:
+      - task: audio:build
 
   test:
     summary: Builds the frontend, then runs Go and frontend tests

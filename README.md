@@ -90,6 +90,7 @@ Arch Linux x86_64 only in v1.
 |---|---|
 | [`plan/nombre_plan.md`](plan/nombre_plan.md) | Actionable implementation plan and test gates |
 | [`docs/development.md`](docs/development.md) | Local setup, commands and tooling notes |
+| [`docs/installation.md`](docs/installation.md) | Release installation, pairing and uninstall |
 | [`docs/skin-format.md`](docs/skin-format.md) | Skin package, layout, theme and security reference |
 | [`docs/skin-authoring.md`](docs/skin-authoring.md) | Step-by-step guide to creating and installing a skin |
 | [`docs/spotify-setup.md`](docs/spotify-setup.md) | Local engine build, pairing, library and troubleshooting |
@@ -150,6 +151,8 @@ Build the native binary or the release artifacts:
 task build     # bin/cadence
 task package   # AppImage, tar.gz and SHA-256 checksums in bin/
 ```
+
+`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. The AppImage and tarball are named `cadence-0.1.0-linux-x86_64.*`. See [`docs/installation.md`](docs/installation.md).
 
 The engine binary is not committed. `task audio:build` downloads the pinned source and builds it with the local CGO libraries. Cadence also discovers `go-librespot` from `CADENCE_GO_LIBRESPOT`, `PATH` or next to the Cadence binary.
 
@@ -218,14 +221,17 @@ The Library panel and the queue expand the same window to 920 px. The custom tit
 │   └── archive/
 ├── .github/workflows/ci.yml         # Arch Linux CI skeleton
 ├── LICENSE                          # MIT (code)
-└── LICENSE-ASSETS                   # CC BY-SA 4.0 (original skin assets)
+├── LICENSE-ASSETS                   # CC BY-SA 4.0 (original skin assets)
+├── THIRD-PARTY-NOTICES.md           # Engine and runtime attributions
+└── LICENSES/
+    └── go-librespot-GPL-3.0.txt     # GPL-3.0 text for the separate engine
 ```
 
 ## License
 
 - **Cadence code:** MIT. See [`LICENSE`](LICENSE).
 - **Original skin assets and visual documentation:** CC BY-SA 4.0. See [`LICENSE-ASSETS`](LICENSE-ASSETS).
-- **go-librespot:** GPL-3.0. It is a separate process and is not linked into Cadence. This project is intended for private personal use, not distribution.
+- **go-librespot:** GPL-3.0. It is a separate process and is not linked into Cadence. See [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) and [`LICENSES/go-librespot-GPL-3.0.txt`](LICENSES/go-librespot-GPL-3.0.txt). This project is intended for private personal use, not distribution.
 
 Third-party trademarks, fonts and assets remain the property of their respective owners.
 
