@@ -25,7 +25,7 @@ Cadence is a desktop **Spotify player** with a compact single window, an expanda
 
 Spotify playback requires a **Premium** account. The app uses the user's own account with an unofficial client engine; see the disclaimer below. The frontend never receives playback credentials.
 
-The app uses a single compact window with a 420×220 logical design space rendered at 200% scale (840×440 physical) so text stays legible, plus an expandable queue. The default skin, **Clarity**, is an original design inspired by the minimal, elegant, animated cPro Pure lineage from the 2010–2015 Winamp modern-skin era. It contains no copied skin assets.
+The app uses a single compact window with a 420×220 logical design space. The UI automatically rescales between 125% and 300% as the window is resized (200% by default), so text stays legible without losing the compact skin layout. The default skin, **Clarity**, is an original design inspired by the minimal, elegant, animated cPro Pure lineage from the 2010–2015 Winamp modern-skin era. It contains no copied skin assets.
 
 ## What it is not
 
@@ -192,7 +192,7 @@ for_window [app_id="io.github.ivandec0.cadence"] floating enable
 for_window [app_id="io.github.ivandec0.cadence"] resize set 840 440
 ```
 
-The Library panel and the queue expand the same window to 920 px. The custom titlebar provides the drag region; window controls are marked as non-draggable.
+The Library panel and the queue expand the same window vertically; at the default 200% scale they are 920 px tall, and the height follows the current UI scale. The custom titlebar provides the drag region; window controls are marked as non-draggable.
 
 ## Repository layout
 

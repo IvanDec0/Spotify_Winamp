@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { Window } from "@wailsio/runtime";
+  import { onMount, untrack } from "svelte";
+  import { Screens, Window } from "@wailsio/runtime";
   import { WindowService } from "../bindings/cadence/internal/platform";
   import DevicePopover from "./lib/components/DevicePopover.svelte";
   import Icon from "./lib/components/Icon.svelte";
@@ -15,14 +15,27 @@
   import { skins } from "./lib/skins.svelte";
   import MusicBrowser from "./lib/MusicBrowser.svelte";
   import { music } from "./lib/music.svelte";
-  import { EXPANDED_HEIGHT, UI_SCALE, WINDOW_HEIGHT, WINDOW_WIDTH } from "./lib/layout";
+  import {
+    DEFAULT_UI_SCALE,
+    EXPANDED_HEIGHT,
+    MIN_UI_SCALE,
+    WINDOW_HEIGHT,
+    WINDOW_WIDTH,
+    fitUiScale,
+    roundedUiScale,
+  } from "./lib/layout";
 
   let queueClosing = $state(false);
   let settingsOpen = $state(false);
   let devicesOpen = $state(false);
   let skinManagerOpen = $state(false);
   let musicOpen = $state(false);
+  let uiScale = $state(DEFAULT_UI_SCALE);
+  let baseNativeWidth = Math.round(WINDOW_WIDTH * DEFAULT_UI_SCALE);
+  let baseNativeHeight = Math.round(WINDOW_HEIGHT * DEFAULT_UI_SCALE);
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  let scaleSyncTimer: ReturnType<typeof setTimeout> | null = null;
+  let syncingScale = false;
   let lastVolume = 65;
 
   let queueOpen = $derived(skins.queueOpen);
@@ -40,14 +53,81 @@
   );
   let displayError = $derived(player.error || skins.error);
 
-  function resizeWindow(height: number): void {
-    // The webview is zoomed 2x, so the native window must be twice the
-    // logical design size. The CSS layout keeps using the original 420-wide
-    // coordinate space.
-    void WindowService.SetSize(
-      Math.round(WINDOW_WIDTH * UI_SCALE),
-      Math.round(height * UI_SCALE),
-    ).catch(() => {});
+  function currentLogicalHeight(): number {
+    return musicOpen ? EXPANDED_HEIGHT : queueOpen ? expandedHeight : baseHeight;
+  }
+
+  async function syncUiScale(): Promise<void> {
+    if (syncingScale) return;
+    syncingScale = true;
+    const logicalHeight = currentLogicalHeight();
+    try {
+      const size = await Window.Size();
+      // The window mode may have changed while Size() was resolving.
+      if (currentLogicalHeight() !== logicalHeight) return;
+      const next = roundedUiScale(fitUiScale(size.width, size.height, logicalHeight));
+      if (!musicOpen && !queueOpen) {
+        baseNativeWidth = size.width;
+        baseNativeHeight = size.height;
+      }
+      uiScale = next;
+      const current = await Window.GetZoom();
+      if (Math.abs(current - next) > 0.01) {
+        await Window.SetZoom(next);
+      }
+    } catch {
+      // Keep the last known scale if the native window is not ready.
+    } finally {
+      syncingScale = false;
+    }
+  }
+
+  function scheduleUiScaleSync(): void {
+    if (scaleSyncTimer) clearTimeout(scaleSyncTimer);
+    scaleSyncTimer = setTimeout(() => {
+      scaleSyncTimer = null;
+      void syncUiScale();
+    }, 120);
+  }
+
+  async function resizeWindow(height: number, scale: number): Promise<void> {
+    let nextScale = roundedUiScale(scale);
+    let width = Math.round(WINDOW_WIDTH * nextScale);
+    let nativeHeight = Math.round(height * nextScale);
+
+    try {
+      const screen = await Screens.GetCurrent();
+      const workArea =
+        screen?.PhysicalWorkArea?.Height > 0 ? screen.PhysicalWorkArea : screen?.WorkArea;
+      if (workArea && workArea.Height > 0) {
+        const maxHeight = Math.max(Math.round(WINDOW_HEIGHT * MIN_UI_SCALE), workArea.Height - 48);
+        if (nativeHeight > maxHeight) {
+          nextScale = roundedUiScale(maxHeight / height);
+          width = Math.round(WINDOW_WIDTH * nextScale);
+          nativeHeight = Math.round(height * nextScale);
+        }
+      }
+
+      await Window.SetMinSize(
+        Math.round(WINDOW_WIDTH * MIN_UI_SCALE),
+        Math.round(height * MIN_UI_SCALE),
+      );
+      await WindowService.SetSize(width, nativeHeight);
+    } catch {
+      // Ignore transient resize failures while starting or closing.
+    }
+  }
+
+  async function restoreBaseWindow(): Promise<void> {
+    try {
+      await Window.SetMinSize(
+        Math.round(WINDOW_WIDTH * MIN_UI_SCALE),
+        Math.round(WINDOW_HEIGHT * MIN_UI_SCALE),
+      );
+      await WindowService.SetSize(baseNativeWidth, baseNativeHeight);
+    } catch {
+      // Ignore transient resize failures while starting or closing.
+    }
   }
 
   function openSettings(): void {
@@ -111,7 +191,6 @@
       queueClosing = false;
       if (!queueOpen) skins.queueOpen = true;
       closePopovers();
-      resizeWindow(expandedHeight);
       return;
     }
 
@@ -122,7 +201,6 @@
       skins.queueOpen = false;
       queueClosing = false;
       resizeTimer = null;
-      resizeWindow(baseHeight);
     }, 180);
   }
 
@@ -252,7 +330,13 @@
 
   $effect(() => {
     if (skins.loading) return;
-    resizeWindow(musicOpen ? 460 : queueOpen ? expandedHeight : baseHeight);
+    const height = musicOpen ? EXPANDED_HEIGHT : queueOpen ? expandedHeight : baseHeight;
+    if (!musicOpen && !queueOpen) {
+      void restoreBaseWindow();
+      return;
+    }
+    const scale = untrack(() => uiScale);
+    void resizeWindow(height, scale);
   });
 
   $effect(() => {
@@ -272,8 +356,12 @@
     void skins.start();
     void music.start();
     const cleanupMotion = preferences.syncSystemMotion();
+    globalThis.addEventListener("resize", scheduleUiScaleSync);
+    void syncUiScale();
     return () => {
       cleanupMotion();
+      globalThis.removeEventListener("resize", scheduleUiScaleSync);
+      if (scaleSyncTimer) clearTimeout(scaleSyncTimer);
       player.stop();
       skins.stop();
       music.stop();

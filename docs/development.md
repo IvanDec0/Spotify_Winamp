@@ -94,10 +94,12 @@ Wails v3 beta.34 maps `Window.SetSize` to `gtk_window_set_default_size` on GTK4,
 
 ### UI scale
 
-The webview keeps the original compact 420×220 logical layout and is rendered at 200% zoom. The native window is therefore created at 840×440 and the queue/Library expand it to 920 px. The scale is defined in two places that must stay in sync:
+The webview keeps the original compact 420×220 logical layout and rescales it to the native window. The default is 200%, with a supported range of 125%–300%. Resizing the window changes the zoom so the current logical view fits; opening the Library or queue also fits the window to the screen work area.
 
-- `uiScale` in [`main.go`](../main.go) configures the initial Wails window and `Zoom`.
-- `UI_SCALE` in [`frontend/src/lib/layout.ts`](../frontend/src/lib/layout.ts) scales every runtime `WindowService.SetSize` call.
+The scale is coordinated in two places:
+
+- `uiScale`, `minUiScale` and `maxUiScale` in [`main.go`](../main.go) configure the initial Wails window, minimum/maximum native size and initial zoom.
+- [`frontend/src/lib/layout.ts`](../frontend/src/lib/layout.ts) contains the same range and the fit calculation used by `App.svelte` when the window is resized.
 
 Skins keep authoring against the 420×220 logical space.
 

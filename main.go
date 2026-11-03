@@ -30,14 +30,15 @@ const (
 	appName = "Cadence"
 	appID   = "io.github.ivandec0.cadence"
 
-	// The webview keeps a 420x220 logical layout. The native window and the
-	// webview zoom are multiplied by uiScale so the compact UI stays legible.
-	uiScale          = 2.0
-	logicalWidth     = 420
-	logicalHeight    = 220
-	minLogicalWidth  = 380
-	minLogicalHeight = 200
-	maxLogicalHeight = 560
+	// The webview keeps a 420x220 logical layout. The native window is scaled
+	// around that design size; the frontend adjusts the webview zoom when the
+	// user resizes the window.
+	uiScale               = 2.0
+	minUiScale            = 1.25
+	maxUiScale            = 3.0
+	logicalWidth          = 420
+	logicalHeight         = 220
+	expandedLogicalHeight = 460
 
 	contentSecurityPolicy = "default-src 'self'; " +
 		"script-src 'self'; " +
@@ -157,9 +158,10 @@ func main() {
 		Title:            appName,
 		Width:            int(logicalWidth * uiScale),
 		Height:           int(logicalHeight * uiScale),
-		MinWidth:         int(minLogicalWidth * uiScale),
-		MinHeight:        int(minLogicalHeight * uiScale),
-		MaxHeight:        int(maxLogicalHeight * uiScale),
+		MinWidth:         int(logicalWidth * minUiScale),
+		MinHeight:        int(logicalHeight * minUiScale),
+		MaxWidth:         int(logicalWidth * maxUiScale),
+		MaxHeight:        int(expandedLogicalHeight * maxUiScale),
 		Zoom:             uiScale,
 		Frameless:        true,
 		BackgroundColour: application.NewRGB(9, 11, 15),

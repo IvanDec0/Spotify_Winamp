@@ -28,7 +28,7 @@ The demo player remains available for development and for machines without Spoti
 | Auth | Spotify device pairing (`spotify.com/pair`); credentials stored by the engine |
 | Library | go-librespot endpoints for playlists, saved albums, followed artists, Liked Songs and context tracks |
 | Audio output | PulseAudio/PipeWire, 320 kbps, device name **Cadence** |
-| Window | One frameless window, 420×220 logical at 200% UI scale (840×440 physical), 920 px tall when the Library or queue is open |
+| Window | One frameless window, 420×220 logical with a 125–300% adaptive UI scale (200% default), expanded to fit the Library or queue |
 | Skins v1 | Levels 1–2: JSON manifest/layout + CSS + local assets; no JavaScript |
 | Default skin | Original “Clarity”, inspired by cPro Pure; no copied assets |
 | Visualizer | Four simulated modes; no real beat detection |
@@ -95,7 +95,7 @@ npm 12.2.1
 
 **Goal:** a clean Wails v3 + Svelte project that builds and runs, with the existing docs preserved.
 
-**Status: complete.** The scaffold is pinned to Wails `v3.0.0-beta.34`, the demo service and time event were removed, and the Linux-only Taskfile builds a frameless shell. The logical 420×220 layout is rendered at 200% scale so text stays legible.
+**Status: complete.** The scaffold is pinned to Wails `v3.0.0-beta.34`, the demo service and time event were removed, and the Linux-only Taskfile builds a frameless shell. The logical 420×220 layout uses an adaptive 125–300% UI scale (200% default) so text stays legible.
 
 ### M1 — Demo player and Clarity skin
 
@@ -267,7 +267,7 @@ Do not start with native Winamp importers or level 3 modules.
 | Library endpoint gaps | Use the pinned master build, not the older release without albums/artists |
 | Wails v3 beta API churn | Pin `v3.0.0-beta.34`; review release notes before upgrading |
 | WebKitGTK limitations | Do not use Web Playback SDK or EME; audio is handled outside the webview |
-| 2× UI scale needs a tall screen | The Library/queue window is 920 px high; add a scale preference or adaptive scale during M4 |
+| 2× UI scale needs a tall screen | The UI rescales with the window and clamps the expanded height to the screen work area |
 | Frameless window differences on Wayland | Test on Sway; provide a fallback titlebar/drag region if needed |
 | Malicious skin packages | Strict schemas, path canonicalization, ZIP limits, CSP, safe mode |
 | Skin CSS exfiltration | No remote URLs, no scripts, local assets only |

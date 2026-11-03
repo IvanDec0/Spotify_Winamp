@@ -6,6 +6,10 @@ import { skins } from "./lib/skins.svelte";
 
 const mocks = vi.hoisted(() => {
   const setSize = vi.fn(() => Promise.resolve());
+  const setMinSize = vi.fn(() => Promise.resolve());
+  const getZoom = vi.fn(() => Promise.resolve(2));
+  const setZoom = vi.fn(() => Promise.resolve());
+  const size = vi.fn(() => Promise.resolve({ width: 840, height: 440 }));
   const minimise = vi.fn(() => Promise.resolve());
   const close = vi.fn(() => Promise.resolve());
 
@@ -156,14 +160,39 @@ const mocks = vi.hoisted(() => {
 
   const on = vi.fn(() => () => {});
 
-  return { setSize, minimise, close, player, catalog, runtime, audio, on };
+  return {
+    setSize,
+    setMinSize,
+    getZoom,
+    setZoom,
+    size,
+    minimise,
+    close,
+    player,
+    catalog,
+    runtime,
+    audio,
+    on,
+  };
 });
 
 vi.mock("@wailsio/runtime", () => ({
   Window: {
+    Size: mocks.size,
     SetSize: mocks.setSize,
+    SetMinSize: mocks.setMinSize,
+    GetZoom: mocks.getZoom,
+    SetZoom: mocks.setZoom,
     Minimise: mocks.minimise,
     Close: mocks.close,
+  },
+  Screens: {
+    GetCurrent: vi.fn(() =>
+      Promise.resolve({
+        WorkArea: { X: 0, Y: 0, Width: 1920, Height: 1048 },
+        PhysicalWorkArea: { X: 0, Y: 0, Width: 1920, Height: 1048 },
+      }),
+    ),
   },
   Events: { On: mocks.on },
   System: { invoke: vi.fn() },
@@ -235,7 +264,7 @@ describe("App shell", () => {
     render(App);
 
     await fireEvent.click(screen.getByRole("button", { name: "Show queue" }));
-    expect(mocks.setSize).toHaveBeenCalledWith(840, 920);
+    await waitFor(() => expect(mocks.setSize).toHaveBeenCalledWith(840, 920));
     expect(screen.getByLabelText("Playback queue")).not.toBeNull();
 
     await fireEvent.click(screen.getByRole("button", { name: "Hide queue" }));
@@ -306,7 +335,7 @@ describe("App shell", () => {
 
     expect(screen.getByRole("dialog", { name: "Music library" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Close music library" })).not.toBeNull();
-    expect(mocks.setSize).toHaveBeenCalledWith(840, 920);
+    await waitFor(() => expect(mocks.setSize).toHaveBeenCalledWith(840, 920));
   });
 
   it("applies the reduced-motion preference to the shell", async () => {
