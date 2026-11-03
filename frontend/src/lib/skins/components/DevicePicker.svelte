@@ -8,6 +8,7 @@
   }
 
   let { compact = false }: Props = $props();
+  let deviceLabel = $derived(player.state.device.name || "No device");
 </script>
 
 <button
@@ -15,10 +16,10 @@
   class:is-compact={compact}
   type="button"
   title="Choose a playback device"
-  aria-label={`Playback device: ${player.state.device.name}. Choose a device`}
+  aria-label={`Playback device: ${deviceLabel}. Choose a device`}
   data-component="device-picker"
   onclick={() => skins.openDevices()}
 >
   <Icon name="device" size={11} />
-  <span class="cad-device-name">{player.state.device.name}</span>
+  <span class="cad-device-name">{deviceLabel}</span>
 </button>

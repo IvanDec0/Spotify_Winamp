@@ -1,6 +1,6 @@
 # Cadence v1 — Implementation Plan
 
-> **Status:** M2 complete; M3 next<br>
+> **Status:** M3 implemented; manual Spotify playback test pending<br>
 > **Design source of truth:** [`../documentacion-cliente-musical-skins.md`](../documentacion-cliente-musical-skins.md)  
 > **Working name:** Cadence  
 > **Platform:** Arch Linux x86_64  
@@ -160,27 +160,29 @@ Exit criteria:
 
 **Goal:** control the official Spotify client with a real Premium account.
 
+**Status: implemented; manual playback test pending.** The live authorization flow, keyring persistence/restore and the no-active-device state were verified on Arch Linux. A Spotify desktop client logged in as a Connect device is still needed to verify real playback, queue content and device transfer end to end.
+
 Tasks:
 
-- Create and document the Spotify Developer app setup.
-- Implement OAuth Authorization Code + PKCE with a fixed loopback callback.
-- Store the refresh token in the OS keyring; keep access tokens in Go memory.
-- Implement the Spotify provider, rate limiting, polling and state reconciliation.
-- Implement device listing and playback transfer.
-- Implement play/pause, next/previous, seek, volume, shuffle and repeat.
-- Implement queue display and album-art caching/proxying.
-- Implement error states: no device, Premium restriction, offline, rate limit, revoked token.
-- Ensure the frontend never receives tokens.
-- Test with the official Spotify client on Arch Linux.
+- [x] Create and document the Spotify Developer app setup.
+- [x] Implement OAuth Authorization Code + PKCE with a fixed loopback callback.
+- [x] Store the refresh token in the OS keyring; keep access tokens in Go memory.
+- [x] Implement the Spotify provider, rate limiting, polling and state reconciliation.
+- [x] Implement device listing and playback transfer.
+- [x] Implement play/pause, next/previous, seek, volume, shuffle and repeat.
+- [x] Implement queue display and album-art caching/proxying.
+- [x] Implement error states: no device, Premium restriction, offline, rate limit, revoked token.
+- [x] Ensure the frontend never receives tokens.
+- [ ] Test with the official Spotify client on Arch Linux.
 
 Exit criteria:
 
-- Cadence authenticates through the system browser.
-- Cadence controls the official Spotify client.
-- Device transfer and queue display work.
-- Tokens are not present in frontend state, logs or the repository.
-- Rate limits and error states are handled without crashing.
-- Demo mode remains available without Spotify.
+- [x] Cadence authenticates through the system browser.
+- [ ] Cadence controls the official Spotify client.
+- [ ] Device transfer and queue display work end to end.
+- [x] Tokens are not present in frontend state, logs or the repository.
+- [x] Rate limits and error states are handled without crashing.
+- [x] Demo mode remains available without Spotify.
 
 ### M4 — Packaging and release
 
@@ -257,12 +259,14 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 ### Gate D — after M3
 
-- OAuth PKCE and state tests
-- token redaction test
-- Spotify client tests with `httptest` for 200/401/403/404/429/5xx
-- polling and backoff tests
-- no-active-device, offline and revoked-token UI tests
-- manual test against the official Spotify client
+**Status: automated tests passed; manual playback test pending.**
+
+- [x] OAuth PKCE and state tests
+- [x] token redaction test
+- [x] Spotify client tests with `httptest` for 200/401/403/404/429/5xx
+- [x] polling and backoff tests
+- [x] no-active-device, offline and revoked-token UI tests
+- [ ] manual test against the official Spotify client
 
 ### Gate E — after M4
 
@@ -301,10 +305,10 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 - [x] Four simulated visualizer modes and six themes work.
 - [ ] Spotify OAuth PKCE works through the system browser.
 - [ ] The refresh token is stored in the OS keyring.
-- [ ] No token appears in the frontend, logs or repository.
-- [ ] Device listing and transfer work.
-- [ ] Play/pause, next/previous, seek, volume, shuffle, repeat and queue work.
-- [ ] Rate-limit, offline, no-device and revoked-token states are handled.
+- [x] No token appears in the frontend, logs or repository.
+- [ ] Device listing and transfer work end to end with the official client.
+- [ ] Play/pause, next/previous, seek, volume, shuffle, repeat and queue work end to end.
+- [x] Rate-limit, offline, no-device and revoked-token states are handled.
 - [x] A second skin can be installed, activated and removed without recompiling.
 - [x] Invalid or malicious skins are rejected or safely rolled back.
 - [x] `--safe-mode` starts without third-party skins.
@@ -316,8 +320,8 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 ## 9. Immediate next actions
 
-1. Create the Spotify Developer app and register `http://127.0.0.1:43821/callback` (see `docs/spotify-setup.md`) before starting M3.
-2. Implement OAuth Authorization Code + PKCE, keyring storage and the Spotify provider.
-3. Add the Spotify settings/onboarding surface and error states.
+1. Open the official Spotify desktop client, log in and start playback.
+2. Verify Cadence playback controls, queue content and device transfer against that device.
+3. Then begin M4: packaging, CI/release workflows and clean Arch verification.
 
-Do not begin with native Winamp importers or level 3 modules. M1 and M2 are complete; M3 requires the user's Spotify Client ID.
+Do not begin with native Winamp importers or level 3 modules. M1 and M2 are complete; M3 implementation is complete except the manual Spotify client test.

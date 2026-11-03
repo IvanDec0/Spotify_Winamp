@@ -8,6 +8,7 @@
     onToggleQueue: () => void;
     onOpenDevices: () => void;
     onOpenSettings: () => void;
+    onOpenSpotify: () => void;
     onMinimise: () => void;
     onClose: () => void;
   }
@@ -19,11 +20,13 @@
     onToggleQueue,
     onOpenDevices,
     onOpenSettings,
+    onOpenSpotify,
     onMinimise,
     onClose,
   }: Props = $props();
 
   let providerLabel = $derived(provider === "demo" ? "DEMO" : "CONNECT");
+  let deviceLabel = $derived(deviceName || "No device");
 </script>
 
 <header class="titlebar" aria-label="Window title bar">
@@ -39,7 +42,15 @@
       <circle cx="17.2" cy="7.1" r="1.4" fill="currentColor" />
     </svg>
     <span class="brand-name">CADENCE</span>
-    <span class="provider-badge">{providerLabel}</span>
+    <button
+      class="provider-badge"
+      type="button"
+      title="Spotify account"
+      aria-label="Open Spotify account"
+      onclick={onOpenSpotify}
+    >
+      {providerLabel}
+    </button>
   </div>
 
   <div class="titlebar-grow"></div>
@@ -48,11 +59,11 @@
     class="device-chip"
     type="button"
     title="Choose a playback device"
-    aria-label={`Playback device: ${deviceName}. Choose a device`}
+    aria-label={`Playback device: ${deviceLabel}. Choose a device`}
     onclick={onOpenDevices}
   >
     <Icon name="device" size={11} />
-    <span class="device-name">{deviceName}</span>
+    <span class="device-name">{deviceLabel}</span>
     <Icon name="chevronDown" size={9} />
   </button>
 
@@ -143,15 +154,25 @@
   }
 
   .provider-badge {
+    --wails-draggable: no-drag;
+    flex: 0 0 auto;
     padding: 2px 4px 1px;
     border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
     border-radius: 3px;
+    background: transparent;
     color: color-mix(in srgb, var(--accent) 74%, var(--muted));
     font-family: "JetBrains Mono", monospace;
     font-size: 6.5px;
     font-weight: 600;
     letter-spacing: 0.1em;
     line-height: 1;
+    cursor: pointer;
+  }
+
+  .provider-badge:hover {
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    background: var(--accent-soft);
+    color: var(--accent);
   }
 
   .titlebar-grow {

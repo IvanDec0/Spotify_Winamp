@@ -13,11 +13,14 @@
   import SkinHost from "./lib/skins/SkinHost.svelte";
   import SkinManager from "./lib/skins/SkinManager.svelte";
   import { skins } from "./lib/skins.svelte";
+  import SpotifyPanel from "./lib/SpotifyPanel.svelte";
+  import { spotify } from "./lib/spotify.svelte";
 
   let queueClosing = $state(false);
   let settingsOpen = $state(false);
   let devicesOpen = $state(false);
   let skinManagerOpen = $state(false);
+  let spotifyOpen = $state(false);
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   let lastVolume = 65;
 
@@ -43,12 +46,14 @@
     }
     devicesOpen = false;
     skinManagerOpen = false;
+    spotifyOpen = false;
     settingsOpen = true;
   }
 
   function openSkinManager(): void {
     devicesOpen = false;
     settingsOpen = false;
+    spotifyOpen = false;
     if (queueOpen) setQueue(false);
     skinManagerOpen = true;
   }
@@ -57,9 +62,22 @@
     skinManagerOpen = false;
   }
 
+  function openSpotify(): void {
+    devicesOpen = false;
+    settingsOpen = false;
+    skinManagerOpen = false;
+    if (queueOpen) setQueue(false);
+    spotifyOpen = true;
+  }
+
+  function closeSpotify(): void {
+    spotifyOpen = false;
+  }
+
   function openDevices(): void {
     settingsOpen = false;
     skinManagerOpen = false;
+    spotifyOpen = false;
     devicesOpen = true;
   }
 
@@ -67,6 +85,7 @@
     settingsOpen = false;
     devicesOpen = false;
     skinManagerOpen = false;
+    spotifyOpen = false;
   }
 
   function setQueue(open: boolean): void {
@@ -146,6 +165,8 @@
     if (event.key === "Escape") {
       if (skinManagerOpen) {
         skinManagerOpen = false;
+      } else if (spotifyOpen) {
+        spotifyOpen = false;
       } else if (settingsOpen || devicesOpen) {
         closePopovers();
       } else if (queueOpen) {
@@ -160,7 +181,7 @@
       case " ":
       case "k":
         event.preventDefault();
-        void player.toggle();
+        if (player.state.canControl) void player.toggle();
         break;
       case "ArrowLeft":
         event.preventDefault();
@@ -180,20 +201,20 @@
         break;
       case "ArrowUp":
         event.preventDefault();
-        void player.setVolume(Math.min(100, player.state.volume + 5));
+        if (player.state.canControl) void player.setVolume(Math.min(100, player.state.volume + 5));
         break;
       case "ArrowDown":
         event.preventDefault();
-        void player.setVolume(Math.max(0, player.state.volume - 5));
+        if (player.state.canControl) void player.setVolume(Math.max(0, player.state.volume - 5));
         break;
       case "m":
-        toggleMute();
+        if (player.state.canControl) toggleMute();
         break;
       case "s":
-        void player.toggleShuffle();
+        if (player.state.canControl) void player.toggleShuffle();
         break;
       case "r":
-        void player.cycleRepeat();
+        if (player.state.canControl) void player.cycleRepeat();
         break;
       case "q":
         event.preventDefault();
@@ -233,14 +254,17 @@
       toggleQueue,
       openDevices,
       openSettings,
+      openSpotify,
     });
     void player.start();
     void skins.start();
+    void spotify.start();
     const cleanupMotion = preferences.syncSystemMotion();
     return () => {
       cleanupMotion();
       player.stop();
       skins.stop();
+      spotify.stop();
       skins.setHandlers(null);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
@@ -270,6 +294,7 @@
           onToggleQueue={toggleQueue}
           onOpenDevices={openDevices}
           onOpenSettings={openSettings}
+          onOpenSpotify={openSpotify}
           onMinimise={minimise}
           onClose={closeWindow}
         />
@@ -295,7 +320,7 @@
 
         {#if queueOpen}
           <div class="queue-slot" class:is-closing={queueClosing}>
-            <Queue items={player.state.queue ?? []} />
+            <Queue items={player.state.queue ?? []} provider={player.state.provider} />
           </div>
         {/if}
 
@@ -364,7 +389,13 @@
 
   {#if skinManagerOpen}
     <div class="clarity overlay-layer" data-theme={preferences.theme}>
-      <SkinManager onClose={closeSkinManager} />
+      <SkinManager onOpenSpotify={openSpotify} onClose={closeSkinManager} />
+    </div>
+  {/if}
+
+  {#if spotifyOpen}
+    <div class="clarity overlay-layer" data-theme={preferences.theme}>
+      <SpotifyPanel onClose={closeSpotify} />
     </div>
   {/if}
 

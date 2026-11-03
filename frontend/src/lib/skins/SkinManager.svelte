@@ -11,10 +11,11 @@
   import { skins } from "../skins.svelte";
 
   interface Props {
+    onOpenSpotify: () => void;
     onClose: () => void;
   }
 
-  let { onClose }: Props = $props();
+  let { onOpenSpotify, onClose }: Props = $props();
 
   let installing = $state<"zip" | "directory" | null>(null);
   let pendingRemove = $state<string | null>(null);
@@ -96,9 +97,12 @@
       <span class="eyebrow">Cadence</span>
       <h2>Skins</h2>
     </div>
-    <button class="close" type="button" aria-label="Close skin library" onclick={onClose}>
-      <Icon name="close" size={12} />
-    </button>
+    <div class="head-actions">
+      <button class="spotify-link" type="button" onclick={onOpenSpotify}>Spotify</button>
+      <button class="close" type="button" aria-label="Close skin library" onclick={onClose}>
+        <Icon name="close" size={12} />
+      </button>
+    </div>
   </header>
 
   <div class="manager-body">
@@ -337,6 +341,27 @@
     font-size: 6.5px;
     letter-spacing: 0.2em;
     text-transform: uppercase;
+  }
+
+  .head-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .spotify-link {
+    height: 20px;
+    padding: 0 5px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--muted);
+    font-size: 7.5px;
+  }
+
+  .spotify-link:hover {
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    color: var(--accent);
   }
 
   .close {

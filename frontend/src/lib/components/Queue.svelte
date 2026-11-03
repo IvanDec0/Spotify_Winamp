@@ -5,11 +5,13 @@
 
   interface Props {
     items: QueueItem[];
+    provider?: string;
   }
 
-  let { items }: Props = $props();
+  let { items, provider = "demo" }: Props = $props();
 
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
+  let queueNote = $derived(provider === "demo" ? "Demo queue" : "Spotify queue");
 </script>
 
 <section class="queue" aria-label="Playback queue">
@@ -18,7 +20,7 @@
       <span class="eyebrow">Up next</span>
       <span class="queue-count mono">{countLabel}</span>
     </div>
-    <span class="queue-note mono">Simulated queue</span>
+    <span class="queue-note mono">{queueNote}</span>
   </header>
 
   {#if items.length === 0}

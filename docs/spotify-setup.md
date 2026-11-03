@@ -36,12 +36,20 @@ The Client ID is not secret. Provide it in one of these ways:
 export CADENCE_SPOTIFY_CLIENT_ID="your-client-id"
 ```
 
-or enter it in the onboarding/settings screen when the app is implemented.
+or click the **DEMO** / **CONNECT** badge in the titlebar, paste the Client ID in
+the Spotify account panel and save it.
 
 The redirect URI must match the Spotify Dashboard entry exactly. The fixed port
 `43821` is reserved for this project. If the port is occupied at login time,
-Cadence should fail with a clear message instead of silently choosing another
-port.
+Cadence fails with a clear message instead of silently choosing another port.
+
+The refresh token is stored in the OS keyring (Secret Service). Access tokens
+remain in Go memory and are never sent to the frontend. Cadence never logs
+tokens, authorization codes or PKCE verifiers.
+
+The panel can switch between the real Spotify Connect session and the built-in
+demo player without logging out. `cadence --demo` starts with the demo player
+for the session.
 
 ## 3. Scopes
 
@@ -68,7 +76,21 @@ No library, playlist, email, profile or offline-access scopes are requested.
 7. The frontend receives only player state and controls; it never receives
    tokens.
 
-## 5. Development Mode notes
+## 5. Account panel
+
+Click the provider badge in the titlebar (**DEMO** before connecting, **CONNECT**
+afterward) to open the Spotify account panel. The panel shows:
+
+- authorization state and the active playback source;
+- the exact redirect URI to register, with a copy button;
+- the Client ID field;
+- reconnect, logout, and demo/Spotify mode controls.
+
+If the active Spotify account has no Connect device, Cadence shows a **No active
+device** state and keeps the device picker available. Start playback in the
+official Spotify client, then transfer to that device from Cadence.
+
+## 6. Development Mode notes
 
 - The app owner must have Spotify Premium.
 - A maximum of five users can be authorized while the app is in Development
@@ -78,7 +100,7 @@ No library, playlist, email, profile or offline-access scopes are requested.
   quota.
 - Extended quota access is not assumed for Cadence v1.
 
-## 6. API constraints to respect
+## 7. API constraints to respect
 
 Cadence must not depend on Spotify endpoints that were removed or restricted in
 the February 2026 API changes, including new releases, categories, artist top
@@ -88,7 +110,7 @@ devices, queue and player control endpoints.
 Queue behavior is limited by the Web API. v1 displays the queue and does not
 promise arbitrary queue reordering.
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
@@ -98,8 +120,12 @@ promise arbitrary queue reordering.
 | `404` on player endpoints | No active Spotify Connect device |
 | `429` | Rate limit; honor `Retry-After` and back off |
 | Login window does not return | Port 43821 is occupied or blocked by a local firewall |
+| `OS keyring is unavailable` | Start a Secret Service provider such as GNOME Keyring and unlock it |
+| Connect button is disabled | Save a non-empty Client ID and make sure the OS keyring is available |
+| Session expired after logout or token rotation | Click **Reconnect Spotify**; Cadence clears the revoked local refresh token |
+| `No active device` | Open the official Spotify client, start playback, then select its device in Cadence |
 
-## 8. Security rules
+## 9. Security rules
 
 - Never commit the Client ID inside a `.env` file or source file.
 - Never add a client secret.

@@ -43,7 +43,15 @@
   }: Props = $props();
 
   let playing = $derived(state.status === Status.StatusPlaying);
-  let artists = $derived(state.track.artists?.join(", ") || "Unknown artist");
+  let stateError = $derived(state.error?.message ?? "");
+  let artists = $derived(
+    state.track.artists?.join(", ") ||
+      (state.error?.code === "no_active_device" ? "Choose a Spotify device" : "Unknown artist"),
+  );
+  let displayTitle = $derived(
+    state.track.title ||
+      (state.error?.code === "no_active_device" ? "No active device" : "Nothing playing"),
+  );
   let statusLabel = $derived(
     state.status === Status.StatusPlaying
       ? "Now playing"
@@ -70,8 +78,19 @@
       <div class="track-copy">
         <div class="status-line">
           <span class="status-group">
-            <span class="status-dot" class:is-playing={playing} aria-hidden="true"></span>
-            <span class="eyebrow">{statusLabel}</span>
+            <span
+              class="status-dot"
+              class:is-playing={playing}
+              class:is-error={Boolean(state.error)}
+              aria-hidden="true"
+            ></span>
+            <span
+              class="eyebrow"
+              class:is-error={Boolean(state.error)}
+              title={stateError || statusLabel}
+            >
+              {stateError || statusLabel}
+            </span>
             {#if state.shuffle}
               <span class="mode-tag">SHUF</span>
             {/if}
@@ -82,7 +101,7 @@
           </span>
         </div>
 
-        <h1 class="track-title" title={state.track.title}>{state.track.title}</h1>
+        <h1 class="track-title" title={displayTitle}>{displayTitle}</h1>
         <p class="track-artists" title={artists}>{artists}</p>
         {#if state.track.album}
           <p class="track-album" title={state.track.album}>{state.track.album}</p>
@@ -203,7 +222,9 @@
   }
 
   .eyebrow {
+    overflow: hidden;
     color: var(--faint);
+    text-overflow: ellipsis;
     font-family: "JetBrains Mono", monospace;
     font-size: 7.5px;
     font-weight: 500;
@@ -211,6 +232,19 @@
     line-height: 1;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+
+  .eyebrow.is-error {
+    max-width: 190px;
+    color: var(--danger);
+    letter-spacing: 0.06em;
+    text-transform: none;
+  }
+
+  .status-dot.is-error {
+    background: var(--danger);
+    box-shadow: 0 0 6px var(--danger);
+    animation: none;
   }
 
   .mode-tag {

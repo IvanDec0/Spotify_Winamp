@@ -170,15 +170,23 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .cad-provider {
+  flex: 0 0 auto;
   padding: 2px 4px 1px;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: 3px;
+  background: transparent;
   color: var(--accent);
   font-family: var(--font-mono);
   font-size: 6.5px;
   font-weight: 600;
   letter-spacing: 0.1em;
   line-height: 1;
+  cursor: pointer;
+}
+
+.cad-provider:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .cad-titlebar-grow {
@@ -284,6 +292,14 @@ input[type="range"]::-webkit-slider-thumb {
     );
 }
 
+.cad-cover-inner img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .cad-cover-inner svg {
   position: absolute;
   inset: 9%;
@@ -379,6 +395,20 @@ input[type="range"]::-webkit-slider-thumb {
 .cad-status-dot.is-playing {
   background: var(--accent);
   box-shadow: 0 0 7px var(--accent);
+}
+
+.cad-status-dot.is-error {
+  background: #ff6b8a;
+  box-shadow: 0 0 6px #ff6b8a;
+}
+
+.cad-track-status span.is-error {
+  overflow: hidden;
+  color: #ff6b8a;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .cad-mode-tag {
@@ -708,6 +738,12 @@ input[type="range"]::-webkit-slider-thumb {
   font-family: var(--font-mono);
   font-size: 6.5px;
   text-align: right;
+}
+
+.cad-queue-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .cad-queue-art {

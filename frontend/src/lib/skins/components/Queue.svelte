@@ -13,6 +13,12 @@
 
   let items = $derived((player.state.queue ?? []).slice(0, Math.max(1, maxItems)));
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
+  let queueNote = $derived(player.state.provider === "demo" ? "Demo queue" : "Spotify queue");
+  let failedCovers = $state<string[]>([]);
+
+  function markCoverFailed(cover: string): void {
+    failedCovers = [...failedCovers, cover];
+  }
 </script>
 
 <section class="cad-queue" aria-label="Playback queue" data-component="queue">
@@ -22,7 +28,7 @@
         <span class="cad-queue-title">Up next</span>
         <span class="cad-queue-count">{countLabel}</span>
       </div>
-      <span class="cad-queue-note">Simulated queue</span>
+      <span class="cad-queue-note">{queueNote}</span>
     </header>
   {/if}
 
@@ -46,18 +52,31 @@
           </span>
 
           {#if showArt}
-            <span class={`cad-queue-art cad-queue-art--${item.track.cover}`} aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="6.5"
-                  stroke="currentColor"
-                  stroke-width="1"
-                  opacity=".6"
+            <span
+              class="cad-queue-art"
+              class:cad-queue-art--image={item.track.cover.startsWith("/art/")}
+              aria-hidden="true"
+            >
+              {#if item.track.cover.startsWith("/art/") && !failedCovers.includes(item.track.cover)}
+                <img
+                  src={item.track.cover}
+                  alt=""
+                  draggable="false"
+                  onerror={() => markCoverFailed(item.track.cover)}
                 />
-                <circle cx="12" cy="12" r="2" fill="currentColor" />
-              </svg>
+              {:else}
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="6.5"
+                    stroke="currentColor"
+                    stroke-width="1"
+                    opacity=".6"
+                  />
+                  <circle cx="12" cy="12" r="2" fill="currentColor" />
+                </svg>
+              {/if}
             </span>
           {/if}
 

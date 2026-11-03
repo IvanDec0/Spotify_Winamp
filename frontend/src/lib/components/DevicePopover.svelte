@@ -58,7 +58,7 @@
     </div>
   {/if}
 
-  <p class="hint mono">Demo provider · Spotify Connect in a later milestone</p>
+  <p class="hint mono">Spotify Connect · choose a device</p>
 </div>
 
 <style>

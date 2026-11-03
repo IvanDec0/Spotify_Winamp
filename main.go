@@ -9,10 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"cadence/internal/artcache"
+	"cadence/internal/keyring"
 	"cadence/internal/platform"
 	"cadence/internal/player"
 	"cadence/internal/settings"
 	"cadence/internal/skins"
+	"cadence/internal/spotify"
 
 	"github.com/adrg/xdg"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -44,6 +47,7 @@ const (
 func init() {
 	application.RegisterEvent[player.PlayerState](player.StateEvent)
 	application.RegisterEvent[skins.SkinCatalog](skins.ChangedEvent)
+	application.RegisterEvent[spotify.AuthState](spotify.AuthEvent)
 }
 
 func main() {
@@ -53,7 +57,7 @@ func main() {
 	flag.Parse()
 
 	if *demoMode {
-		log.Println("demo mode: Spotify Connect integration is not available in this build")
+		log.Println("demo mode: using the simulated player")
 	}
 	if *safeMode {
 		log.Println("safe mode: third-party skins are disabled for this session")
@@ -73,22 +77,42 @@ func main() {
 		devDir = absolute
 	}
 
+	settingsStore := settings.NewStore(filepath.Join(xdg.ConfigHome, "cadence", "config.json"))
 	skinManager, err := skins.NewManager(skins.Options{
 		SkinsDir: filepath.Join(xdg.DataHome, "cadence", "skins"),
 		DevDir:   devDir,
-		Store:    settings.NewStore(filepath.Join(xdg.ConfigHome, "cadence", "config.json")),
+		Store:    settingsStore,
 		SafeMode: *safeMode,
 	})
 	if err != nil {
 		log.Fatalf("initialise skins: %v", err)
 	}
 
-	playerService := player.NewService(player.NewDemoProvider())
+	demoProvider := player.NewDemoProvider()
+	playerService := player.NewService(demoProvider)
 	windowService := platform.NewWindowService()
 	skinService := skins.NewService(skinManager)
+	artCache := artcache.New(nil)
+	spotifyService := spotify.NewService(spotify.Options{
+		Store:     settingsStore,
+		Keyring:   keyring.NewOSStore(),
+		Player:    playerService,
+		Demo:      demoProvider,
+		Art:       artCache,
+		ForceDemo: *demoMode,
+	})
 
 	frontend := application.AssetFileServerFS(assets)
-	assetHandler := skins.AssetHandler(skinManager, frontend)
+	assetHandler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch {
+		case strings.HasPrefix(request.URL.Path, "/skins/"):
+			skinManager.ServeAsset(writer, request)
+		case strings.HasPrefix(request.URL.Path, "/art/"):
+			artCache.ServeHTTP(writer, request)
+		default:
+			frontend.ServeHTTP(writer, request)
+		}
+	})
 
 	cadence := application.New(application.Options{
 		Name:        appName,
@@ -100,6 +124,7 @@ func main() {
 			application.NewService(playerService),
 			application.NewService(windowService),
 			application.NewService(skinService),
+			application.NewService(spotifyService),
 		},
 		Linux: application.LinuxOptions{
 			ProgramName:   "cadence",

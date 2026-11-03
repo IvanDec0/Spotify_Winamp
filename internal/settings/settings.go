@@ -1,6 +1,6 @@
 // Package settings persists Cadence's small, user-editable configuration.
-// Skin state is kept separate from future Spotify state so that a corrupt or
-// partially written file never blocks the player.
+// Skin state and Spotify state are written through section-specific updates so
+// concurrent features never overwrite each other's configuration.
 package settings
 
 import (
@@ -24,14 +24,22 @@ type SkinState struct {
 	ThirdPartyDisabled bool   `json:"thirdPartyDisabled"`
 }
 
-// Config is the root configuration document. New top-level sections can be
-// added without changing the skin store.
-type Config struct {
-	SchemaVersion int       `json:"schemaVersion"`
-	Skins         SkinState `json:"skins"`
+// SpotifyState is the persisted, non-secret Spotify configuration.
+type SpotifyState struct {
+	ClientID string `json:"clientId"`
+	DemoMode bool   `json:"demoMode"`
 }
 
-// Default returns a configuration that always selects the built-in skin.
+// Config is the root configuration document. New top-level sections can be
+// added without changing the skin or Spotify stores.
+type Config struct {
+	SchemaVersion int          `json:"schemaVersion"`
+	Skins         SkinState    `json:"skins"`
+	Spotify       SpotifyState `json:"spotify"`
+}
+
+// Default returns a configuration that always selects the built-in skin and
+// leaves Spotify unconfigured.
 func Default() Config {
 	return Config{
 		SchemaVersion: SchemaVersion,
@@ -93,7 +101,41 @@ func (s *Store) loadLocked() (Config, error) {
 	return config, nil
 }
 
-// Save writes the configuration atomically with owner-only permissions.
+// UpdateSkins atomically updates only the skin section while preserving the
+// latest Spotify settings on disk.
+func (s *Store) UpdateSkins(mutate func(*SkinState) error) error {
+	return s.update(func(config *Config) error {
+		return mutate(&config.Skins)
+	})
+}
+
+// UpdateSpotify atomically updates only the Spotify section while preserving
+// the latest skin settings on disk.
+func (s *Store) UpdateSpotify(mutate func(*SpotifyState) error) error {
+	return s.update(func(config *Config) error {
+		return mutate(&config.Spotify)
+	})
+}
+
+func (s *Store) update(mutate func(*Config) error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	config, err := s.loadLocked()
+	if err != nil {
+		// The previous file is corrupt or from an unsupported version. Start
+		// from defaults rather than making the feature permanently unusable.
+		config = Default()
+	}
+	config.SchemaVersion = SchemaVersion
+	if err := mutate(&config); err != nil {
+		return err
+	}
+	return s.saveLocked(config)
+}
+
+// Save writes the complete configuration atomically with owner-only
+// permissions. Prefer UpdateSkins or UpdateSpotify for feature code.
 func (s *Store) Save(config Config) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

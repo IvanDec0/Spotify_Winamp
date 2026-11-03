@@ -18,3 +18,8 @@ export const PlayerState = "player:state";
  */
 export const SkinsChanged = "skins:changed";
 
+/**
+ * Name of the custom event "spotify:auth".
+ */
+export const SpotifyAuth = "spotify:auth";
+

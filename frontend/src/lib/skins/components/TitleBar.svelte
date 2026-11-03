@@ -21,6 +21,7 @@
   }: Props = $props();
 
   let providerLabel = $derived(player.state.provider === "demo" ? "DEMO" : "CONNECT");
+  let deviceLabel = $derived(player.state.device.name || "No device");
 
   function minimise(): void {
     void Window.Minimise().catch(() => {});
@@ -44,7 +45,17 @@
       <circle cx="17.2" cy="7.1" r="1.4" fill="currentColor" />
     </svg>
     {#if showBrand}<span class="cad-brand-name">CADENCE</span>{/if}
-    {#if showProvider}<span class="cad-provider">{providerLabel}</span>{/if}
+    {#if showProvider}
+      <button
+        class="cad-provider"
+        type="button"
+        title="Spotify account"
+        aria-label="Open Spotify account"
+        onclick={() => skins.openSpotify()}
+      >
+        {providerLabel}
+      </button>
+    {/if}
   </div>
 
   <div class="cad-titlebar-grow"></div>
@@ -54,11 +65,11 @@
       class="cad-device"
       type="button"
       title="Choose a playback device"
-      aria-label={`Playback device: ${player.state.device.name}. Choose a device`}
+      aria-label={`Playback device: ${deviceLabel}. Choose a device`}
       onclick={() => skins.openDevices()}
     >
       <Icon name="device" size={11} />
-      <span class="cad-device-name">{player.state.device.name}</span>
+      <span class="cad-device-name">{deviceLabel}</span>
       <Icon name="chevronDown" size={9} />
     </button>
   {/if}

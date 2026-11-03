@@ -15,6 +15,17 @@ export interface Device {
 }
 
 /**
+ * PlayerError is a token-free, user-facing playback error. The frontend uses
+ * the code for targeted copy and the message as a safe fallback.
+ */
+export interface PlayerError {
+    "code": string;
+    "message": string;
+    "retryable": boolean;
+    "retryAfterSeconds"?: number;
+}
+
+/**
  * PlayerState is the complete, token-free state sent to the frontend.
  */
 export interface PlayerState {
@@ -31,6 +42,7 @@ export interface PlayerState {
     "queue": QueueItem[] | null;
     "canSeek": boolean;
     "canControl": boolean;
+    "error"?: PlayerError | null;
     "revision": number;
 }
 

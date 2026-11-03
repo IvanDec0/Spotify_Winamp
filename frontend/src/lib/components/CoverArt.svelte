@@ -13,6 +13,13 @@
   let variant = $derived(
     variants.includes(cover as (typeof variants)[number]) ? cover : "meridian",
   );
+  let isImage = $derived(cover.startsWith("/art/"));
+  let imageFailed = $state(false);
+
+  $effect(() => {
+    void cover;
+    imageFailed = false;
+  });
 </script>
 
 <div
@@ -21,116 +28,128 @@
   role="img"
   aria-label={`Album art for ${title}`}
 >
-  <span class="cover-art__wash" aria-hidden="true"></span>
+  {#if isImage && !imageFailed}
+    <img
+      class="cover-art__image"
+      src={cover}
+      alt=""
+      draggable="false"
+      onerror={() => {
+        imageFailed = true;
+      }}
+    />
+  {:else}
+    <span class="cover-art__wash" aria-hidden="true"></span>
 
-  <svg class="cover-art__glyph" viewBox="0 0 100 100" fill="none" aria-hidden="true">
-    {#if variant === "meridian"}
-      <circle cx="50" cy="50" r="26" stroke="currentColor" stroke-width="1.1" opacity=".62" />
-      <circle cx="50" cy="50" r="16" stroke="currentColor" stroke-width=".7" opacity=".28" />
-      <path d="M50 10v80" stroke="currentColor" stroke-width="1.2" opacity=".9" />
-      <path d="M14 50h72" stroke="currentColor" stroke-width=".6" opacity=".28" />
-      <circle cx="50" cy="50" r="2.7" fill="currentColor" stroke="none" />
-    {:else if variant === "tides"}
-      <path
-        d="M8 57c13-11 25-11 38 0s25 11 46-2"
-        stroke="currentColor"
-        stroke-width="1.2"
-        opacity=".8"
-      />
-      <path
-        d="M8 68c13-11 25-11 38 0s25 11 46-2"
-        stroke="currentColor"
-        stroke-width=".8"
-        opacity=".5"
-      />
-      <path
-        d="M8 46c13-11 25-11 38 0s25 11 46-2"
-        stroke="currentColor"
-        stroke-width=".7"
-        opacity=".32"
-      />
-      <circle cx="75" cy="27" r="8" stroke="currentColor" stroke-width=".7" opacity=".55" />
-    {:else if variant === "orbit"}
-      <ellipse
-        cx="50"
-        cy="50"
-        rx="34"
-        ry="15"
-        stroke="currentColor"
-        stroke-width=".9"
-        opacity=".62"
-        transform="rotate(-24 50 50)"
-      />
-      <ellipse
-        cx="50"
-        cy="50"
-        rx="27"
-        ry="11"
-        stroke="currentColor"
-        stroke-width=".7"
-        opacity=".36"
-        transform="rotate(38 50 50)"
-      />
-      <circle cx="50" cy="50" r="7" stroke="currentColor" stroke-width="1" opacity=".8" />
-      <circle cx="50" cy="50" r="2" fill="currentColor" stroke="none" />
-      <circle cx="77" cy="38" r="2" fill="currentColor" stroke="none" opacity=".75" />
-    {:else if variant === "afterimage"}
-      <rect
-        x="29"
-        y="26"
-        width="38"
-        height="38"
-        stroke="currentColor"
-        stroke-width=".8"
-        opacity=".26"
-      />
-      <rect
-        x="36"
-        y="33"
-        width="38"
-        height="38"
-        stroke="currentColor"
-        stroke-width=".9"
-        opacity=".44"
-      />
-      <rect
-        x="43"
-        y="40"
-        width="38"
-        height="38"
-        stroke="currentColor"
-        stroke-width="1"
-        opacity=".72"
-      />
-      <path d="M17 79 79 17" stroke="currentColor" stroke-width=".7" opacity=".3" />
-    {:else if variant === "bloom"}
-      <g stroke="currentColor" stroke-width=".8" opacity=".58">
-        <path d="M50 50c-13-7-13-24 0-31 13 7 13 24 0 31Z" />
-        <path d="M50 50c13-7 24 0 27 12-11 10-24 8-27-12Z" />
-        <path d="M50 50c13 7 13 24 0 31-13-7-13-24 0-31Z" />
-        <path d="M50 50c-13 7-24 0-27-12 11-10 24-8 27 12Z" />
-      </g>
-      <circle cx="50" cy="50" r="3.2" fill="currentColor" stroke="none" />
-    {:else}
-      <g stroke="currentColor" stroke-width=".8" opacity=".55">
-        <rect x="18" y="24" width="13" height="10" rx="1" />
-        <rect x="36" y="24" width="9" height="10" rx="1" />
-        <rect x="50" y="24" width="15" height="10" rx="1" />
-        <rect x="70" y="24" width="11" height="10" rx="1" />
-        <rect x="18" y="42" width="9" height="13" rx="1" />
-        <rect x="32" y="42" width="14" height="13" rx="1" />
-        <rect x="51" y="42" width="8" height="13" rx="1" />
-        <rect x="64" y="42" width="17" height="13" rx="1" />
-        <rect x="18" y="63" width="15" height="9" rx="1" />
-        <rect x="38" y="63" width="10" height="9" rx="1" />
-        <rect x="53" y="63" width="12" height="9" rx="1" />
-        <rect x="70" y="63" width="11" height="9" rx="1" />
-      </g>
-      <path d="M12 84 88 16" stroke="currentColor" stroke-width="1.1" opacity=".45" />
-    {/if}
-  </svg>
+    <svg class="cover-art__glyph" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+      {#if variant === "meridian"}
+        <circle cx="50" cy="50" r="26" stroke="currentColor" stroke-width="1.1" opacity=".62" />
+        <circle cx="50" cy="50" r="16" stroke="currentColor" stroke-width=".7" opacity=".28" />
+        <path d="M50 10v80" stroke="currentColor" stroke-width="1.2" opacity=".9" />
+        <path d="M14 50h72" stroke="currentColor" stroke-width=".6" opacity=".28" />
+        <circle cx="50" cy="50" r="2.7" fill="currentColor" stroke="none" />
+      {:else if variant === "tides"}
+        <path
+          d="M8 57c13-11 25-11 38 0s25 11 46-2"
+          stroke="currentColor"
+          stroke-width="1.2"
+          opacity=".8"
+        />
+        <path
+          d="M8 68c13-11 25-11 38 0s25 11 46-2"
+          stroke="currentColor"
+          stroke-width=".8"
+          opacity=".5"
+        />
+        <path
+          d="M8 46c13-11 25-11 38 0s25 11 46-2"
+          stroke="currentColor"
+          stroke-width=".7"
+          opacity=".32"
+        />
+        <circle cx="75" cy="27" r="8" stroke="currentColor" stroke-width=".7" opacity=".55" />
+      {:else if variant === "orbit"}
+        <ellipse
+          cx="50"
+          cy="50"
+          rx="34"
+          ry="15"
+          stroke="currentColor"
+          stroke-width=".9"
+          opacity=".62"
+          transform="rotate(-24 50 50)"
+        />
+        <ellipse
+          cx="50"
+          cy="50"
+          rx="27"
+          ry="11"
+          stroke="currentColor"
+          stroke-width=".7"
+          opacity=".36"
+          transform="rotate(38 50 50)"
+        />
+        <circle cx="50" cy="50" r="7" stroke="currentColor" stroke-width="1" opacity=".8" />
+        <circle cx="50" cy="50" r="2" fill="currentColor" stroke="none" />
+        <circle cx="77" cy="38" r="2" fill="currentColor" stroke="none" opacity=".75" />
+      {:else if variant === "afterimage"}
+        <rect
+          x="29"
+          y="26"
+          width="38"
+          height="38"
+          stroke="currentColor"
+          stroke-width=".8"
+          opacity=".26"
+        />
+        <rect
+          x="36"
+          y="33"
+          width="38"
+          height="38"
+          stroke="currentColor"
+          stroke-width=".9"
+          opacity=".44"
+        />
+        <rect
+          x="43"
+          y="40"
+          width="38"
+          height="38"
+          stroke="currentColor"
+          stroke-width="1"
+          opacity=".72"
+        />
+        <path d="M17 79 79 17" stroke="currentColor" stroke-width=".7" opacity=".3" />
+      {:else if variant === "bloom"}
+        <g stroke="currentColor" stroke-width=".8" opacity=".58">
+          <path d="M50 50c-13-7-13-24 0-31 13 7 13 24 0 31Z" />
+          <path d="M50 50c13-7 24 0 27 12-11 10-24 8-27-12Z" />
+          <path d="M50 50c13 7 13 24 0 31-13-7-13-24 0-31Z" />
+          <path d="M50 50c-13 7-24 0-27-12 11-10 24-8 27 12Z" />
+        </g>
+        <circle cx="50" cy="50" r="3.2" fill="currentColor" stroke="none" />
+      {:else}
+        <g stroke="currentColor" stroke-width=".8" opacity=".55">
+          <rect x="18" y="24" width="13" height="10" rx="1" />
+          <rect x="36" y="24" width="9" height="10" rx="1" />
+          <rect x="50" y="24" width="15" height="10" rx="1" />
+          <rect x="70" y="24" width="11" height="10" rx="1" />
+          <rect x="18" y="42" width="9" height="13" rx="1" />
+          <rect x="32" y="42" width="14" height="13" rx="1" />
+          <rect x="51" y="42" width="8" height="13" rx="1" />
+          <rect x="64" y="42" width="17" height="13" rx="1" />
+          <rect x="18" y="63" width="15" height="9" rx="1" />
+          <rect x="38" y="63" width="10" height="9" rx="1" />
+          <rect x="53" y="63" width="12" height="9" rx="1" />
+          <rect x="70" y="63" width="11" height="9" rx="1" />
+        </g>
+        <path d="M12 84 88 16" stroke="currentColor" stroke-width="1.1" opacity=".45" />
+      {/if}
+    </svg>
 
-  <span class="cover-art__grain" aria-hidden="true"></span>
+    <span class="cover-art__grain" aria-hidden="true"></span>
+  {/if}
 </div>
 
 <style>
@@ -148,6 +167,14 @@
       0 1px 0 rgb(255 255 255 / 16%) inset,
       0 0 0 3px rgb(255 255 255 / 2.5%);
     isolation: isolate;
+  }
+
+  .cover-art__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .cover-art__wash {

@@ -101,7 +101,7 @@ func NewManager(options Options) (*Manager, error) {
 	manager.scanLocked()
 	manager.resolveActiveLocked()
 	if !manager.safeMode {
-		if err := manager.store.Save(manager.config); err != nil {
+		if err := manager.persistSkins(); err != nil {
 			manager.warnings = append(manager.warnings, "save settings: "+err.Error())
 		}
 	}
@@ -788,10 +788,17 @@ func (m *Manager) storeSaveLocked() error {
 	if m.safeMode {
 		return nil
 	}
-	if err := m.store.Save(m.config); err != nil {
+	if err := m.persistSkins(); err != nil {
 		return fmt.Errorf("save skin settings: %w", err)
 	}
 	return nil
+}
+
+func (m *Manager) persistSkins() error {
+	return m.store.UpdateSkins(func(state *settings.SkinState) error {
+		*state = m.config.Skins
+		return nil
+	})
 }
 
 func (m *Manager) notify(catalog SkinCatalog) {

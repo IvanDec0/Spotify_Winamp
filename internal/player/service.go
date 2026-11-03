@@ -29,6 +29,31 @@ func NewService(provider Provider) *Service {
 	return &Service{provider: provider}
 }
 
+// SetProvider switches the active provider. The frontend receives the next
+// polled state through the existing player:state event.
+//
+//wails:ignore
+func (s *Service) SetProvider(provider Provider) {
+	if provider == nil {
+		return
+	}
+	s.mu.Lock()
+	s.provider = provider
+	s.mu.Unlock()
+	go func() {
+		state, err := provider.State(context.Background())
+		if err == nil {
+			s.emit(state)
+		}
+	}()
+}
+
+func (s *Service) providerSnapshot() Provider {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.provider
+}
+
 func (s *Service) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
 	s.mu.Lock()
 	s.app = application.Get()
@@ -43,83 +68,85 @@ func (s *Service) ServiceShutdown() error {
 }
 
 func (s *Service) GetState() (PlayerState, error) {
-	return s.provider.State(context.Background())
+	provider := s.providerSnapshot()
+	return provider.State(context.Background())
 }
 
 func (s *Service) GetDevices() ([]Device, error) {
-	state, err := s.provider.State(context.Background())
+	state, err := s.providerSnapshot().State(context.Background())
 	return state.Devices, err
 }
 
 func (s *Service) GetQueue() ([]QueueItem, error) {
-	state, err := s.provider.State(context.Background())
+	state, err := s.providerSnapshot().State(context.Background())
 	return state.Queue, err
 }
 
 func (s *Service) Play() (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.Play(ctx)
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.Play(ctx)
 	})
 }
 
 func (s *Service) Pause() (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.Pause(ctx)
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.Pause(ctx)
 	})
 }
 
 func (s *Service) TogglePlay() (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.Toggle(ctx)
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.Toggle(ctx)
 	})
 }
 
 func (s *Service) Next() (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.Next(ctx)
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.Next(ctx)
 	})
 }
 
 func (s *Service) Previous() (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.Previous(ctx)
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.Previous(ctx)
 	})
 }
 
 func (s *Service) Seek(positionMS int) (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.Seek(ctx, positionMS)
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.Seek(ctx, positionMS)
 	})
 }
 
 func (s *Service) SetVolume(volume int) (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.SetVolume(ctx, volume)
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.SetVolume(ctx, volume)
 	})
 }
 
 func (s *Service) SetShuffle(enabled bool) (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.SetShuffle(ctx, enabled)
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.SetShuffle(ctx, enabled)
 	})
 }
 
 func (s *Service) SetRepeat(mode string) (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.SetRepeat(ctx, RepeatMode(mode))
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.SetRepeat(ctx, RepeatMode(mode))
 	})
 }
 
 func (s *Service) Transfer(deviceID string) (PlayerState, error) {
-	return s.mutate(func(ctx context.Context) error {
-		return s.provider.Transfer(ctx, deviceID)
+	return s.mutate(func(ctx context.Context, provider Provider) error {
+		return provider.Transfer(ctx, deviceID)
 	})
 }
 
-func (s *Service) mutate(action func(context.Context) error) (PlayerState, error) {
+func (s *Service) mutate(action func(context.Context, Provider) error) (PlayerState, error) {
 	ctx := context.Background()
-	actionErr := action(ctx)
-	state, stateErr := s.provider.State(ctx)
+	provider := s.providerSnapshot()
+	actionErr := action(ctx, provider)
+	state, stateErr := provider.State(ctx)
 	if stateErr == nil {
 		s.emit(state)
 	}
@@ -142,7 +169,7 @@ func (s *Service) startTicker() {
 		for {
 			select {
 			case <-ticker.C:
-				state, err := s.provider.State(context.Background())
+				state, err := s.providerSnapshot().State(context.Background())
 				if err == nil {
 					s.emit(state)
 				}

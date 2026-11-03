@@ -4,7 +4,7 @@
 
 ## Status
 
-**M2 complete.** Cadence now includes a validated declarative skin system (levels 1–2): manifest and layout schemas, parsed CSS, local assets, directory/ZIP installation with staging and rollback, safe mode, a Shadow DOM runtime and a skin library. The built-in Clarity skin remains the native fallback. The next milestone is M3: Spotify Connect integration.
+**M3 implemented.** Cadence now controls Spotify Connect through the official Web API: Authorization Code + PKCE in the system browser, refresh token in the OS keyring, access token only in Go memory, real playback/device/queue state, album-art proxying, rate-limit and no-device states, and a Spotify account panel. Live login, keyring restore and the no-active-device state are verified; a final manual playback test with the official Spotify desktop client is still pending. M2's declarative skin system remains complete.
 
 - Design source of truth: [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md)
 - Implementation plan: [`plan/nombre_plan.md`](plan/nombre_plan.md)
@@ -16,6 +16,8 @@
 ## What it is
 
 Cadence is a desktop **controller** for Spotify, not a music player. Audio continues to play in the official Spotify client through Spotify Connect. Cadence owns authentication, playback state, queue state, device selection and the visual skin runtime; it never receives or processes audio.
+
+Spotify playback requires a Premium account and a Spotify Developer app. Click the **DEMO** / **CONNECT** provider badge in the titlebar to open the account panel, register `http://127.0.0.1:43821/callback` in the dashboard, paste the Client ID and connect. The refresh token stays in the OS keyring; the frontend never receives tokens. The demo player remains available with `cadence --demo`.
 
 The app uses a single compact window (420×220 by default) with an expandable queue. The default skin, **Clarity**, is an original design inspired by the minimal, elegant, animated cPro Pure lineage from the 2010–2015 Winamp modern-skin era. It contains no copied skin assets.
 
@@ -109,6 +111,15 @@ task package   # AppImage, tar.gz and SHA-256 checksums in bin/
 
 Packaging tasks are scaffolded in M0 and will be validated in M4.
 
+## Spotify account
+
+```text
+Redirect URI: http://127.0.0.1:43821/callback
+Scopes: user-read-playback-state user-modify-playback-state user-read-currently-playing
+```
+
+The Client ID is non-secret and is stored in `~/.config/cadence/config.json` (or accepted through `CADENCE_SPOTIFY_CLIENT_ID`). No client secret is used. The refresh token is stored in the OS keyring; access tokens are held in Go memory only. See [`docs/spotify-setup.md`](docs/spotify-setup.md).
+
 ## Skins
 
 Clarity is the built-in native skin and is always available. Declarative skins are installed from a directory or ZIP in the skin library. They contain JSON layouts, CSS and local assets; no skin JavaScript is executed.
@@ -142,6 +153,7 @@ The custom titlebar provides the drag region; window controls are marked as non-
 ├── Taskfile.yml                     # Developer commands
 ├── build/                           # Wails metadata and Linux build tasks
 ├── frontend/                        # Svelte 5 + TypeScript UI
+├── internal/                        # Go services: player, Spotify, skins, keyring
 ├── skins-dev/                       # Development skins, including Afterglow
 ├── documentacion-cliente-musical-skins.md
 ├── plan/

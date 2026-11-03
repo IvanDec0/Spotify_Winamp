@@ -18,6 +18,15 @@ const (
 	RepeatTrack   RepeatMode = "track"
 )
 
+// PlayerError is a token-free, user-facing playback error. The frontend uses
+// the code for targeted copy and the message as a safe fallback.
+type PlayerError struct {
+	Code              string `json:"code"`
+	Message           string `json:"message"`
+	Retryable         bool   `json:"retryable"`
+	RetryAfterSeconds int    `json:"retryAfterSeconds,omitempty"`
+}
+
 // Track is the provider-neutral metadata needed by the player UI.
 type Track struct {
 	ID         string   `json:"id"`
@@ -50,18 +59,19 @@ type QueueItem struct {
 
 // PlayerState is the complete, token-free state sent to the frontend.
 type PlayerState struct {
-	Provider   string      `json:"provider"`
-	Status     Status      `json:"status"`
-	Track      Track       `json:"track"`
-	ProgressMS int         `json:"progressMs"`
-	DurationMS int         `json:"durationMs"`
-	Volume     int         `json:"volume"`
-	Shuffle    bool        `json:"shuffle"`
-	Repeat     RepeatMode  `json:"repeat"`
-	Device     Device      `json:"device"`
-	Devices    []Device    `json:"devices"`
-	Queue      []QueueItem `json:"queue"`
-	CanSeek    bool        `json:"canSeek"`
-	CanControl bool        `json:"canControl"`
-	Revision   uint64      `json:"revision"`
+	Provider   string       `json:"provider"`
+	Status     Status       `json:"status"`
+	Track      Track        `json:"track"`
+	ProgressMS int          `json:"progressMs"`
+	DurationMS int          `json:"durationMs"`
+	Volume     int          `json:"volume"`
+	Shuffle    bool         `json:"shuffle"`
+	Repeat     RepeatMode   `json:"repeat"`
+	Device     Device       `json:"device"`
+	Devices    []Device     `json:"devices"`
+	Queue      []QueueItem  `json:"queue"`
+	CanSeek    bool         `json:"canSeek"`
+	CanControl bool         `json:"canControl"`
+	Error      *PlayerError `json:"error,omitempty"`
+	Revision   uint64       `json:"revision"`
 }

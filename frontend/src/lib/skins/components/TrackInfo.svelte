@@ -11,7 +11,17 @@
   let { showAlbum = true, showStatus = true, align = "left" }: Props = $props();
 
   let playing = $derived(player.state.status === Status.StatusPlaying);
-  let artists = $derived(player.state.track.artists?.join(", ") || "Unknown artist");
+  let stateError = $derived(player.state.error?.message ?? "");
+  let artists = $derived(
+    player.state.track.artists?.join(", ") ||
+      (player.state.error?.code === "no_active_device"
+        ? "Choose a Spotify device"
+        : "Unknown artist"),
+  );
+  let displayTitle = $derived(
+    player.state.track.title ||
+      (player.state.error?.code === "no_active_device" ? "No active device" : "Nothing playing"),
+  );
   let statusLabel = $derived(
     player.state.status === Status.StatusPlaying
       ? "Now playing"
@@ -24,13 +34,20 @@
 <div class="cad-track-info" class:is-centered={align === "center"} data-component="track-info">
   {#if showStatus}
     <div class="cad-track-status">
-      <span class="cad-status-dot" class:is-playing={playing} aria-hidden="true"></span>
-      <span>{statusLabel}</span>
+      <span
+        class="cad-status-dot"
+        class:is-playing={playing}
+        class:is-error={Boolean(player.state.error)}
+        aria-hidden="true"
+      ></span>
+      <span class:is-error={Boolean(player.state.error)} title={stateError || statusLabel}>
+        {stateError || statusLabel}
+      </span>
       {#if player.state.shuffle}<span class="cad-mode-tag">SHUF</span>{/if}
     </div>
   {/if}
 
-  <h1 class="cad-track-title" title={player.state.track.title}>{player.state.track.title}</h1>
+  <h1 class="cad-track-title" title={displayTitle}>{displayTitle}</h1>
   <p class="cad-track-artists" title={artists}>{artists}</p>
   {#if showAlbum && player.state.track.album}
     <p class="cad-track-album" title={player.state.track.album}>{player.state.track.album}</p>

@@ -118,6 +118,15 @@ const mocks = vi.hoisted(() => {
     canChangeActiveSkin: true,
   };
 
+  const auth = {
+    status: "unauthenticated",
+    clientId: "",
+    redirectUri: "http://127.0.0.1:43821/callback",
+    keyringAvailable: true,
+    playerMode: "demo",
+    error: "",
+  };
+
   const runtime = {
     id: "clarity",
     name: "Clarity",
@@ -140,7 +149,7 @@ const mocks = vi.hoisted(() => {
 
   const on = vi.fn(() => () => {});
 
-  return { setSize, minimise, close, player, catalog, runtime, on };
+  return { setSize, minimise, close, player, catalog, runtime, auth, on };
 });
 
 vi.mock("@wailsio/runtime", () => ({
@@ -157,6 +166,24 @@ vi.mock("./lib/player.svelte", () => ({ player: mocks.player }));
 
 vi.mock("../bindings/cadence/internal/platform", () => ({
   WindowService: { SetSize: mocks.setSize },
+}));
+
+vi.mock("../bindings/cadence/internal/spotify", () => ({
+  AuthStatus: {
+    AuthChecking: "checking",
+    AuthUnauthenticated: "unauthenticated",
+    AuthAuthenticating: "authenticating",
+    AuthAuthenticated: "authenticated",
+    AuthError: "error",
+  },
+  Service: {
+    GetAuthState: vi.fn(() => Promise.resolve(mocks.auth)),
+    Login: vi.fn(() => Promise.resolve()),
+    Logout: vi.fn(() => Promise.resolve()),
+    SetClientID: vi.fn(() => Promise.resolve()),
+    UseDemo: vi.fn(() => Promise.resolve()),
+    UseSpotify: vi.fn(() => Promise.resolve()),
+  },
 }));
 
 vi.mock("../bindings/cadence/internal/skins", () => ({
@@ -261,6 +288,15 @@ describe("App shell", () => {
 
     expect(screen.getByRole("dialog", { name: "Skin library" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Close skin library" })).not.toBeNull();
+  });
+
+  it("opens the Spotify account panel from the provider badge", async () => {
+    render(App);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Open Spotify account" }));
+
+    expect(screen.getByRole("dialog", { name: "Spotify account" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Close Spotify account" })).not.toBeNull();
   });
 
   it("applies the reduced-motion preference to the shell", async () => {

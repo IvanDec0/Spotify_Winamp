@@ -13,6 +13,7 @@ export {
 
 export type {
     Device,
+    PlayerError,
     PlayerState,
     QueueItem,
     Track

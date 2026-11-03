@@ -105,9 +105,48 @@ Installed skins are stored under `$XDG_DATA_HOME/cadence/skins/<id>/`; settings 
 
 See [`skin-format.md`](skin-format.md) and [`skin-authoring.md`](skin-authoring.md).
 
+## Spotify development
+
+Spotify uses Authorization Code + PKCE with a fixed loopback callback:
+
+```text
+http://127.0.0.1:43821/callback
+```
+
+Set the public Client ID temporarily with:
+
+```bash
+export CADENCE_SPOTIFY_CLIENT_ID="your-client-id"
+./bin/cadence
+```
+
+or paste it into the Spotify account panel opened from the **DEMO** / **CONNECT**
+badge. The Client ID is stored in `$XDG_CONFIG_HOME/cadence/config.json`; the
+refresh token is stored by the OS keyring and the access token stays in Go
+memory.
+
+Useful flags:
+
+```bash
+./bin/cadence --demo   # start with the simulated player even if a token exists
+```
+
+The account panel exposes reconnect, logout and demo/Spotify mode switching.
+No token, authorization code or PKCE verifier is logged or sent to the
+frontend. Register the exact redirect URI in the Spotify Developer Dashboard
+before testing login. If port 43821 is occupied, authentication fails with a
+clear message; do not silently choose another port.
+
+Tests use `httptest` servers and an injected fake browser opener. The live
+authorization callback and keyring restore are verified manually on Arch; a
+playback test also needs the official Spotify desktop client logged in and
+active as a Connect device.
+
 ## Architecture rules for v1
 
 - The frontend never receives Spotify access tokens, refresh tokens or PKCE values.
+- Spotify access tokens stay in Go memory; refresh tokens go to the OS keyring.
+- The demo provider remains available through `--demo`.
 - Album art is proxied/cached through Go; skins and CSS cannot load arbitrary remote URLs.
 - Skins are declarative JSON + CSS + local assets. No JavaScript in level 1–2 skins.
 - The built-in Clarity skin must always be available as a fallback.
@@ -137,3 +176,6 @@ Packaging and release automation are added in M4.
 | Skin is missing from the library | Check its warning in the library; confirm the directory name matches the manifest `id` |
 | Skin CSS is not applied | Confirm `styles.css` is at the package root and its URLs resolve to local assets |
 | Third-party skins are disabled | Restart without `--safe-mode` and enable them in the skin library |
+| Spotify says `No active device` | Open the official Spotify client and start playback; then select the device in Cadence |
+| Spotify login cannot bind port 43821 | Close the process using the port; the redirect URI is fixed by design |
+| Keyring unavailable | Start/unlock GNOME Keyring or another Secret Service provider |
