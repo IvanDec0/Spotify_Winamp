@@ -118,15 +118,21 @@
     border-radius: 50%;
     color: var(--muted);
     transition:
-      color 130ms ease,
-      background-color 130ms ease,
-      border-color 130ms ease;
+      color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
   }
 
   .control:hover:not(:disabled) {
     border-color: var(--line);
     background: var(--surface-2);
     color: var(--text);
+    transform: translateY(-1px) scale(1.06);
+  }
+
+  .control:active:not(:disabled) {
+    transform: translateY(0) scale(0.92);
   }
 
   .control.is-active {
@@ -172,18 +178,22 @@
       0 0 0 3px color-mix(in srgb, var(--accent) 5%, transparent),
       0 0 16px color-mix(in srgb, var(--accent) 14%, transparent);
     transition:
-      transform 140ms ease,
-      border-color 140ms ease,
-      background-color 140ms ease;
+      transform var(--motion-base) var(--ease-spring),
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      box-shadow var(--motion-base) ease;
   }
 
   .play:hover:not(:disabled) {
     border-color: color-mix(in srgb, var(--accent) 62%, var(--line-strong));
-    transform: scale(1.04);
+    transform: scale(1.06);
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--accent) 7%, transparent),
+      0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
   }
 
   .play:active:not(:disabled) {
-    transform: scale(0.97);
+    transform: scale(0.95);
   }
 
   .play.is-playing::before {

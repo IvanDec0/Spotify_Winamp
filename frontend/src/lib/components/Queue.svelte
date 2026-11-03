@@ -71,7 +71,7 @@
     padding: 10px 14px 10px;
     border-top: 1px solid var(--line-strong);
     background:
-      linear-gradient(180deg, color-mix(in srgb, var(--surface) 35%, transparent), transparent 28%),
+      linear-gradient(180deg, color-mix(in srgb, var(--surface) 45%, transparent), transparent 30%),
       color-mix(in srgb, var(--bg) 88%, transparent);
   }
 
@@ -100,7 +100,10 @@
   }
 
   .queue-count {
-    color: var(--faint);
+    padding: 1px 4px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--muted);
     font-size: 7.5px;
     letter-spacing: 0.08em;
   }
@@ -119,6 +122,20 @@
     padding: 0 6px 0 0;
     overflow-y: auto;
     list-style: none;
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      transparent 0,
+      black 7px,
+      black calc(100% - 8px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      180deg,
+      transparent 0,
+      black 7px,
+      black calc(100% - 8px),
+      transparent
+    );
   }
 
   .queue-row {
@@ -131,16 +148,22 @@
     padding: 3px 6px 3px 4px;
     border-radius: 5px;
     color: var(--muted);
-    transition: background-color 150ms ease;
+    transition:
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-out);
   }
 
   .queue-row:hover {
     background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+    transform: translateX(1px);
   }
 
   .queue-row.is-current {
-    background: color-mix(in srgb, var(--accent) 7%, transparent);
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 78%),
+      color-mix(in srgb, var(--surface-2) 40%, transparent);
     color: var(--text);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 5%, transparent) inset;
   }
 
   .queue-row.is-current::before {

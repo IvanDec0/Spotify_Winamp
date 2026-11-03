@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./components/Icon.svelte";
+  import LibrarySkeleton from "./components/LibrarySkeleton.svelte";
   import MediaCover from "./components/MediaCover.svelte";
   import { player } from "./player.svelte";
   import { music } from "./music.svelte";
@@ -103,7 +104,9 @@
     <div class="head-actions">
       {#if context}
         <button class="head-button" type="button" onclick={() => music.clearContext()}>
-          <Icon name="chevronDown" size={11} />
+          <span class="head-button-icon" aria-hidden="true">
+            <Icon name="chevronDown" size={11} />
+          </span>
           Library
         </button>
       {:else if audio.authenticated}
@@ -212,26 +215,38 @@
       <section class="context-panel">
         <div class="context-actions">
           <button
-            class="primary"
+            class="primary play-all"
             type="button"
             disabled={music.busy}
             onclick={() => void music.playContext(context.uri || "")}
           >
+            <Icon name="play" size={10} />
             Play all
           </button>
+          <span class="context-chip mono">
+            {context.length || context.items.length} tracks
+          </span>
           {#if !context.ready}
             <span class="context-status">Loading tracks… {context.cached}/{context.length}</span>
           {/if}
         </div>
         {#if context.items.length === 0}
-          <p class="empty-copy">
-            {context.ready ? "This context has no tracks." : "Waiting for track metadata."}
-          </p>
+          {#if context.ready}
+            <p class="empty-copy">This context has no tracks.</p>
+          {:else}
+            <LibrarySkeleton rows={6} compact />
+          {/if}
         {:else}
           <ol class="track-list">
             {#each context.items as item, index (item.uri + ":" + index)}
               <li class="track-row" class:is-current={item.uri === currentTrackURI}>
-                <span class="track-index">{String(index + 1).padStart(2, "0")}</span>
+                {#if item.uri === currentTrackURI}
+                  <span class="playing-bars" aria-label="Currently playing">
+                    <i></i><i></i><i></i>
+                  </span>
+                {:else}
+                  <span class="track-index">{String(index + 1).padStart(2, "0")}</span>
+                {/if}
                 <MediaCover src={item.cover} label={item.title || item.uri} size={28} />
                 <button
                   class="track-copy"
@@ -275,6 +290,13 @@
             }}
           >
             {option.label}
+            {#if option.id === "playlists" && loaded.playlists && music.playlists.length > 0}
+              <span class="tab-count">{music.playlists.length}</span>
+            {:else if option.id === "albums" && loaded.albums && music.albums.length > 0}
+              <span class="tab-count">{music.albums.length}</span>
+            {:else if option.id === "artists" && loaded.artists && music.artists.length > 0}
+              <span class="tab-count">{music.artists.length}</span>
+            {/if}
           </button>
         {/each}
       </nav>
@@ -282,6 +304,7 @@
       {#if tab === "playlists"}
         {#if music.playlists.length === 0}
           <p class="empty-copy">{music.busy ? "Loading playlists…" : "No playlists found."}</p>
+          {#if music.busy}<LibrarySkeleton rows={7} />{/if}
         {:else}
           <ul class="library-list">
             {#each music.playlists as playlist (playlist.uri)}
@@ -298,7 +321,9 @@
                       {playlist.owner || "Playlist"} · {playlist.length} tracks
                     </span>
                   </span>
-                  <Icon name="chevronDown" size={10} />
+                  <span class="row-arrow" aria-hidden="true">
+                    <Icon name="chevronDown" size={10} />
+                  </span>
                 </button>
               </li>
             {/each}
@@ -307,6 +332,7 @@
       {:else if tab === "albums"}
         {#if music.albums.length === 0}
           <p class="empty-copy">{music.busy ? "Loading albums…" : "No saved albums found."}</p>
+          {#if music.busy}<LibrarySkeleton rows={7} />{/if}
         {:else}
           <ul class="library-list">
             {#each music.albums as album (album.uri)}
@@ -325,7 +351,9 @@
                         · {album.year}{/if}
                     </span>
                   </span>
-                  <Icon name="chevronDown" size={10} />
+                  <span class="row-arrow" aria-hidden="true">
+                    <Icon name="chevronDown" size={10} />
+                  </span>
                 </button>
               </li>
             {/each}
@@ -334,6 +362,7 @@
       {:else if tab === "artists"}
         {#if music.artists.length === 0}
           <p class="empty-copy">{music.busy ? "Loading artists…" : "No followed artists found."}</p>
+          {#if music.busy}<LibrarySkeleton rows={7} />{/if}
         {:else}
           <ul class="library-list">
             {#each music.artists as artist (artist.uri)}
@@ -348,7 +377,9 @@
                     <span class="row-name">{artist.name}</span>
                     <span class="row-meta">Artist</span>
                   </span>
-                  <Icon name="chevronDown" size={10} />
+                  <span class="row-arrow" aria-hidden="true">
+                    <Icon name="chevronDown" size={10} />
+                  </span>
                 </button>
               </li>
             {/each}
@@ -365,7 +396,9 @@
             <span class="row-name">Liked Songs</span>
             <span class="row-meta">Your saved tracks</span>
           </span>
-          <Icon name="chevronDown" size={10} />
+          <span class="row-arrow" aria-hidden="true">
+            <Icon name="chevronDown" size={10} />
+          </span>
         </button>
       {/if}
     {/if}
@@ -399,11 +432,18 @@
     height: 100%;
     flex-direction: column;
     color: var(--text);
-    background: var(--bg);
+    background:
+      radial-gradient(
+        70% 40% at 50% -10%,
+        color-mix(in srgb, var(--accent) 8%, transparent),
+        transparent 70%
+      ),
+      var(--bg);
     font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   }
 
   .library-head {
+    position: relative;
     display: flex;
     min-height: 34px;
     flex: 0 0 auto;
@@ -411,7 +451,26 @@
     justify-content: space-between;
     padding: 5px 10px 5px 13px;
     border-bottom: 1px solid var(--line);
-    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 26%, transparent), transparent),
+      color-mix(in srgb, var(--bg) 82%, transparent);
+  }
+
+  .library-head::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent
+    );
+    opacity: 0.45;
+    pointer-events: none;
   }
 
   .library-title {
@@ -462,11 +521,24 @@
     border-radius: 4px;
     color: var(--muted);
     font-size: 7.5px;
+    transition:
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
   }
 
   .head-button:hover {
     border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
     color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .head-button-icon {
+    display: inline-block;
+    margin-right: 2px;
+    transform: rotate(90deg);
   }
 
   .close {
@@ -527,27 +599,53 @@
   }
 
   .tabs {
+    position: sticky;
+    top: -7px;
+    z-index: 2;
     display: flex;
     gap: 4px;
-    margin-bottom: 6px;
+    margin: -7px -12px 6px;
+    padding: 7px 12px 5px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
   }
 
   .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 3px 6px;
     border: 1px solid transparent;
     border-radius: 3px;
     color: var(--faint);
     font-size: 7.5px;
+    transition:
+      color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
   }
 
   .tab:hover {
     color: var(--text);
+    transform: translateY(-1px);
   }
 
   .tab.is-active {
     border-color: color-mix(in srgb, var(--accent) 30%, transparent);
     background: color-mix(in srgb, var(--accent) 9%, transparent);
     color: var(--accent);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 7%, transparent);
+  }
+
+  .tab-count {
+    padding: 0 3px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+    color: var(--faint);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 5.5px;
+    line-height: 1.5;
   }
 
   .library-list,
@@ -569,10 +667,19 @@
     padding: 3px 4px;
     border-radius: 4px;
     text-align: left;
+    transition:
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-out);
   }
 
   .library-row:hover {
     background: color-mix(in srgb, var(--accent) 7%, transparent);
+    transform: translateX(1px);
+  }
+
+  .library-row:hover .row-arrow {
+    color: var(--accent);
+    transform: translateX(1px) rotate(-90deg);
   }
 
   .liked-row {
@@ -594,8 +701,15 @@
 
   .library-row > :last-child {
     margin-left: auto;
-    transform: rotate(-90deg);
+  }
+
+  .row-arrow {
+    margin-left: auto;
     color: var(--faint);
+    transform: rotate(-90deg);
+    transition:
+      color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
   }
 
   .row-copy {
@@ -630,6 +744,28 @@
     margin-bottom: 6px;
   }
 
+  .play-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .play-all:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 20%, var(--surface-2));
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 12%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .context-chip {
+    padding: 1px 4px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--faint);
+    font-size: 6px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
   .context-status {
     color: var(--faint);
     font-family: "JetBrains Mono", monospace;
@@ -642,8 +778,11 @@
     border-radius: 4px;
     font-size: 8px;
     transition:
-      border-color 120ms ease,
-      background-color 120ms ease;
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring),
+      box-shadow var(--motion-fast) ease;
   }
 
   .primary {
@@ -677,6 +816,7 @@
   .foot-button:hover:not(:disabled) {
     border-color: color-mix(in srgb, var(--accent) 45%, transparent);
     color: var(--accent);
+    transform: translateY(-1px);
   }
 
   .track-row {
@@ -686,15 +826,65 @@
     gap: 6px;
     border-radius: 4px;
     padding: 2px 4px;
+    transition:
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-out);
   }
 
-  .track-row:hover,
+  .track-row:hover {
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    transform: translateX(1px);
+  }
+
   .track-row.is-current {
-    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 82%),
+      color-mix(in srgb, var(--surface-2) 32%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 5%, transparent) inset;
   }
 
   .track-row.is-current .track-name {
     color: var(--accent);
+  }
+
+  .playing-bars {
+    display: flex;
+    width: 16px;
+    height: 10px;
+    flex: 0 0 16px;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 1.5px;
+  }
+
+  .playing-bars i {
+    display: block;
+    width: 1.5px;
+    height: 5px;
+    border-radius: 1px;
+    background: var(--accent);
+    box-shadow: 0 0 4px var(--accent-glow);
+    animation: library-bounce 900ms ease-in-out infinite;
+  }
+
+  .playing-bars i:nth-child(2) {
+    height: 9px;
+    animation-delay: -0.3s;
+  }
+
+  .playing-bars i:nth-child(3) {
+    height: 7px;
+    animation-delay: -0.6s;
+  }
+
+  @keyframes library-bounce {
+    0%,
+    100% {
+      transform: scaleY(0.4);
+    }
+    50% {
+      transform: scaleY(1);
+    }
   }
 
   .track-index {
@@ -759,8 +949,12 @@
 
   .empty-copy {
     margin: 8px 0;
+    padding: 14px;
+    border: 1px dashed var(--line);
+    border-radius: 5px;
     color: var(--faint);
     font-size: 8px;
+    text-align: center;
   }
 
   .empty-state,

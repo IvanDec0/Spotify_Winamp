@@ -71,6 +71,10 @@ install -Dm644 cadence.desktop ~/.local/share/applications/cadence.desktop
 install -Dm644 cadence.png ~/.local/share/icons/hicolor/512x512/apps/cadence.png
 ```
 
+## Skins included in the release
+
+The AppImage and tarball include the development skins **Lumina** (four glossy themes with animated chrome) and **Afterglow** as a second layout example. They are discovered from the bundled `skins/` directory and appear in the skin library, where you can activate them and switch themes. To install additional skins, use **Install .zip…** or **Install folder…**.
+
 ## First run and pairing
 
 1. Start Cadence without `--demo`.

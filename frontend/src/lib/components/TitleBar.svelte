@@ -125,9 +125,26 @@
     padding: 0 7px 0 12px;
     border-bottom: 1px solid var(--line);
     background:
-      linear-gradient(180deg, rgb(255 255 255 / 3%), transparent),
+      linear-gradient(180deg, rgb(255 255 255 / 4.5%), transparent 72%),
       color-mix(in srgb, var(--bg) 76%, transparent);
     backdrop-filter: blur(12px);
+  }
+
+  .titlebar::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--accent) 28%, transparent),
+      transparent
+    );
+    opacity: 0.5;
+    pointer-events: none;
   }
 
   .brand {
@@ -155,7 +172,10 @@
 
   .provider-badge {
     --wails-draggable: no-drag;
+    display: inline-flex;
     flex: 0 0 auto;
+    align-items: center;
+    gap: 3px;
     padding: 2px 4px 1px;
     border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
     border-radius: 3px;
@@ -167,12 +187,36 @@
     letter-spacing: 0.1em;
     line-height: 1;
     cursor: pointer;
+    transition:
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      color var(--motion-fast) ease;
+  }
+
+  .provider-badge::before {
+    content: "";
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 5px currentColor;
+    animation: provider-pulse 2.4s ease-in-out infinite;
   }
 
   .provider-badge:hover {
     border-color: color-mix(in srgb, var(--accent) 55%, transparent);
     background: var(--accent-soft);
     color: var(--accent);
+  }
+
+  @keyframes provider-pulse {
+    0%,
+    100% {
+      opacity: 0.45;
+    }
+    50% {
+      opacity: 1;
+    }
   }
 
   .titlebar-grow {
@@ -191,25 +235,6 @@
     border: 1px solid transparent;
     border-radius: 4px;
     color: var(--muted);
-    transition:
-      color 140ms ease,
-      border-color 140ms ease,
-      background-color 140ms ease;
-  }
-
-  .device-chip:hover {
-    border-color: var(--line);
-    background: var(--surface-2);
-    color: var(--text);
-  }
-
-  .device-name {
-    overflow: hidden;
-    font-size: 9px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .title-button {
@@ -222,22 +247,45 @@
     border: 1px solid transparent;
     border-radius: 4px;
     color: var(--faint);
-    transition:
-      color 140ms ease,
-      border-color 140ms ease,
-      background-color 140ms ease;
   }
 
+  .device-chip,
+  .title-button {
+    transition:
+      color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring),
+      box-shadow var(--motion-fast) ease;
+  }
+
+  .device-chip:hover,
   .title-button:hover {
     border-color: var(--line);
     background: var(--surface-2);
     color: var(--text);
+    transform: translateY(-1px);
+  }
+
+  .device-chip:active,
+  .title-button:active {
+    transform: translateY(0) scale(0.94);
   }
 
   .title-button.is-active {
     border-color: color-mix(in srgb, var(--accent) 24%, transparent);
     background: var(--accent-soft);
     color: var(--accent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 12%, transparent) inset;
+  }
+
+  .device-name {
+    overflow: hidden;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .title-divider {

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "lumina",
+  "name": "Lumina",
+  "version": "1.0.0",
+  "description": "A glossy, animated media-player skin inspired by the Windows Media Player era. Original CSS artwork, chrome surfaces, LED accents and cinematic motion.",
+  "author": "Cadence",
+  "license": "CC BY-SA 4.0",
+  "entry": {
+    "layout": "layout.json",
+    "styles": "styles.css"
+  },
+  "capabilities": [
+    "player.read",
+    "player.control",
+    "queue.read",
+    "devices.read",
+    "devices.control"
+  ],
+  "themes": ["azure", "carbon", "ember", "violet"],
+  "defaultTheme": "azure",
+  "visualizer": {
+    "modes": ["spectrum", "radial", "oscilloscope", "grid"],
+    "default": "spectrum",
+    "intensity": 0.72
+  },
+  "window": {
+    "width": 420,
+    "height": 220,
+    "minWidth": 380,
+    "minHeight": 200,
+    "queueHeight": 460,
+    "resizable": true
+  }
+}

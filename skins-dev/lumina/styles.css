@@ -1,0 +1,702 @@
+:host {
+  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --bg: #04070d;
+  --surface: #0a111c;
+  --surface-2: #111b2b;
+  --text: #f2f8ff;
+  --muted: #94a8c2;
+  --faint: #61728a;
+  --accent: #45c9ff;
+  --accent-2: #7c76ff;
+  --line: rgb(185 224 255 / 11%);
+  --line-strong: rgb(185 224 255 / 22%);
+  --panel: rgb(8 15 26 / 82%);
+  --chrome-hi: rgb(255 255 255 / 22%);
+  --chrome-lo: rgb(0 0 0 / 55%);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cad-runtime {
+  background:
+    radial-gradient(
+      120% 110% at 50% -30%,
+      color-mix(in srgb, var(--accent) 24%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      80% 90% at 105% 110%,
+      color-mix(in srgb, var(--accent-2) 20%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(165deg, #0a101b 0%, #04070d 48%, #010204 100%);
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
+.cad-runtime::before {
+  position: absolute;
+  z-index: 0;
+  top: -60%;
+  left: -30%;
+  width: 160%;
+  height: 220%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--accent) 20%, transparent) 58deg,
+    transparent 118deg,
+    color-mix(in srgb, var(--accent-2) 16%, transparent) 196deg,
+    transparent 268deg
+  );
+  content: "";
+  filter: blur(44px);
+  opacity: 0.44;
+  pointer-events: none;
+  animation: aurora-drift 18s linear infinite;
+}
+
+.cad-runtime::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      116deg,
+      transparent 0 3px,
+      rgb(255 255 255 / 2.4%) 3px 4px,
+      transparent 4px 11px
+    ),
+    radial-gradient(120% 90% at 50% 0%, transparent 42%, rgb(0 0 0 / 50%) 100%);
+  content: "";
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+[data-name="frame"] {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  animation: frame-in 520ms var(--ease-out) both;
+}
+
+.cad-visualizer {
+  opacity: 0.82;
+  filter: saturate(1.2);
+  mix-blend-mode: screen;
+}
+
+/* Titlebar --------------------------------------------------------------- */
+
+.cad-titlebar {
+  height: 32px;
+  flex-basis: 32px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 8%), transparent 54%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 68%, transparent), transparent);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 5%) inset,
+    0 8px 20px rgb(0 0 0 / 22%);
+}
+
+.cad-titlebar::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: -1px;
+  left: 12px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.55;
+}
+
+.cad-brand {
+  gap: 7px;
+}
+
+.cad-brand-mark {
+  color: var(--accent);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 72%, transparent));
+}
+
+.cad-brand-name {
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.28em;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 46%, transparent);
+}
+
+.cad-provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px 2px 4px;
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 6.5px;
+  letter-spacing: 0.12em;
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--accent) 12%, transparent) inset,
+    0 0 10px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.cad-provider::before {
+  content: "";
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 5px currentColor;
+  animation: led-blink 2s ease-in-out infinite;
+}
+
+.cad-device,
+.cad-title-button {
+  color: var(--muted);
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 160ms var(--ease-spring);
+}
+
+.cad-device:hover,
+.cad-title-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 26%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.cad-title-button.is-active {
+  border-color: color-mix(in srgb, var(--accent) 44%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* Hero ------------------------------------------------------------------- */
+
+[data-name="hero"] {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+[data-name="art-deck"] {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+[data-name="art-deck"]::before {
+  content: "";
+  position: absolute;
+  inset: -11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 24deg,
+      transparent,
+      color-mix(in srgb, var(--accent) 46%, transparent),
+      transparent 30%,
+      color-mix(in srgb, var(--accent-2) 38%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 46%);
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 0 0 1px rgb(255 255 255 / 5%) inset;
+  -webkit-mask: radial-gradient(circle, transparent 57%, black 59%);
+  mask: radial-gradient(circle, transparent 57%, black 59%);
+  animation: deck-ring 9s linear infinite;
+}
+
+[data-name="art-deck"]::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border: 1px solid rgb(255 255 255 / 7%);
+  border-radius: 20px;
+  box-shadow: 0 0 28px rgb(0 0 0 / 38%) inset;
+  pointer-events: none;
+}
+
+.cad-cover {
+  position: relative;
+  width: var(--cover-size, 96px);
+  height: var(--cover-size, 96px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 46%, transparent);
+  border-radius: 7px;
+  background: #07101c;
+  box-shadow:
+    0 16px 30px rgb(0 0 0 / 56%),
+    0 0 0 1px rgb(255 255 255 / 9%) inset,
+    0 0 22px color-mix(in srgb, var(--accent) 18%, transparent);
+  transition:
+    transform 380ms var(--ease-spring),
+    box-shadow 380ms var(--ease-out);
+}
+
+.cad-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    116deg,
+    transparent 34%,
+    rgb(255 255 255 / 20%) 48%,
+    transparent 62%
+  );
+  transform: translateX(-130%);
+  transition: transform 720ms var(--ease-out);
+  pointer-events: none;
+}
+
+.cad-cover:hover::after {
+  transform: translateX(130%);
+}
+
+.cad-cover:hover {
+  transform: translateY(-2px) scale(1.025);
+  box-shadow:
+    0 20px 38px rgb(0 0 0 / 62%),
+    0 0 0 1px rgb(255 255 255 / 14%) inset,
+    0 0 28px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.cad-cover-inner {
+  border-radius: 6px;
+  background:
+    radial-gradient(
+      80% 70% at 24% 12%,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(150deg, #0c1727, #050a12 58%, #020408);
+}
+
+.cad-cover-inner img {
+  transition: transform 900ms var(--ease-out);
+}
+
+.cad-cover:hover .cad-cover-inner img {
+  transform: scale(1.035);
+}
+
+.cad-cover.is-framed .cad-cover-inner::after {
+  border-color: rgb(255 255 255 / 15%);
+  border-radius: 5px;
+}
+
+.cad-cover.is-reflected::before {
+  top: calc(100% + 8px);
+  right: 2px;
+  left: 2px;
+  height: 26px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 28%, transparent),
+    transparent
+  );
+  filter: blur(7px);
+  opacity: 0.55;
+  transform: scaleY(-0.7);
+}
+
+/* Readout ---------------------------------------------------------------- */
+
+[data-name="readout"] {
+  min-width: 0;
+}
+
+.cad-track-info {
+  gap: 1px;
+}
+
+.cad-track-status {
+  gap: 5px;
+  color: color-mix(in srgb, var(--accent) 72%, var(--muted));
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.cad-status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 7px var(--accent);
+}
+
+.cad-status-dot.is-playing {
+  animation: status-breathe 1.8s ease-in-out infinite;
+}
+
+.cad-mode-tag {
+  border-color: color-mix(in srgb, var(--accent) 36%, transparent);
+  color: var(--accent);
+}
+
+.cad-track-title {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 21px;
+  font-weight: 660;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 10%),
+    0 0 26px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.cad-track-artists {
+  margin-top: 4px;
+  color: color-mix(in srgb, var(--text) 78%, var(--muted));
+  font-size: 11px;
+  letter-spacing: 0.01em;
+}
+
+.cad-track-album {
+  margin-top: 1px;
+  color: var(--faint);
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Progress --------------------------------------------------------------- */
+
+.cad-progress {
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.cad-progress input[type="range"] {
+  height: 12px;
+}
+
+.cad-progress input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  background:
+    linear-gradient(90deg, var(--accent) var(--progress, 0%), transparent var(--progress, 0%)),
+    linear-gradient(90deg, color-mix(in srgb, var(--text) 10%, transparent), transparent);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.cad-progress input[type="range"]::-webkit-slider-thumb {
+  width: 9px;
+  height: 9px;
+  margin-top: -3px;
+  border: 2px solid #050a12;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 0 12px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.cad-progress-time {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 6.8px;
+  letter-spacing: 0.08em;
+}
+
+/* Control deck ----------------------------------------------------------- */
+
+[data-name="deck"] {
+  position: relative;
+  flex: 0 0 48px;
+  margin: 0 10px 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 7%), transparent 45%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 84%, transparent), var(--panel));
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 7%) inset,
+    0 -12px 24px rgb(0 0 0 / 18%) inset,
+    0 10px 24px rgb(0 0 0 / 28%);
+}
+
+[data-name="deck"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    116deg,
+    transparent 35%,
+    rgb(255 255 255 / 7%) 48%,
+    transparent 61%
+  );
+  transform: translateX(-120%);
+  animation: deck-shine 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.cad-transport {
+  gap: 2px;
+}
+
+.cad-control {
+  color: var(--muted);
+  transition:
+    color 130ms ease,
+    background-color 130ms ease,
+    border-color 130ms ease,
+    transform 160ms var(--ease-spring),
+    box-shadow 160ms ease;
+}
+
+.cad-control:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 24%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text);
+  transform: translateY(-1px) scale(1.06);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.cad-control:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.cad-control.is-active {
+  color: var(--accent);
+  text-shadow: 0 0 9px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+.cad-play {
+  width: 36px;
+  height: 36px;
+  border: 1px solid color-mix(in srgb, var(--accent) 58%, transparent);
+  background:
+    radial-gradient(70% 70% at 34% 22%, rgb(255 255 255 / 32%), transparent 48%),
+    linear-gradient(160deg, color-mix(in srgb, var(--accent) 32%, #0a1624), #07101b);
+  color: var(--text);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 6%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) 24%, transparent),
+    0 1px 0 rgb(255 255 255 / 18%) inset;
+  transition:
+    transform 180ms var(--ease-spring),
+    border-color 160ms ease,
+    box-shadow 180ms ease;
+}
+
+.cad-play:hover:not(:disabled) {
+  border-color: var(--accent);
+  transform: scale(1.07);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 8%, transparent),
+    0 0 26px color-mix(in srgb, var(--accent) 38%, transparent),
+    0 1px 0 rgb(255 255 255 / 22%) inset;
+}
+
+.cad-play.is-playing {
+  border-color: color-mix(in srgb, var(--accent) 80%, transparent);
+  animation: transport-breathe 2.6s ease-in-out infinite;
+}
+
+.cad-volume,
+.cad-device-picker,
+.cad-settings-button {
+  color: var(--muted);
+}
+
+.cad-volume input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  background:
+    linear-gradient(90deg, var(--accent) var(--progress, 0%), transparent var(--progress, 0%)),
+    color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.cad-volume input[type="range"]::-webkit-slider-thumb {
+  width: 8px;
+  height: 8px;
+  margin-top: -2.5px;
+  border: 1px solid #050a12;
+  background: var(--accent);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--accent) 75%, transparent);
+}
+
+.cad-device-picker {
+  max-width: 92px;
+}
+
+.cad-device-picker.is-compact .cad-device-name {
+  display: none;
+}
+
+.cad-settings-button:hover {
+  color: var(--accent);
+}
+
+/* Queue ------------------------------------------------------------------ */
+
+.cad-queue {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 22%),
+    color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: 0 -14px 32px rgb(0 0 0 / 28%) inset;
+}
+
+.cad-queue-head {
+  padding: 10px 14px 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cad-queue-title {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-shadow: 0 0 9px color-mix(in srgb, var(--accent) 46%, transparent);
+}
+
+.cad-queue-count,
+.cad-queue-time,
+.cad-queue-note {
+  color: var(--faint);
+}
+
+.cad-queue-list {
+  padding-top: 4px;
+}
+
+.cad-queue-row {
+  min-height: 36px;
+  padding: 4px 14px;
+  border-top: 1px solid rgb(255 255 255 / 4%);
+  transition:
+    background-color 150ms ease,
+    transform 150ms var(--ease-out);
+}
+
+.cad-queue-row:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  transform: translateX(1px);
+}
+
+.cad-queue-row.is-current {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 13%, transparent), transparent 80%),
+    color-mix(in srgb, var(--surface-2) 44%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 7%, transparent) inset;
+}
+
+.cad-queue-row .cad-queue-title {
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.cad-queue-artist {
+  color: var(--muted);
+}
+
+.cad-queue-row.is-current .cad-queue-artist {
+  color: color-mix(in srgb, var(--accent) 62%, var(--muted));
+}
+
+.cad-queue-art {
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 36%);
+}
+
+.cad-queue-empty {
+  color: var(--faint);
+}
+
+/* Motion ----------------------------------------------------------------- */
+
+@keyframes frame-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes aurora-drift {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes deck-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes deck-shine {
+  0%,
+  58% {
+    transform: translateX(-120%);
+  }
+  78%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes led-blink {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes status-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    box-shadow: 0 0 4px var(--accent);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 10px var(--accent);
+  }
+}
+
+@keyframes transport-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 6%, transparent),
+      0 0 18px color-mix(in srgb, var(--accent) 24%, transparent),
+      0 1px 0 rgb(255 255 255 / 18%) inset;
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--accent) 9%, transparent),
+      0 0 26px color-mix(in srgb, var(--accent) 38%, transparent),
+      0 1px 0 rgb(255 255 255 / 22%) inset;
+  }
+}
+
+:host([data-reduced-motion="true"]) .cad-runtime::before,
+:host([data-reduced-motion="true"]) [data-name="art-deck"]::before,
+:host([data-reduced-motion="true"]) [data-name="deck"]::before,
+:host([data-reduced-motion="true"]) .cad-provider::before,
+:host([data-reduced-motion="true"]) .cad-status-dot.is-playing,
+:host([data-reduced-motion="true"]) .cad-play.is-playing {
+  animation: none;
+}

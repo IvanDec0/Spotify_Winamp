@@ -85,8 +85,11 @@
   });
 </script>
 
-<div class="progress">
+<div class="progress" class:is-playing={playing} style={`--progress: ${percent}%`}>
   <div class="progress-track">
+    <span class="progress-rail" aria-hidden="true"></span>
+    <span class="progress-fill" aria-hidden="true"></span>
+    <span class="progress-shine" aria-hidden="true"></span>
     <input
       type="range"
       min="0"
@@ -96,7 +99,6 @@
       disabled={!canSeek}
       aria-label="Playback position"
       aria-valuetext={`${formatTime(shownMs / 1000)} of ${formatTime(durationMs / 1000)}`}
-      style={`--progress: ${percent}%`}
       onpointerdown={() => {
         dragging = true;
         dragValue = shownMs;
@@ -119,12 +121,77 @@
   }
 
   .progress-track {
+    position: relative;
     display: flex;
     height: 11px;
     align-items: center;
   }
 
+  .progress-rail,
+  .progress-fill,
+  .progress-shine {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    height: 2px;
+    border-radius: 999px;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  .progress-rail {
+    width: 100%;
+    background: var(--line-strong);
+  }
+
+  .progress-fill,
+  .progress-shine {
+    width: var(--progress);
+  }
+
+  .progress-fill {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 58%, transparent),
+      var(--accent)
+    );
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 26%, transparent);
+  }
+
+  .progress-shine {
+    overflow: hidden;
+  }
+
+  .progress-shine::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, white 34%, transparent),
+      transparent
+    );
+    transform: translateX(-100%);
+  }
+
+  .progress.is-playing .progress-shine::after {
+    animation: progress-sheen 2.8s ease-in-out infinite;
+  }
+
+  @keyframes progress-sheen {
+    0% {
+      transform: translateX(-100%);
+    }
+    45%,
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
   input[type="range"] {
+    position: relative;
+    z-index: 1;
     width: 100%;
     height: 11px;
     margin: 0;
@@ -142,26 +209,13 @@
   input[type="range"]::-webkit-slider-runnable-track {
     height: 2px;
     border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      var(--accent) 0%,
-      var(--accent) var(--progress),
-      var(--line-strong) var(--progress),
-      var(--line-strong) 100%
-    );
-    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 18%, transparent);
+    background: transparent;
   }
 
   input[type="range"]::-moz-range-track {
     height: 2px;
     border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      var(--accent) 0%,
-      var(--accent) var(--progress),
-      var(--line-strong) var(--progress),
-      var(--line-strong) 100%
-    );
+    background: transparent;
   }
 
   input[type="range"]::-webkit-slider-thumb {
@@ -175,8 +229,10 @@
     box-shadow:
       0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent),
       0 0 10px var(--accent-glow);
-    opacity: 0;
-    transition: opacity 120ms ease;
+    opacity: 0.55;
+    transition:
+      opacity var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
   }
 
   input[type="range"]::-moz-range-thumb {
@@ -186,20 +242,24 @@
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 10px var(--accent-glow);
-    opacity: 0;
-    transition: opacity 120ms ease;
+    opacity: 0.55;
+    transition:
+      opacity var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
   }
 
   input[type="range"]:hover::-webkit-slider-thumb,
   input[type="range"]:focus-visible::-webkit-slider-thumb,
   input[type="range"]:active::-webkit-slider-thumb {
     opacity: 1;
+    transform: scale(1.18);
   }
 
   input[type="range"]:hover::-moz-range-thumb,
   input[type="range"]:focus-visible::-moz-range-thumb,
   input[type="range"]:active::-moz-range-thumb {
     opacity: 1;
+    transform: scale(1.18);
   }
 
   .progress-labels {

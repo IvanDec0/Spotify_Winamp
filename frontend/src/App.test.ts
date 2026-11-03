@@ -326,6 +326,7 @@ describe("App shell", () => {
 
     expect(screen.getByRole("dialog", { name: "Skin library" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Close skin library" })).not.toBeNull();
+    await waitFor(() => expect(mocks.setSize).toHaveBeenCalledWith(840, 920));
   });
 
   it("opens the music library from the provider badge", async () => {

@@ -167,6 +167,17 @@
       0 1px 0 rgb(255 255 255 / 16%) inset,
       0 0 0 3px rgb(255 255 255 / 2.5%);
     isolation: isolate;
+    transition:
+      transform var(--motion-slow) var(--ease-out),
+      box-shadow var(--motion-slow) var(--ease-out);
+  }
+
+  .cover-art:hover {
+    transform: translateY(-2px) scale(1.015);
+    box-shadow:
+      0 16px 34px rgb(0 0 0 / 50%),
+      0 1px 0 rgb(255 255 255 / 20%) inset,
+      0 0 0 3px rgb(255 255 255 / 4%);
   }
 
   .cover-art__image {
@@ -175,6 +186,11 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 900ms var(--ease-out);
+  }
+
+  .cover-art:hover .cover-art__image {
+    transform: scale(1.035);
   }
 
   .cover-art__wash {

@@ -78,6 +78,20 @@ func main() {
 			devDir = "skins-dev"
 		}
 	}
+	if devDir == "" {
+		if executable, err := os.Executable(); err == nil {
+			candidates := []string{
+				filepath.Join(filepath.Dir(executable), "skins"),
+				filepath.Join(filepath.Dir(executable), "..", "share", "cadence", "skins"),
+			}
+			for _, candidate := range candidates {
+				if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+					devDir = candidate
+					break
+				}
+			}
+		}
+	}
 	if devDir != "" {
 		absolute, err := filepath.Abs(devDir)
 		if err != nil {

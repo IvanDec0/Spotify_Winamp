@@ -152,7 +152,7 @@ task build     # bin/cadence
 task package   # AppImage, tar.gz and SHA-256 checksums in bin/
 ```
 
-`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. The AppImage and tarball are named `cadence-0.1.0-linux-x86_64.*`. See [`docs/installation.md`](docs/installation.md).
+`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. It also includes the Lumina and Afterglow skins. The AppImage and tarball are named `cadence-0.1.0-linux-x86_64.*`. See [`docs/installation.md`](docs/installation.md).
 
 The engine binary is not committed. `task audio:build` downloads the pinned source and builds it with the local CGO libraries. Cadence also discovers `go-librespot` from `CADENCE_GO_LIBRESPOT`, `PATH` or next to the Cadence binary.
 
@@ -172,6 +172,12 @@ See [`docs/spotify-setup.md`](docs/spotify-setup.md) for prerequisites, binary d
 ## Skins
 
 Clarity is the built-in native skin and is always available. Declarative skins are installed from a directory or ZIP in the skin library. They contain JSON layouts, CSS and local assets; no skin JavaScript is executed.
+
+The included **Lumina** development skin is an original, glossy media-player design inspired by the Windows Media Player era. It adds chrome surfaces, animated ambient light, a rotating album-art halo, LED status accents, glowing transport controls and four themes: Azure, Carbon, Ember and Violet. No WMP or The Skins Factory artwork is copied.
+
+![Lumina Azure](docs/screenshots/lumina-azure.png)
+
+![Lumina Carbon and Ember](docs/screenshots/lumina-carbon.png)
 
 Development skins live in [`skins-dev/`](skins-dev/) and are discovered automatically when Cadence runs from the repository root. The included **Afterglow** skin demonstrates a different layout, theme files and the Shadow DOM runtime.
 
@@ -209,7 +215,7 @@ The Library panel and the queue expand the same window vertically; at the defaul
 │   ├── settings/                    # Persisted configuration
 │   ├── artcache/                    # Album-art proxying and caching
 │   └── platform/                    # GTK4 window sizing helper
-├── skins-dev/                       # Development skins, including Afterglow
+├── skins-dev/                       # Development skins: Afterglow and Lumina
 ├── documentacion-cliente-musical-skins.md
 ├── plan/
 │   └── nombre_plan.md

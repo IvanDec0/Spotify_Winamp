@@ -20,6 +20,12 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 * {
@@ -123,6 +129,18 @@ svg {
   inset: 0;
   display: block;
   background: none;
+  animation: overlay-in var(--motion-base) var(--ease-out);
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+    transform: scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .clarity.toast-layer {
@@ -226,8 +244,16 @@ svg {
 }
 
 *::-webkit-scrollbar-thumb {
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--line-strong);
+  background: color-mix(in srgb, var(--line-strong) 82%, transparent);
+  background-clip: padding-box;
+  transition: background-color 120ms ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 28%, var(--line-strong));
+  background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-track {

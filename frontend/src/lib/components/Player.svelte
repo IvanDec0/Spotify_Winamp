@@ -69,7 +69,7 @@
   );
 </script>
 
-<section class="player" aria-label="Player">
+<section class="player" class:is-playing={playing} aria-label="Player">
   <Visualizer
     mode={visualizerMode}
     trackId={state.track.id}
@@ -184,6 +184,18 @@
     height: 100%;
     flex-direction: column;
     padding: 11px 14px 9px;
+    animation: content-in 460ms var(--ease-out) both;
+  }
+
+  @keyframes content-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .track-row {
@@ -332,6 +344,11 @@
     line-height: 1.16;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: text-shadow var(--motion-slow) ease;
+  }
+
+  .player.is-playing .track-title {
+    text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 23%, transparent);
   }
 
   .track-artists {
@@ -404,6 +421,15 @@
     border-color: var(--line);
     background: var(--surface-2);
     color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .mode-chip {
+    transition:
+      color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
   }
 
   .track-sweep {

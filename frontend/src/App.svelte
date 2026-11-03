@@ -66,7 +66,7 @@
       // The window mode may have changed while Size() was resolving.
       if (currentLogicalHeight() !== logicalHeight) return;
       const next = roundedUiScale(fitUiScale(size.width, size.height, logicalHeight));
-      if (!musicOpen && !queueOpen) {
+      if (!musicOpen && !queueOpen && !skinManagerOpen) {
         baseNativeWidth = size.width;
         baseNativeHeight = size.height;
       }
@@ -330,8 +330,9 @@
 
   $effect(() => {
     if (skins.loading) return;
-    const height = musicOpen ? EXPANDED_HEIGHT : queueOpen ? expandedHeight : baseHeight;
-    if (!musicOpen && !queueOpen) {
+    const expanded = musicOpen || skinManagerOpen;
+    const height = expanded ? EXPANDED_HEIGHT : queueOpen ? expandedHeight : baseHeight;
+    if (!expanded && !queueOpen) {
       void restoreBaseWindow();
       return;
     }
@@ -464,7 +465,11 @@
   {/if}
 
   {#if devicesOpen && declarative}
-    <div class="clarity overlay-layer" data-theme={preferences.theme}>
+    <div
+      class="clarity overlay-layer"
+      class:reduce-motion={preferences.reducedMotion}
+      data-theme={preferences.theme}
+    >
       <div class="popover-layer">
         <button
           class="popover-backdrop"
@@ -488,19 +493,31 @@
   {/if}
 
   {#if skinManagerOpen}
-    <div class="clarity overlay-layer" data-theme={preferences.theme}>
+    <div
+      class="clarity overlay-layer"
+      class:reduce-motion={preferences.reducedMotion}
+      data-theme={preferences.theme}
+    >
       <SkinManager onOpenMusic={openMusic} onClose={closeSkinManager} />
     </div>
   {/if}
 
   {#if musicOpen}
-    <div class="clarity overlay-layer" data-theme={preferences.theme}>
+    <div
+      class="clarity overlay-layer"
+      class:reduce-motion={preferences.reducedMotion}
+      data-theme={preferences.theme}
+    >
       <MusicBrowser onClose={closeMusic} />
     </div>
   {/if}
 
   {#if displayError}
-    <div class="clarity toast-layer" data-theme={preferences.theme}>
+    <div
+      class="clarity toast-layer"
+      class:reduce-motion={preferences.reducedMotion}
+      data-theme={preferences.theme}
+    >
       <div class="toast" role="alert">
         <span class="toast-icon" aria-hidden="true">
           <Icon name="info" size={13} />

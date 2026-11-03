@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "root": {
+    "type": "stack",
+    "name": "stage",
+    "children": [
+      {
+        "type": "component",
+        "component": "visualizer",
+        "props": {
+          "mode": "spectrum",
+          "layer": "background",
+          "intensity": 0.72
+        }
+      },
+      {
+        "type": "column",
+        "name": "frame",
+        "children": [
+          {
+            "type": "component",
+            "component": "titlebar",
+            "props": {
+              "showBrand": true,
+              "showProvider": true,
+              "showDevice": true,
+              "showWindowControls": true,
+              "compact": true
+            }
+          },
+          {
+            "type": "row",
+            "name": "hero",
+            "props": {
+              "gap": 14,
+              "padding": 12,
+              "align": "center"
+            },
+            "children": [
+              {
+                "type": "column",
+                "name": "art-deck",
+                "props": {
+                  "gap": 0,
+                  "padding": 0,
+                  "align": "center",
+                  "justify": "center"
+                },
+                "children": [
+                  {
+                    "type": "component",
+                    "component": "album-art",
+                    "props": {
+                      "size": 96,
+                      "frame": true,
+                      "reflection": true
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "name": "readout",
+                "props": {
+                  "gap": 5,
+                  "padding": 0,
+                  "justify": "center",
+                  "align": "stretch"
+                },
+                "children": [
+                  {
+                    "type": "component",
+                    "component": "track-info",
+                    "props": {
+                      "showAlbum": true,
+                      "showStatus": true,
+                      "align": "left"
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "progress",
+                    "props": {
+                      "showTime": true,
+                      "showRemaining": false
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "name": "deck",
+            "props": {
+              "gap": 6,
+              "padding": 8,
+              "align": "center",
+              "justify": "center"
+            },
+            "children": [
+              {
+                "type": "component",
+                "component": "transport-controls",
+                "props": {
+                  "size": "regular",
+                  "showShuffle": true,
+                  "showRepeat": true
+                }
+              },
+              {
+                "type": "component",
+                "component": "volume",
+                "props": {
+                  "orientation": "horizontal",
+                  "showIcon": true
+                }
+              },
+              {
+                "type": "component",
+                "component": "device-picker",
+                "props": {
+                  "compact": true
+                }
+              },
+              {
+                "type": "component",
+                "component": "settings-button"
+              }
+            ]
+          },
+          {
+            "type": "component",
+            "component": "queue",
+            "props": {
+              "maxItems": 10,
+              "showHeader": true,
+              "showArt": true,
+              "showTime": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
