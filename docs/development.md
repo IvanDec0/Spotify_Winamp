@@ -89,6 +89,22 @@ The app sets `WebviewGpuPolicyOnDemand` for WebKitGTK. If rendering is broken on
 
 Wails v3 beta.34 maps `Window.SetSize` to `gtk_window_set_default_size` on GTK4, which does not resize an already mapped window. The queue expansion therefore calls `internal/platform.WindowService`, a small cgo GTK4 helper that sets both a size request and the default size on the GTK main thread. If a later Wails release provides a real resize operation, remove the helper and the generated platform binding.
 
+## Skin development
+
+Development skins live in `skins-dev/<id>/`. Cadence scans that directory automatically when it runs from the repository root. Use `--skins-dev <dir>` for another location.
+
+```bash
+./bin/cadence --skins-dev ./skins-dev
+./bin/cadence --safe-mode
+./bin/cadence --demo
+```
+
+Manifest, layout, CSS and asset failures appear as warnings in the skin library. Restart Cadence after editing a development skin; packages are validated and scanned at startup. The included [`skins-dev/afterglow`](../skins-dev/afterglow) is a complete level 2 example.
+
+Installed skins are stored under `$XDG_DATA_HOME/cadence/skins/<id>/`; settings are in `$XDG_CONFIG_HOME/cadence/config.json`. The built-in Clarity skin is native, cannot be removed, and is used when a declarative skin cannot be validated or mounted.
+
+See [`skin-format.md`](skin-format.md) and [`skin-authoring.md`](skin-authoring.md).
+
 ## Architecture rules for v1
 
 - The frontend never receives Spotify access tokens, refresh tokens or PKCE values.
@@ -118,3 +134,6 @@ Packaging and release automation are added in M4.
 | Vite port already in use | Stop the other Vite process or set `WAILS_VITE_PORT` |
 | Window is tiled on Sway/i3 | Add the floating rule above |
 | WebKitGTK rendering issues | Try `WebviewGpuPolicyNever` to isolate the GPU driver |
+| Skin is missing from the library | Check its warning in the library; confirm the directory name matches the manifest `id` |
+| Skin CSS is not applied | Confirm `styles.css` is at the package root and its URLs resolve to local assets |
+| Third-party skins are disabled | Restart without `--safe-mode` and enable them in the skin library |

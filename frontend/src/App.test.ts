@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { preferences } from "./lib/preferences.svelte";
+import { skins } from "./lib/skins.svelte";
 
 const mocks = vi.hoisted(() => {
   const setSize = vi.fn(() => Promise.resolve());
@@ -89,7 +90,57 @@ const mocks = vi.hoisted(() => {
     dismissError: vi.fn(),
   };
 
-  return { setSize, minimise, close, player };
+  const catalog = {
+    skins: [
+      {
+        id: "clarity",
+        name: "Clarity",
+        version: "1.0.0",
+        description: "Built-in skin",
+        author: "Cadence",
+        license: "CC BY-SA 4.0",
+        source: "builtin",
+        builtin: true,
+        removable: false,
+        active: true,
+        themes: ["graphite"],
+        defaultTheme: "graphite",
+        visualizerModes: ["spectrum"],
+      },
+    ],
+    activeId: "clarity",
+    activeTheme: "graphite",
+    safeMode: false,
+    thirdPartyDisabled: false,
+    warnings: [],
+    lastError: "",
+    canInstall: true,
+    canChangeActiveSkin: true,
+  };
+
+  const runtime = {
+    id: "clarity",
+    name: "Clarity",
+    version: "1.0.0",
+    author: "Cadence",
+    license: "CC BY-SA 4.0",
+    description: "Built-in skin",
+    builtin: true,
+    themes: ["graphite"],
+    defaultTheme: "graphite",
+    visualizerModes: ["spectrum"],
+    defaultVisualizer: "spectrum",
+    intensity: 0.7,
+    layout: { schemaVersion: 1, root: { type: "column", children: [] } },
+    stylesheetUrl: "",
+    themeStylesheets: {},
+    baseHeight: 220,
+    queueHeight: 460,
+  };
+
+  const on = vi.fn(() => () => {});
+
+  return { setSize, minimise, close, player, catalog, runtime, on };
 });
 
 vi.mock("@wailsio/runtime", () => ({
@@ -98,12 +149,30 @@ vi.mock("@wailsio/runtime", () => ({
     Minimise: mocks.minimise,
     Close: mocks.close,
   },
+  Events: { On: mocks.on },
+  System: { invoke: vi.fn() },
 }));
 
 vi.mock("./lib/player.svelte", () => ({ player: mocks.player }));
 
 vi.mock("../bindings/cadence/internal/platform", () => ({
   WindowService: { SetSize: mocks.setSize },
+}));
+
+vi.mock("../bindings/cadence/internal/skins", () => ({
+  Service: {
+    GetCatalog: vi.fn(() => Promise.resolve(mocks.catalog)),
+    GetRuntime: vi.fn(() => Promise.resolve(mocks.runtime)),
+    Activate: vi.fn(() => Promise.resolve(mocks.catalog)),
+    SetTheme: vi.fn(() => Promise.resolve(mocks.catalog)),
+    SetThirdPartyDisabled: vi.fn(() => Promise.resolve(mocks.catalog)),
+    Reset: vi.fn(() => Promise.resolve(mocks.catalog)),
+    Uninstall: vi.fn(() => Promise.resolve(mocks.catalog)),
+    InstallZipDialog: vi.fn(() => Promise.resolve({ canceled: true })),
+    InstallDirectoryDialog: vi.fn(() => Promise.resolve({ canceled: true })),
+    ReportRuntimeReady: vi.fn(() => Promise.resolve()),
+    ReportRuntimeFailure: vi.fn(() => Promise.resolve(mocks.catalog)),
+  },
 }));
 
 import App from "./App.svelte";
@@ -115,6 +184,9 @@ describe("App shell", () => {
     mocks.player.transfer.mockClear();
     preferences.setTheme("graphite");
     preferences.setMotion("system");
+    skins.queueOpen = false;
+    skins.error = null;
+    skins.notice = null;
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   });
 
@@ -179,6 +251,16 @@ describe("App shell", () => {
       key: " ",
     });
     expect(mocks.player.toggle).not.toHaveBeenCalled();
+  });
+
+  it("opens the skin library from appearance settings", async () => {
+    render(App);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Open appearance settings" }));
+    await fireEvent.click(screen.getByRole("button", { name: "Skins" }));
+
+    expect(screen.getByRole("dialog", { name: "Skin library" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Close skin library" })).not.toBeNull();
   });
 
   it("applies the reduced-motion preference to the shell", async () => {

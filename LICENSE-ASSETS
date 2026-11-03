@@ -12,6 +12,7 @@ appropriate credit and distribute your contributions under the same license.
 Scope:
 
 - The default Clarity skin, its original CSS, SVG, textures and theme palettes.
+- The Afterglow development skin under `skins-dev/afterglow`.
 - Original project artwork and documentation illustrations.
 
 Excluded:

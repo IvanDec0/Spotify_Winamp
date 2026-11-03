@@ -10,48 +10,77 @@
   import TitleBar from "./lib/components/TitleBar.svelte";
   import { player } from "./lib/player.svelte";
   import { preferences, themes, visualizerModes, type ThemeId } from "./lib/preferences.svelte";
+  import SkinHost from "./lib/skins/SkinHost.svelte";
+  import SkinManager from "./lib/skins/SkinManager.svelte";
+  import { skins } from "./lib/skins.svelte";
 
-  let queueOpen = $state(false);
   let queueClosing = $state(false);
   let settingsOpen = $state(false);
   let devicesOpen = $state(false);
+  let skinManagerOpen = $state(false);
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   let lastVolume = 65;
+
+  let queueOpen = $derived(skins.queueOpen);
+  let declarative = $derived(skins.isDeclarative);
+  let baseHeight = $derived(declarative ? (skins.runtime?.baseHeight ?? 220) : 220);
+  let expandedHeight = $derived(declarative ? (skins.runtime?.queueHeight ?? 460) : 460);
 
   let activeTheme = $derived(themes.find((theme) => theme.id === preferences.theme) ?? themes[0]);
   let activeModeLabel = $derived(
     visualizerModes.find((mode) => mode.id === preferences.visualizer)?.label ?? "Spectrum",
   );
+  let displayError = $derived(player.error || skins.error);
 
   function resizeWindow(height: number): void {
     void WindowService.SetSize(420, height).catch(() => {});
   }
 
   function openSettings(): void {
+    if (declarative) {
+      openSkinManager();
+      return;
+    }
     devicesOpen = false;
+    skinManagerOpen = false;
     settingsOpen = true;
+  }
+
+  function openSkinManager(): void {
+    devicesOpen = false;
+    settingsOpen = false;
+    if (queueOpen) setQueue(false);
+    skinManagerOpen = true;
+  }
+
+  function closeSkinManager(): void {
+    skinManagerOpen = false;
   }
 
   function openDevices(): void {
     settingsOpen = false;
+    skinManagerOpen = false;
     devicesOpen = true;
   }
 
   function closePopovers(): void {
     settingsOpen = false;
     devicesOpen = false;
+    skinManagerOpen = false;
   }
 
   function setQueue(open: boolean): void {
+    if (declarative && !skins.hasQueue) return;
+
     if (open) {
       if (resizeTimer) {
         clearTimeout(resizeTimer);
         resizeTimer = null;
       }
       queueClosing = false;
-      if (!queueOpen) queueOpen = true;
+      if (!queueOpen) skins.queueOpen = true;
       closePopovers();
-      resizeWindow(460);
+      resizeWindow(expandedHeight);
       return;
     }
 
@@ -59,10 +88,10 @@
     queueClosing = true;
     closePopovers();
     resizeTimer = setTimeout(() => {
-      queueOpen = false;
+      skins.queueOpen = false;
       queueClosing = false;
       resizeTimer = null;
-      resizeWindow(220);
+      resizeWindow(baseHeight);
     }, 180);
   }
 
@@ -97,20 +126,27 @@
     if (player.state.volume > 0) lastVolume = player.state.volume;
   });
 
-  function isInteractiveTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return false;
-    return Boolean(
-      target.closest(
-        "input, textarea, select, button, a, [contenteditable='true'], [role='slider']",
-      ),
-    );
+  function isInteractiveTarget(event: KeyboardEvent): boolean {
+    for (const node of event.composedPath()) {
+      if (!(node instanceof Element)) continue;
+      if (
+        node.matches(
+          "input, textarea, select, button, a, [contenteditable='true'], [role='slider']",
+        )
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function handleKeydown(event: KeyboardEvent): void {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
 
     if (event.key === "Escape") {
-      if (settingsOpen || devicesOpen) {
+      if (skinManagerOpen) {
+        skinManagerOpen = false;
+      } else if (settingsOpen || devicesOpen) {
         closePopovers();
       } else if (queueOpen) {
         setQueue(false);
@@ -118,7 +154,7 @@
       return;
     }
 
-    if (isInteractiveTarget(event.target)) return;
+    if (isInteractiveTarget(event)) return;
 
     switch (event.key) {
       case " ":
@@ -164,22 +200,48 @@
         setQueue(!queueOpen);
         break;
       case "v":
-        preferences.cycleVisualizer();
+        if (declarative) skins.cycleVisualizer();
+        else preferences.cycleVisualizer();
         break;
       case "t":
-        cycleTheme();
+        if (declarative) void skins.cycleTheme();
+        else cycleTheme();
         break;
       default:
         break;
     }
   }
 
+  function dismissError(): void {
+    if (player.error) player.dismissError();
+    if (skins.error) skins.dismissError();
+  }
+
+  $effect(() => {
+    if (skins.loading) return;
+    resizeWindow(queueOpen ? expandedHeight : baseHeight);
+  });
+
+  $effect(() => {
+    if (declarative && !skins.hasQueue && skins.queueOpen) {
+      skins.queueOpen = false;
+    }
+  });
+
   onMount(() => {
+    skins.setHandlers({
+      toggleQueue,
+      openDevices,
+      openSettings,
+    });
     void player.start();
+    void skins.start();
     const cleanupMotion = preferences.syncSystemMotion();
     return () => {
       cleanupMotion();
       player.stop();
+      skins.stop();
+      skins.setHandlers(null);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
   });
@@ -191,45 +253,93 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="clarity" class:reduce-motion={preferences.reducedMotion} data-theme={preferences.theme}>
-  <div class="shell">
-    <TitleBar
-      provider={player.state.provider}
-      deviceName={player.state.device.name}
-      {queueOpen}
-      onToggleQueue={toggleQueue}
-      onOpenDevices={openDevices}
-      onOpenSettings={openSettings}
-      onMinimise={minimise}
-      onClose={closeWindow}
-    />
+<div class="app-frame">
+  {#if declarative && skins.runtime}
+    <SkinHost runtime={skins.runtime} theme={skins.theme} {queueOpen} />
+  {:else}
+    <div
+      class="clarity"
+      class:reduce-motion={preferences.reducedMotion}
+      data-theme={preferences.theme}
+    >
+      <div class="shell">
+        <TitleBar
+          provider={player.state.provider}
+          deviceName={player.state.device.name}
+          {queueOpen}
+          onToggleQueue={toggleQueue}
+          onOpenDevices={openDevices}
+          onOpenSettings={openSettings}
+          onMinimise={minimise}
+          onClose={closeWindow}
+        />
 
-    <main class="player-region" aria-label="Cadence player">
-      <Player
-        state={player.state}
-        visualizerMode={preferences.visualizer}
-        visualizerLabel={activeModeLabel}
-        accent={activeTheme.accent}
-        secondary={activeTheme.secondary}
-        reducedMotion={preferences.reducedMotion}
-        onToggle={() => void player.toggle()}
-        onPrevious={() => void player.previous()}
-        onNext={() => void player.next()}
-        onSeek={(positionMs) => void player.seek(positionMs)}
-        onVolume={(volume) => void player.setVolume(volume)}
-        onShuffle={() => void player.toggleShuffle()}
-        onRepeat={() => void player.cycleRepeat()}
-        onCycleVisualizer={() => preferences.cycleVisualizer()}
-      />
-    </main>
+        <main class="player-region" aria-label="Cadence player">
+          <Player
+            state={player.state}
+            visualizerMode={preferences.visualizer}
+            visualizerLabel={activeModeLabel}
+            accent={activeTheme.accent}
+            secondary={activeTheme.secondary}
+            reducedMotion={preferences.reducedMotion}
+            onToggle={() => void player.toggle()}
+            onPrevious={() => void player.previous()}
+            onNext={() => void player.next()}
+            onSeek={(positionMs) => void player.seek(positionMs)}
+            onVolume={(volume) => void player.setVolume(volume)}
+            onShuffle={() => void player.toggleShuffle()}
+            onRepeat={() => void player.cycleRepeat()}
+            onCycleVisualizer={() => preferences.cycleVisualizer()}
+          />
+        </main>
 
-    {#if queueOpen}
-      <div class="queue-slot" class:is-closing={queueClosing}>
-        <Queue items={player.state.queue ?? []} />
+        {#if queueOpen}
+          <div class="queue-slot" class:is-closing={queueClosing}>
+            <Queue items={player.state.queue ?? []} />
+          </div>
+        {/if}
+
+        {#if settingsOpen || devicesOpen}
+          <div class="popover-layer">
+            <button
+              class="popover-backdrop"
+              type="button"
+              aria-label="Close popover"
+              tabindex="-1"
+              onclick={closePopovers}
+            ></button>
+            <div class="popover-position">
+              {#if settingsOpen}
+                <SettingsPopover
+                  theme={preferences.theme}
+                  visualizer={preferences.visualizer}
+                  motion={preferences.motion}
+                  systemReducedMotion={preferences.systemReducedMotion}
+                  onTheme={(theme) => preferences.setTheme(theme)}
+                  onVisualizer={(mode) => preferences.setVisualizer(mode)}
+                  onMotion={(motion) => preferences.setMotion(motion)}
+                  onOpenSkins={openSkinManager}
+                  onClose={closePopovers}
+                />
+              {:else}
+                <DevicePopover
+                  devices={player.state.devices ?? []}
+                  onTransfer={(deviceId) => {
+                    closePopovers();
+                    void player.transfer(deviceId);
+                  }}
+                  onClose={closePopovers}
+                />
+              {/if}
+            </div>
+          </div>
+        {/if}
       </div>
-    {/if}
+    </div>
+  {/if}
 
-    {#if settingsOpen || devicesOpen}
+  {#if devicesOpen && declarative}
+    <div class="clarity overlay-layer" data-theme={preferences.theme}>
       <div class="popover-layer">
         <button
           class="popover-backdrop"
@@ -239,48 +349,38 @@
           onclick={closePopovers}
         ></button>
         <div class="popover-position">
-          {#if settingsOpen}
-            <SettingsPopover
-              theme={preferences.theme}
-              visualizer={preferences.visualizer}
-              motion={preferences.motion}
-              systemReducedMotion={preferences.systemReducedMotion}
-              onTheme={(theme) => preferences.setTheme(theme)}
-              onVisualizer={(mode) => preferences.setVisualizer(mode)}
-              onMotion={(motion) => preferences.setMotion(motion)}
-              onClose={closePopovers}
-            />
-          {:else}
-            <DevicePopover
-              devices={player.state.devices ?? []}
-              onTransfer={(deviceId) => {
-                closePopovers();
-                void player.transfer(deviceId);
-              }}
-              onClose={closePopovers}
-            />
-          {/if}
+          <DevicePopover
+            devices={player.state.devices ?? []}
+            onTransfer={(deviceId) => {
+              closePopovers();
+              void player.transfer(deviceId);
+            }}
+            onClose={closePopovers}
+          />
         </div>
       </div>
-    {/if}
+    </div>
+  {/if}
 
-    {#if player.error}
+  {#if skinManagerOpen}
+    <div class="clarity overlay-layer" data-theme={preferences.theme}>
+      <SkinManager onClose={closeSkinManager} />
+    </div>
+  {/if}
+
+  {#if displayError}
+    <div class="clarity toast-layer" data-theme={preferences.theme}>
       <div class="toast" role="alert">
         <span class="toast-icon" aria-hidden="true">
           <Icon name="info" size={13} />
         </span>
-        <span class="toast-message">{player.error}</span>
-        <button
-          class="toast-close"
-          type="button"
-          aria-label="Dismiss error"
-          onclick={() => player.dismissError()}
-        >
+        <span class="toast-message">{displayError}</span>
+        <button class="toast-close" type="button" aria-label="Dismiss error" onclick={dismissError}>
           <Icon name="close" size={11} />
         </button>
       </div>
-    {/if}
-  </div>
+    </div>
+  {/if}
 </div>
 
 <style>

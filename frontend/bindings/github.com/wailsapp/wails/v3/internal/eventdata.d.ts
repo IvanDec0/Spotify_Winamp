@@ -8,11 +8,15 @@ import type { Events } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import type * as player$0 from "../../../../../cadence/internal/player/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as skins$0 from "../../../../../cadence/internal/skins/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "player:state": player$0.PlayerState;
+            "skins:changed": skins$0.SkinCatalog;
         }
     }
 }

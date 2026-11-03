@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "afterglow",
+  "name": "Afterglow",
+  "version": "1.0.0",
+  "description": "A warm, wide development skin with a side-on player and a bottom control deck.",
+  "author": "Cadence",
+  "license": "CC BY-SA 4.0",
+  "entry": {
+    "layout": "layout.json",
+    "styles": "styles.css"
+  },
+  "capabilities": [
+    "player.read",
+    "player.control",
+    "queue.read",
+    "devices.read",
+    "devices.control"
+  ],
+  "themes": ["ember", "tide"],
+  "defaultTheme": "ember",
+  "visualizer": {
+    "modes": ["spectrum", "radial"],
+    "default": "spectrum",
+    "intensity": 0.55
+  },
+  "window": {
+    "width": 420,
+    "height": 220,
+    "minWidth": 380,
+    "minHeight": 200,
+    "queueHeight": 460,
+    "resizable": true
+  }
+}

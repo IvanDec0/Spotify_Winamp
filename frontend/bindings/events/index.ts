@@ -13,3 +13,8 @@ import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
  */
 export const PlayerState = "player:state";
 
+/**
+ * Name of the custom event "skins:changed".
+ */
+export const SkinsChanged = "skins:changed";
+

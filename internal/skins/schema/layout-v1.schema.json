@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cadence.local/schemas/layout-v1.json",
+  "title": "Cadence skin layout v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "root"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "root": {
+      "$ref": "#/$defs/node"
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": ["stack", "row", "column", "grid", "component"]
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$"
+        },
+        "component": {
+          "enum": [
+            "titlebar",
+            "album-art",
+            "track-info",
+            "progress",
+            "transport-controls",
+            "volume",
+            "shuffle",
+            "repeat",
+            "queue",
+            "visualizer",
+            "device-picker",
+            "settings-button"
+          ]
+        },
+        "props": {
+          "type": "object",
+          "maxProperties": 12
+        },
+        "children": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "const": "component"
+              }
+            }
+          },
+          "then": {
+            "required": ["component"],
+            "not": {
+              "required": ["children"]
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "enum": ["stack", "row", "column", "grid"]
+              }
+            }
+          },
+          "then": {
+            "required": ["children"],
+            "not": {
+              "required": ["component"]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

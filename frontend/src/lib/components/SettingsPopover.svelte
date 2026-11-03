@@ -16,6 +16,7 @@
     onTheme: (theme: ThemeId) => void;
     onVisualizer: (mode: VisualizerMode) => void;
     onMotion: (motion: MotionPreference) => void;
+    onOpenSkins: () => void;
     onClose: () => void;
   }
 
@@ -27,6 +28,7 @@
     onTheme,
     onVisualizer,
     onMotion,
+    onOpenSkins,
     onClose,
   }: Props = $props();
 
@@ -47,9 +49,12 @@
       <span class="eyebrow">Clarity</span>
       <h2>Appearance</h2>
     </div>
-    <button class="close" type="button" aria-label="Close appearance settings" onclick={onClose}>
-      <Icon name="close" size={12} />
-    </button>
+    <div class="settings-actions">
+      <button class="skins-link" type="button" onclick={onOpenSkins}>Skins</button>
+      <button class="close" type="button" aria-label="Close appearance settings" onclick={onClose}>
+        <Icon name="close" size={12} />
+      </button>
+    </div>
   </header>
 
   <div class="section-line">
@@ -163,6 +168,28 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+  }
+
+  .settings-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .skins-link {
+    height: 19px;
+    padding: 0 5px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--muted);
+    font-size: 7.5px;
+    letter-spacing: 0.04em;
+  }
+
+  .skins-link:hover {
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    background: var(--accent-soft);
+    color: var(--accent);
   }
 
   .eyebrow {

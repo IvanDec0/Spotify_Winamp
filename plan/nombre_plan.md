@@ -1,11 +1,11 @@
 # Cadence v1 — Implementation Plan
 
-> **Status:** M1 complete; M2 next<br>
+> **Status:** M2 complete; M3 next<br>
 > **Design source of truth:** [`../documentacion-cliente-musical-skins.md`](../documentacion-cliente-musical-skins.md)  
 > **Working name:** Cadence  
 > **Platform:** Arch Linux x86_64  
 > **UI and documentation language:** English  
-> **Last updated:** 2026-11-02
+> **Last updated:** 2026-11-03
 
 ---
 
@@ -134,25 +134,27 @@ Exit criteria:
 
 **Goal:** install, validate, activate and remove declarative skins without recompiling.
 
+**Status: complete.** Manifest and layout schemas, semantic validation, CSS parsing, local asset checks, directory and ZIP installation, staging with rollback, last-known-good fallback, safe mode, a Shadow DOM runtime, a skin library and the Afterglow development skin are implemented. The built-in Clarity skin remains native and always available.
+
 Tasks:
 
-- Define JSON Schemas for `manifest.json` and `layout.json`.
-- Implement manifest/layout/CSS validation in Go.
-- Implement the Shadow DOM skin runtime and component registry.
-- Implement theme tokens and CSS variable application.
-- Implement directory and ZIP installation with staging, atomic activation and rollback.
-- Enforce path, size, asset-type and ZIP limits.
-- Implement safe mode, last-known-good skin and fallback to the built-in skin.
-- Add a second development skin with a deliberately different layout.
-- Write `docs/skin-format.md` and a skin authoring guide.
+- [x] Define JSON Schemas for `manifest.json` and `layout.json`.
+- [x] Implement manifest/layout/CSS validation in Go.
+- [x] Implement the Shadow DOM skin runtime and component registry.
+- [x] Implement theme tokens and CSS variable application.
+- [x] Implement directory and ZIP installation with staging, atomic activation and rollback.
+- [x] Enforce path, size, asset-type and ZIP limits.
+- [x] Implement safe mode, last-known-good skin and fallback to the built-in skin.
+- [x] Add a second development skin with a deliberately different layout.
+- [x] Write `docs/skin-format.md` and a skin authoring guide.
 
 Exit criteria:
 
-- A second skin can be installed and activated without recompiling.
-- Invalid or malicious skins are rejected before activation.
-- A broken active skin cannot prevent startup.
-- The built-in Clarity skin is always available.
-- The skin format documentation is sufficient to create a new level 1–2 skin.
+- [x] A second skin can be installed and activated without recompiling.
+- [x] Invalid or malicious skins are rejected before activation.
+- [x] A broken active skin cannot prevent startup.
+- [x] The built-in Clarity skin is always available.
+- [x] The skin format documentation is sufficient to create a new level 1–2 skin.
 
 ### M3 — Spotify Connect integration
 
@@ -244,12 +246,14 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 ### Gate C — after M2
 
-- manifest/layout schema tests
-- path traversal, symlink and ZIP-bomb rejection
-- installer staging, activation, rollback and uninstall tests
-- safe-mode fallback test
-- listener cleanup when switching skins
-- second-skin installation test
+**Status: passed.** `task check`, `task test` and `wails3 build` pass locally. The Go suite covers schemas, CSS, traversal, symlinks, ZIP limits, staging, activation, rollback, uninstall, safe mode, last-known-good fallback and a second skin. The frontend suite covers Shadow DOM mount/theme/queue updates and invalid-layout fallback.
+
+- [x] manifest/layout schema tests
+- [x] path traversal, symlink and ZIP-bomb rejection
+- [x] installer staging, activation, rollback and uninstall tests
+- [x] safe-mode fallback test
+- [x] listener cleanup when switching skins
+- [x] second-skin installation test
 
 ### Gate D — after M3
 
@@ -301,10 +305,10 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 - [ ] Device listing and transfer work.
 - [ ] Play/pause, next/previous, seek, volume, shuffle, repeat and queue work.
 - [ ] Rate-limit, offline, no-device and revoked-token states are handled.
-- [ ] A second skin can be installed, activated and removed without recompiling.
-- [ ] Invalid or malicious skins are rejected or safely rolled back.
-- [ ] `--safe-mode` starts without third-party skins.
-- [ ] Skin authoring documentation is sufficient for level 1–2 skins.
+- [x] A second skin can be installed, activated and removed without recompiling.
+- [x] Invalid or malicious skins are rejected or safely rolled back.
+- [x] `--safe-mode` starts without third-party skins.
+- [x] Skin authoring documentation is sufficient for level 1–2 skins.
 - [ ] CI passes and produces AppImage and `.tar.gz` artifacts.
 - [ ] A clean Arch installation can install, authenticate and control playback.
 
@@ -312,8 +316,8 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 ## 9. Immediate next actions
 
-1. Begin M2 with the manifest/layout schemas and the Go validator.
-2. Add the Shadow DOM skin runtime and the declarative component registry.
-3. Create the Spotify Developer app and register `http://127.0.0.1:43821/callback` (see `docs/spotify-setup.md`) before starting M3.
+1. Create the Spotify Developer app and register `http://127.0.0.1:43821/callback` (see `docs/spotify-setup.md`) before starting M3.
+2. Implement OAuth Authorization Code + PKCE, keyring storage and the Spotify provider.
+3. Add the Spotify settings/onboarding surface and error states.
 
-Do not begin with Spotify OAuth, native Winamp importers or level 3 modules. M1 is complete; M2 does not depend on Spotify credentials.
+Do not begin with native Winamp importers or level 3 modules. M1 and M2 are complete; M3 requires the user's Spotify Client ID.

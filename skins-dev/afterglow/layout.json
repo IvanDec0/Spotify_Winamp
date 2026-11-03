@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "root": {
+    "type": "stack",
+    "name": "stage",
+    "children": [
+      {
+        "type": "component",
+        "component": "visualizer",
+        "props": {
+          "mode": "spectrum",
+          "layer": "background",
+          "intensity": 0.55
+        }
+      },
+      {
+        "type": "column",
+        "name": "shell",
+        "children": [
+          {
+            "type": "component",
+            "component": "titlebar",
+            "props": {
+              "showBrand": true,
+              "showProvider": true,
+              "showDevice": true,
+              "showWindowControls": true,
+              "compact": true
+            }
+          },
+          {
+            "type": "row",
+            "name": "hero",
+            "props": {
+              "gap": 14,
+              "padding": 12,
+              "align": "center"
+            },
+            "children": [
+              {
+                "type": "component",
+                "component": "album-art",
+                "props": {
+                  "size": 92,
+                  "frame": true,
+                  "reflection": true
+                }
+              },
+              {
+                "type": "column",
+                "name": "copy",
+                "props": {
+                  "gap": 6,
+                  "padding": 0,
+                  "justify": "center",
+                  "align": "stretch"
+                },
+                "children": [
+                  {
+                    "type": "component",
+                    "component": "track-info",
+                    "props": {
+                      "showAlbum": true,
+                      "showStatus": true,
+                      "align": "left"
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "progress",
+                    "props": {
+                      "showTime": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "name": "controls",
+            "props": {
+              "gap": 7,
+              "padding": 8,
+              "align": "center",
+              "justify": "center"
+            },
+            "children": [
+              {
+                "type": "component",
+                "component": "shuffle"
+              },
+              {
+                "type": "component",
+                "component": "transport-controls",
+                "props": {
+                  "size": "regular",
+                  "showShuffle": false,
+                  "showRepeat": false
+                }
+              },
+              {
+                "type": "component",
+                "component": "repeat"
+              },
+              {
+                "type": "component",
+                "component": "volume",
+                "props": {
+                  "orientation": "horizontal",
+                  "showIcon": true
+                }
+              },
+              {
+                "type": "component",
+                "component": "device-picker",
+                "props": {
+                  "compact": true
+                }
+              },
+              {
+                "type": "component",
+                "component": "settings-button"
+              }
+            ]
+          },
+          {
+            "type": "component",
+            "component": "queue",
+            "props": {
+              "maxItems": 8,
+              "showHeader": true,
+              "showArt": true,
+              "showTime": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

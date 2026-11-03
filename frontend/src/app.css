@@ -105,6 +105,39 @@ svg {
     sans-serif;
 }
 
+.app-frame {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.skin-host {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.clarity.overlay-layer {
+  position: absolute;
+  z-index: 80;
+  inset: 0;
+  display: block;
+  background: none;
+}
+
+.clarity.toast-layer {
+  position: absolute;
+  z-index: 90;
+  inset: 0;
+  display: block;
+  background: none;
+  pointer-events: none;
+}
+
+.clarity.toast-layer .toast {
+  pointer-events: auto;
+}
+
 .clarity[data-theme="ice"] {
   --bg: #061018;
   --surface: #0b1a25;

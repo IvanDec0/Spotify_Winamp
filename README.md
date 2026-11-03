@@ -4,11 +4,13 @@
 
 ## Status
 
-**M1 complete.** The demo player and the original Clarity skin run without Spotify: a frameless 420×220 window, six themes, four simulated visualizer modes, queue expansion with native GTK4 resizing, device picker placeholders and keyboard controls. The next milestone is M2: the declarative skin system (levels 1–2).
+**M2 complete.** Cadence now includes a validated declarative skin system (levels 1–2): manifest and layout schemas, parsed CSS, local assets, directory/ZIP installation with staging and rollback, safe mode, a Shadow DOM runtime and a skin library. The built-in Clarity skin remains the native fallback. The next milestone is M3: Spotify Connect integration.
 
 - Design source of truth: [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md)
 - Implementation plan: [`plan/nombre_plan.md`](plan/nombre_plan.md)
 - Development workflow: [`docs/development.md`](docs/development.md)
+- Skin format reference: [`docs/skin-format.md`](docs/skin-format.md)
+- Skin authoring guide: [`docs/skin-authoring.md`](docs/skin-authoring.md)
 - Spotify setup: [`docs/spotify-setup.md`](docs/spotify-setup.md)
 
 ## What it is
@@ -49,6 +51,8 @@ Arch Linux x86_64 only in v1.
 | [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md) | Full v1 technical design |
 | [`plan/nombre_plan.md`](plan/nombre_plan.md) | Actionable implementation plan and test gates |
 | [`docs/development.md`](docs/development.md) | Local setup, commands and tooling notes |
+| [`docs/skin-format.md`](docs/skin-format.md) | Skin package, layout, theme and security reference |
+| [`docs/skin-authoring.md`](docs/skin-authoring.md) | Step-by-step guide to creating and installing a skin |
 | [`docs/spotify-setup.md`](docs/spotify-setup.md) | Spotify Developer app and OAuth setup |
 | [`docs/archive/documentacion-cliente-musical-skins.es.md`](docs/archive/documentacion-cliente-musical-skins.es.md) | Original Spanish design document (archived) |
 
@@ -105,6 +109,20 @@ task package   # AppImage, tar.gz and SHA-256 checksums in bin/
 
 Packaging tasks are scaffolded in M0 and will be validated in M4.
 
+## Skins
+
+Clarity is the built-in native skin and is always available. Declarative skins are installed from a directory or ZIP in the skin library. They contain JSON layouts, CSS and local assets; no skin JavaScript is executed.
+
+Development skins live in [`skins-dev/`](skins-dev/) and are discovered automatically when Cadence runs from the repository root. The included **Afterglow** skin demonstrates a different layout, theme files and the Shadow DOM runtime.
+
+```bash
+./bin/cadence --skins-dev ./skins-dev   # load development skins
+./bin/cadence --safe-mode               # built-in skin only, session-only
+./bin/cadence --demo                    # simulated player
+```
+
+See [`docs/skin-format.md`](docs/skin-format.md) and [`docs/skin-authoring.md`](docs/skin-authoring.md) before creating a skin.
+
 ### Wayland and tiling compositors
 
 Cadence requests a 420×220 window, but tiling compositors such as Sway and i3 decide the final geometry. Add a floating window rule for the app:
@@ -124,11 +142,14 @@ The custom titlebar provides the drag region; window controls are marked as non-
 ├── Taskfile.yml                     # Developer commands
 ├── build/                           # Wails metadata and Linux build tasks
 ├── frontend/                        # Svelte 5 + TypeScript UI
+├── skins-dev/                       # Development skins, including Afterglow
 ├── documentacion-cliente-musical-skins.md
 ├── plan/
 │   └── nombre_plan.md
 ├── docs/
 │   ├── development.md
+│   ├── skin-format.md
+│   ├── skin-authoring.md
 │   ├── spotify-setup.md
 │   └── archive/
 ├── .github/workflows/ci.yml         # Arch Linux CI skeleton
