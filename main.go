@@ -10,12 +10,11 @@ import (
 	"strings"
 
 	"cadence/internal/artcache"
-	"cadence/internal/keyring"
+	"cadence/internal/golibrespot"
 	"cadence/internal/platform"
 	"cadence/internal/player"
 	"cadence/internal/settings"
 	"cadence/internal/skins"
-	"cadence/internal/spotify"
 
 	"github.com/adrg/xdg"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -47,7 +46,7 @@ const (
 func init() {
 	application.RegisterEvent[player.PlayerState](player.StateEvent)
 	application.RegisterEvent[skins.SkinCatalog](skins.ChangedEvent)
-	application.RegisterEvent[spotify.AuthState](spotify.AuthEvent)
+	application.RegisterEvent[golibrespot.AudioState](golibrespot.AudioEvent)
 }
 
 func main() {
@@ -89,17 +88,26 @@ func main() {
 	}
 
 	demoProvider := player.NewDemoProvider()
-	playerService := player.NewService(demoProvider)
+	artCache := artcache.New(nil)
+	audioRuntime := golibrespot.NewRuntime(golibrespot.RuntimeOptions{
+		ConfigDir:    filepath.Join(xdg.ConfigHome, "cadence", "audio"),
+		LogPath:      filepath.Join(xdg.CacheHome, "cadence", "logs", "go-librespot.log"),
+		DeviceName:   "Cadence",
+		AudioBackend: "pulseaudio",
+		AudioDevice:  "default",
+		Bitrate:      320,
+	})
+	var provider player.Provider = demoProvider
+	if !*demoMode {
+		provider = golibrespot.NewProvider(audioRuntime, artCache)
+	}
+	playerService := player.NewService(provider)
 	windowService := platform.NewWindowService()
 	skinService := skins.NewService(skinManager)
-	artCache := artcache.New(nil)
-	spotifyService := spotify.NewService(spotify.Options{
-		Store:     settingsStore,
-		Keyring:   keyring.NewOSStore(),
-		Player:    playerService,
-		Demo:      demoProvider,
-		Art:       artCache,
-		ForceDemo: *demoMode,
+	audioService := golibrespot.NewService(golibrespot.ServiceOptions{
+		Runtime: audioRuntime,
+		Art:     artCache,
+		Enabled: !*demoMode,
 	})
 
 	frontend := application.AssetFileServerFS(assets)
@@ -116,7 +124,7 @@ func main() {
 
 	cadence := application.New(application.Options{
 		Name:        appName,
-		Description: "A compact Spotify Connect controller with declarative skins",
+		Description: "A compact local Spotify player with declarative skins",
 		Assets: application.AssetOptions{
 			Handler: withSecurityHeaders(assetHandler),
 		},
@@ -124,7 +132,7 @@ func main() {
 			application.NewService(playerService),
 			application.NewService(windowService),
 			application.NewService(skinService),
-			application.NewService(spotifyService),
+			application.NewService(audioService),
 		},
 		Linux: application.LinuxOptions{
 			ProgramName:   "cadence",

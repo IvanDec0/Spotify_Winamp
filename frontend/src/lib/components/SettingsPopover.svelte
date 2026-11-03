@@ -39,7 +39,7 @@
   let motionHint = $derived(
     motion === "system" && systemReducedMotion
       ? "System requests reduced motion."
-      : "Simulated visualizer · audio stays in Spotify.",
+      : "Simulated visualizer · audio plays through the local engine.",
   );
 </script>
 

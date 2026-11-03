@@ -13,7 +13,7 @@
 
   let items = $derived((player.state.queue ?? []).slice(0, Math.max(1, maxItems)));
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
-  let queueNote = $derived(player.state.provider === "demo" ? "Demo queue" : "Spotify queue");
+  let queueNote = $derived(player.state.provider === "demo" ? "Demo queue" : "Local queue");
   let failedCovers = $state<string[]>([]);
 
   function markCoverFailed(cover: string): void {
@@ -33,7 +33,7 @@
   {/if}
 
   {#if items.length === 0}
-    <p class="cad-queue-empty">Nothing queued. Start a track in Spotify.</p>
+    <p class="cad-queue-empty">Nothing queued. Start a track in the Library.</p>
   {:else}
     <ol class="cad-queue-list">
       {#each items as item (item.index)}

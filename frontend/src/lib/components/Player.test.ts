@@ -69,22 +69,20 @@ describe("Player error states", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   });
 
-  it("renders the no-active-device state", () => {
+  it("renders the unpaired state", () => {
     renderPlayer(
       state({
         error: {
-          code: "no_active_device",
-          message: "No active Spotify device. Start playback in Spotify or choose a device.",
+          code: "not_authenticated",
+          message: "Pair Cadence with Spotify to start playing music.",
           retryable: false,
         },
       }),
     );
 
-    expect(screen.getByText("No active device")).not.toBeNull();
-    expect(screen.getByText("Choose a Spotify device")).not.toBeNull();
-    expect(
-      screen.getByText("No active Spotify device. Start playback in Spotify or choose a device."),
-    ).not.toBeNull();
+    expect(screen.getByText("Pair Spotify to start")).not.toBeNull();
+    expect(screen.getByText("Pair Spotify in the Library")).not.toBeNull();
+    expect(screen.getByText("Pair Cadence with Spotify to start playing music.")).not.toBeNull();
   });
 
   it("renders a network error without losing the controls", () => {
@@ -92,7 +90,7 @@ describe("Player error states", () => {
       state({
         error: {
           code: "network",
-          message: "Cannot reach Spotify. Check your connection; Cadence will retry.",
+          message: "Cannot reach the local audio engine. Cadence will retry.",
           retryable: true,
         },
         canControl: false,
@@ -101,7 +99,7 @@ describe("Player error states", () => {
     );
 
     expect(
-      screen.getByText("Cannot reach Spotify. Check your connection; Cadence will retry."),
+      screen.getByText("Cannot reach the local audio engine. Cadence will retry."),
     ).not.toBeNull();
     expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
     expect((screen.getByRole("button", { name: "Play" }) as HTMLButtonElement).disabled).toBe(true);

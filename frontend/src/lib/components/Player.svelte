@@ -46,11 +46,19 @@
   let stateError = $derived(state.error?.message ?? "");
   let artists = $derived(
     state.track.artists?.join(", ") ||
-      (state.error?.code === "no_active_device" ? "Choose a Spotify device" : "Unknown artist"),
+      (state.error?.code === "not_authenticated"
+        ? "Pair Spotify in the Library"
+        : state.error?.code === "audio_unavailable"
+          ? "Local audio engine unavailable"
+          : "Unknown artist"),
   );
   let displayTitle = $derived(
     state.track.title ||
-      (state.error?.code === "no_active_device" ? "No active device" : "Nothing playing"),
+      (state.error?.code === "not_authenticated"
+        ? "Pair Spotify to start"
+        : state.error?.code === "audio_unavailable"
+          ? "Audio engine unavailable"
+          : "Nothing playing"),
   );
   let statusLabel = $derived(
     state.status === Status.StatusPlaying

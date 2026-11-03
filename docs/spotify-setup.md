@@ -1,136 +1,85 @@
-# Spotify Developer Setup
+# Spotify audio engine setup
 
-Cadence uses the official Spotify Web API as a **controller**. It does not play
-audio, does not use the Web Playback SDK and does not need a client secret.
+Cadence is a real Spotify player for a private, local setup. Audio is decoded
+and played by **go-librespot**, a GPL-3.0 open-source Spotify Connect client.
+Cadence does not use the official Web Playback SDK, does not use DRM, and does
+not require Spotify Desktop to be running.
+
+This is not an official Spotify client. It uses reverse-engineered Spotify
+protocols, so it may stop working after Spotify changes or be considered
+outside Spotify's terms. Use it only with your own Premium account and at your
+own risk.
 
 ## Requirements
 
 - Spotify **Premium** account.
-- Spotify Developer account.
-- Development Mode is sufficient: the app owner must have Premium and at most
-  five users can authorize the app.
-- The official Spotify client must be available as a Spotify Connect device.
+- `go-librespot` built for Linux x86_64.
+- PulseAudio or PipeWire (`pipewire-pulse`) for audio output.
+- CGO build libraries if you build the engine yourself:
+  `libogg`, `libvorbis`, `flac`, `mpg123`, `alsa-lib` and `libpulse`.
 
-## 1. Create the Spotify app
+## Build the engine
 
-1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
-2. Create an app.
-3. Suggested name: `Cadence (personal)`.
-4. Add this exact redirect URI:
+Cadence looks for the engine in this order:
 
-   ```text
-   http://127.0.0.1:43821/callback
-   ```
+1. `CADENCE_GO_LIBRESPOT` environment variable.
+2. `go-librespot` in `PATH`.
+3. A `go-librespot` binary next to the Cadence binary.
+4. `bin/go-librespot` in the repository root.
 
-5. Select the **Web API**.
-6. Save the app and copy the **Client ID**.
-
-Do **not** create or use a client secret. Cadence uses Authorization Code +
-PKCE, which is designed for public clients.
-
-## 2. Configure Cadence
-
-The Client ID is not secret. Provide it in one of these ways:
+Build a pinned development version into `bin/go-librespot`:
 
 ```bash
-export CADENCE_SPOTIFY_CLIENT_ID="your-client-id"
+task audio:build
 ```
 
-or click the **DEMO** / **CONNECT** badge in the titlebar, paste the Client ID in
-the Spotify account panel and save it.
+The engine is a separate process. It is not linked into Cadence.
 
-The redirect URI must match the Spotify Dashboard entry exactly. The fixed port
-`43821` is reserved for this project. If the port is occupied at login time,
-Cadence fails with a clear message instead of silently choosing another port.
+## Pair the device
 
-The refresh token is stored in the OS keyring (Secret Service). Access tokens
-remain in Go memory and are never sent to the frontend. Cadence never logs
-tokens, authorization codes or PKCE verifiers.
+1. Start Cadence without `--demo`.
+2. Open the provider badge in the titlebar (**CONNECT** / **DEMO**).
+3. If the engine is not paired, Cadence shows a pairing code.
+4. Choose **Open pairing page**, sign in to Spotify, and approve the device.
+5. Cadence updates automatically. The local device appears as **Cadence**.
 
-The panel can switch between the real Spotify Connect session and the built-in
-demo player without logging out. `cadence --demo` starts with the demo player
-for the session.
-
-## 3. Scopes
-
-Cadence requests only the scopes needed for playback control and state:
+The go-librespot credentials are stored by the engine under:
 
 ```text
-user-read-playback-state
-user-modify-playback-state
-user-read-currently-playing
+$XDG_CONFIG_HOME/cadence/audio/state.json
 ```
 
-No library, playlist, email, profile or offline-access scopes are requested.
+The directory is owner-only. Cadence does not receive Spotify playback
+credentials. **Reset pairing** removes the engine state and starts a new pairing
+flow.
 
-## 4. OAuth flow
+## Library and playback
 
-1. Cadence generates a PKCE verifier and a random `state`.
-2. It opens the system browser at the Spotify authorization URL.
-3. The user signs in and approves the requested scopes.
-4. Spotify redirects to `http://127.0.0.1:43821/callback`.
-5. Cadence validates `state`, exchanges the authorization code with the PKCE
-   verifier and receives an access token and a refresh token.
-6. The refresh token is stored in the OS keyring. The access token stays in Go
-   memory.
-7. The frontend receives only player state and controls; it never receives
-   tokens.
+The Library panel is the Spotify account/library surface:
 
-## 5. Account panel
+- browse playlists, saved albums and followed artists;
+- open a context and play any track;
+- play an entire playlist, album, artist or Liked Songs;
+- add tracks to the local play queue;
+- queue expansion and playback controls use the local engine.
 
-Click the provider badge in the titlebar (**DEMO** before connecting, **CONNECT**
-afterward) to open the Spotify account panel. The panel shows:
+The library endpoints are provided by go-librespot's internal Spotify session,
+not the rate-limited public Web API. Audio output uses the configured PulseAudio
+device (`default` in v1).
 
-- authorization state and the active playback source;
-- the exact redirect URI to register, with a copy button;
-- the Client ID field;
-- reconnect, logout, and demo/Spotify mode controls.
+## Troubleshooting
 
-If the active Spotify account has no Connect device, Cadence shows a **No active
-device** state and keeps the device picker available. Start playback in the
-official Spotify client, then transfer to that device from Cadence.
-
-## 6. Development Mode notes
-
-- The app owner must have Spotify Premium.
-- A maximum of five users can be authorized while the app is in Development
-  Mode.
-- A shared public Client ID is not viable for a distributed app; each user
-  should create their own Spotify app or the project must qualify for extended
-  quota.
-- Extended quota access is not assumed for Cadence v1.
-
-## 7. API constraints to respect
-
-Cadence must not depend on Spotify endpoints that were removed or restricted in
-the February 2026 API changes, including new releases, categories, artist top
-tracks, batch fetch and other users’ playlists. v1 only needs playback state,
-devices, queue and player control endpoints.
-
-Queue behavior is limited by the Web API. v1 displays the queue and does not
-promise arbitrary queue reordering.
-
-## 8. Troubleshooting
-
-| Symptom | Likely cause |
+| Symptom | Fix |
 |---|---|
-| `INVALID_CLIENT` | Client ID is wrong or the app was deleted |
-| `INVALID_REDIRECT_URI` | The dashboard URI does not exactly match `http://127.0.0.1:43821/callback` |
-| `403` on playback | Account is not Premium or the app lacks a required scope |
-| `404` on player endpoints | No active Spotify Connect device |
-| `429` | Rate limit; honor `Retry-After` and back off |
-| Login window does not return | Port 43821 is occupied or blocked by a local firewall |
-| `OS keyring is unavailable` | Start a Secret Service provider such as GNOME Keyring and unlock it |
-| Connect button is disabled | Save a non-empty Client ID and make sure the OS keyring is available |
-| Session expired after logout or token rotation | Click **Reconnect Spotify**; Cadence clears the revoked local refresh token |
-| `No active device` | Open the official Spotify client, start playback, then select its device in Cadence |
+| `Local audio engine unavailable` | Run `task audio:build` or set `CADENCE_GO_LIBRESPOT` |
+| No pairing code | Restart the engine from the Library panel; check the engine log |
+| Pairing code expired | Select **Reset pairing** and use the new code |
+| No sound | Check that PipeWire/PulseAudio is running and the default sink is correct |
+| Engine exits immediately | Run `bin/go-librespot --config_dir ~/.config/cadence/audio` manually to see its output |
+| `go-librespot is not installed` | Build the pinned engine with `task audio:build` |
 
-## 9. Security rules
+The engine log is written to:
 
-- Never commit the Client ID inside a `.env` file or source file.
-- Never add a client secret.
-- Never send tokens to the frontend.
-- Never log authorization codes, PKCE verifiers, access tokens or refresh
-  tokens.
-- Store the refresh token only in the OS keyring.
-- Use the system browser, not an embedded WebView, for authorization.
+```text
+$XDG_CACHE_HOME/cadence/logs/go-librespot.log
+```

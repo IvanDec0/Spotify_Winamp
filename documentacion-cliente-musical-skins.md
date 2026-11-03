@@ -1,22 +1,34 @@
 # Cadence — Technical Design Document
 
-> **Status:** v1 design locked (2026-10-25)  
-> **Working name:** Cadence (final name and bundle ID pending)  
-> **Goal:** a compact Arch Linux desktop controller for Spotify Connect with installable, declarative, Winamp-inspired skins.  
-> **Stack:** Go + Wails v3 + Svelte 5 + TypeScript + CSS.  
-> **Platform:** Arch Linux x86_64 only in v1.  
-> **UI and documentation language:** English.  
-> **License:** MIT for code; CC BY-SA 4.0 for original skin assets.
+> **Status:** design baseline (2026-10-25); product architecture updated 2026-11-03<br>
+> **Working name:** Cadence (final name and bundle ID pending)<br>
+> **Goal:** a compact Arch Linux desktop Spotify player with installable, declarative, Winamp-inspired skins.<br>
+> **Stack:** Go + Wails v3 + Svelte 5 + TypeScript + CSS + managed go-librespot engine.<br>
+> **Platform:** Arch Linux x86_64 only in v1.<br>
+> **UI and documentation language:** English.<br>
+> **License:** MIT for Cadence code; CC BY-SA 4.0 for original skin assets; go-librespot is GPL-3.0 and runs as a separate process.
 
-This document supersedes the original Spanish/Linux+Windows design. It is the v1 source of truth.
+This document supersedes the original Spanish/Linux+Windows design. The skin system, window model and visual direction remain the v1 baseline. **The Spotify architecture changed on 2026-11-03:** Cadence is now a local player, not a Spotify Connect controller.
+
+## Architecture update — 2026-11-03
+
+The earlier design assumed the official Spotify client would remain the playback device and Cadence would control it through the Web API. That assumption was replaced:
+
+- Audio is decoded and played by **go-librespot**, a managed sidecar process.
+- Authentication uses Spotify **device pairing**, not Authorization Code + PKCE.
+- The app browses the user's **playlists, saved albums, followed artists and Liked Songs** through go-librespot's local REST API.
+- The official Spotify client is optional and is not required for playback.
+- The frontend still never receives credentials. The engine keeps its own `state.json`.
+
+Sections below that describe OAuth, the OS keyring or Spotify Connect control are retained as historical design context and are superseded by [`plan/nombre_plan.md`](plan/nombre_plan.md) and [`docs/spotify-setup.md`](docs/spotify-setup.md).
 
 ---
 
 ## 1. Product summary
 
-Cadence is a desktop **controller** for Spotify, not a music player. Audio continues to play in the official Spotify client through Spotify Connect. Cadence owns authentication, playback state, queue state, device selection and the visual skin runtime; it never receives or processes audio.
+Cadence is a desktop **Spotify player**. It pairs with a Spotify Premium account, plays audio locally through PulseAudio/PipeWire, and provides its own library, track selection and queue. Cadence does not require the official Spotify client and never exposes playback credentials to the frontend.
 
-The product is a single compact window (420×220 by default) with an expandable queue and a fully declarative skin system. The default skin is an original design inspired by the minimal, elegant, animated cPro Pure lineage from the 2010–2015 Winamp modern-skin era. It is not a copy and contains no third-party skin assets.
+The product is a single compact window (420×220 by default) with an expandable queue, a full-window Library panel and a fully declarative skin system. The default skin is an original design inspired by the minimal, elegant, animated cPro Pure lineage from the 2010–2015 Winamp modern-skin era. It is not a copy and contains no third-party skin assets.
 
 The project is for personal/local use in v1.
 
@@ -26,30 +38,32 @@ The project is for personal/local use in v1.
 
 ### 2.1 In scope for v1
 
-- Spotify Authorization Code + PKCE authentication through the system browser.
-- Spotify Connect control of the official Spotify client.
+- Spotify device pairing through `spotify.com/pair`.
+- Local audio playback through a managed go-librespot sidecar and PulseAudio/PipeWire.
 - Playback state: track, artists, album, album art, progress, duration, play/pause, seek, next, previous, volume, shuffle and repeat.
-- Device listing and playback transfer.
-- Queue display from Spotify, including the currently playing item and upcoming items.
+- In-app library: playlists, saved albums, followed artists and Liked Songs.
+- Context and track selection, play-all and add-to-queue.
+- Queue display from the local engine, including the currently playing item and upcoming items.
 - Demo mode with a simulated provider, independent of Spotify.
-- One window, compact layout, expandable queue.
+- One window, compact layout, expandable queue and a full-window Library panel.
 - Declarative skin system levels 1–2: JSON manifest/layout, CSS, local assets, themes, animations.
 - Original default skin with four simulated visualizer modes and 4–6 themes.
 - Skin installation from a directory or ZIP, validation, activation, uninstallation and safe-mode fallback.
-- Settings, secure token storage, diagnostics and logging with redaction.
+- Settings, engine pairing state, diagnostics and logging with redaction.
 - Arch Linux builds: AppImage and `.tar.gz`.
 - GitHub Actions CI and reproducible release artifacts.
 
 ### 2.2 Out of scope for v1
 
-- Audio playback, audio extraction, audio capture or audio analysis.
-- Web Playback SDK, CEF, librespot, Spicetify or any in-app Spotify playback.
+- Official Web Playback SDK, Widevine/EME or DRM playback inside the webview.
+- Embedding go-librespot as a linked library.
+- Audio extraction, audio capture or audio analysis.
 - Native `.wsz` or `.wal` loading.
 - Maki or any executable skin code.
 - Skin marketplace, online catalog or automatic updates.
 - Visual skin editor.
 - Level 3 executable components.
-- Full search, library browsing, playlist management or social features.
+- Playlist editing, social features and full catalog search.
 - Windows and macOS targets.
 - Real beat detection or audio-reactive visualization.
 
@@ -58,7 +72,7 @@ The project is for personal/local use in v1.
 - A read-only native `.wsz` importer for a documented subset, with no Maki execution.
 - A read-only native `.wal` importer for a documented subset, with no Maki execution.
 - Level 3 sandboxed, prebuilt modules. Skins will not ship Svelte source; modules will use a restricted, versioned API.
-- Optional library/search features only if they fit the controller model.
+- Catalog search and richer library management.
 
 ---
 
@@ -66,13 +80,14 @@ The project is for personal/local use in v1.
 
 | Area | Decision |
 |---|---|
-| Product type | Spotify Connect controller; no audio playback in the app |
-| Spotify account | Premium; official Spotify client remains the playback device |
-| Spotify API | Official Spotify Web API; no Web Playback SDK |
-| Authentication | Authorization Code + PKCE, system browser, loopback `127.0.0.1`, no client secret |
-| Token storage | Refresh token in the OS keyring; access token in Go memory only |
-| Frontend token access | None. Tokens never cross the Go/frontend boundary |
-| Window model | One window, frameless, custom titlebar, default 420×220, expandable queue |
+| Product type | Local Spotify player with in-app library, queue and skins |
+| Spotify account | Premium required; audio plays through the local engine |
+| Audio engine | go-librespot managed as a separate process; loopback REST API |
+| Spotify API | go-librespot local API plus its authenticated Spotify session; no Web Playback SDK |
+| Authentication | Spotify device pairing (`spotify.com/pair`) |
+| Credential storage | Engine-owned `state.json` under `$XDG_CONFIG_HOME/cadence/audio` |
+| Frontend credential access | None. The frontend only receives token-free engine and player state |
+| Window model | One window, frameless, custom titlebar, default 420×220, 460 px Library |
 | Skins v1 | Levels 1–2: JSON manifest/layout + CSS + local assets; no JavaScript |
 | Skins v2 | Level 3 only with sandboxed, prebuilt modules and a restricted API |
 | Default skin | Original “Clarity”, inspired by cPro Pure; no copied assets |
@@ -82,7 +97,7 @@ The project is for personal/local use in v1.
 | Platform | Arch Linux x86_64 only |
 | Language | English UI and documentation |
 | Packaging | AppImage and `.tar.gz`; no Windows, no AUR in v1 |
-| License | MIT for code; CC BY-SA 4.0 for original skin assets |
+| License | MIT for Cadence code; CC BY-SA 4.0 for original skin assets; GPL-3.0 engine kept separate |
 | CI | GitHub Actions, Arch Linux container |
 
 ### 3.1 Version pins
@@ -732,25 +747,26 @@ Notes:
 
 **Exit:** a user can install, activate and remove a skin without recompiling; invalid skins are rejected; a broken skin cannot prevent startup.
 
-### Milestone 3 — Spotify Connect integration
+### Milestone 3 — Local Spotify playback and library
 
-- Implement OAuth Authorization Code + PKCE with loopback callback.
-- Store the refresh token in the OS keyring; keep access tokens in memory.
-- Implement the Spotify provider, rate limiting, polling and error states.
-- Implement device listing/transfer, playback controls, queue display and album-art proxy.
-- Add an onboarding screen for Client ID and redirect URI instructions.
-- Test with a real Premium account and the official Spotify client on Arch.
+- Implement a managed go-librespot sidecar with loopback REST control.
+- Pair through Spotify's device flow; keep engine credentials outside the frontend.
+- Implement the local provider, playback controls, queue display and album-art proxy.
+- Implement the in-app library: playlists, saved albums, artists and Liked Songs.
+- Implement context playback, individual track selection and add-to-queue.
+- Test with a real Premium account and local PulseAudio/PipeWire output on Arch.
 
-**Exit:** Cadence controls the official Spotify client; tokens never reach the frontend; no-audio and error states are handled; queue and devices work.
+**Exit:** Cadence plays Spotify audio locally without the official client; the library and queue work in-app; credentials never reach the frontend.
 
 ### Milestone 4 — Packaging and release
 
 - Build AppImage and `.tar.gz` artifacts in an Arch Linux CI container.
+- Bundle the pinned engine or document it as a required sidecar artifact.
 - Add GitHub Actions release workflow, checksums and install instructions.
 - Verify on a clean Arch environment.
 - Finalize license files, README, screenshots and skin authoring docs.
 
-**Exit:** a clean Arch user can install, authenticate, control playback and install a skin from the release artifacts.
+**Exit:** a clean Arch user can install Cadence, build or install the engine, pair and play, and install a skin from the release artifacts.
 
 ### Milestone 5 — v2 evaluation (not v1)
 

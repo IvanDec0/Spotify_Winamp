@@ -8,7 +8,7 @@
     onToggleQueue: () => void;
     onOpenDevices: () => void;
     onOpenSettings: () => void;
-    onOpenSpotify: () => void;
+    onOpenMusic: () => void;
     onMinimise: () => void;
     onClose: () => void;
   }
@@ -20,12 +20,12 @@
     onToggleQueue,
     onOpenDevices,
     onOpenSettings,
-    onOpenSpotify,
+    onOpenMusic,
     onMinimise,
     onClose,
   }: Props = $props();
 
-  let providerLabel = $derived(provider === "demo" ? "DEMO" : "CONNECT");
+  let providerLabel = $derived(provider === "demo" ? "DEMO" : "LOCAL");
   let deviceLabel = $derived(deviceName || "No device");
 </script>
 
@@ -45,9 +45,9 @@
     <button
       class="provider-badge"
       type="button"
-      title="Spotify account"
-      aria-label="Open Spotify account"
-      onclick={onOpenSpotify}
+      title="Music library"
+      aria-label="Open music library"
+      onclick={onOpenMusic}
     >
       {providerLabel}
     </button>

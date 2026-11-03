@@ -14,7 +14,7 @@ export interface SkinHandlers {
   toggleQueue: () => void;
   openDevices: () => void;
   openSettings: () => void;
-  openSpotify: () => void;
+  openMusic: () => void;
 }
 
 function errorMessage(error: unknown): string {
@@ -157,8 +157,8 @@ class SkinsStore {
     this.#handlers?.openSettings();
   }
 
-  openSpotify(): void {
-    this.#handlers?.openSpotify();
+  openMusic(): void {
+    this.#handlers?.openMusic();
   }
 
   async start(): Promise<void> {

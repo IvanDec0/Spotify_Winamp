@@ -62,39 +62,3 @@ func TestStoreRejectsCorruptConfig(t *testing.T) {
 		t.Fatalf("fallback config = %#v", config)
 	}
 }
-
-func TestSectionUpdatesPreserveOtherSections(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.json")
-	store := NewStore(path)
-
-	if err := store.UpdateSpotify(func(state *SpotifyState) error {
-		state.ClientID = "client-id"
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.UpdateSkins(func(state *SkinState) error {
-		state.ActiveID = "afterglow"
-		state.ActiveTheme = "ember"
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.UpdateSpotify(func(state *SpotifyState) error {
-		state.ClientID = "new-client-id"
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	config, err := store.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if config.Skins.ActiveID != "afterglow" || config.Skins.ActiveTheme != "ember" {
-		t.Fatalf("skin state = %#v", config.Skins)
-	}
-	if config.Spotify.ClientID != "new-client-id" {
-		t.Fatalf("spotify state = %#v", config.Spotify)
-	}
-}

@@ -11,7 +11,7 @@
   let { items, provider = "demo" }: Props = $props();
 
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
-  let queueNote = $derived(provider === "demo" ? "Demo queue" : "Spotify queue");
+  let queueNote = $derived(provider === "demo" ? "Demo queue" : "Local queue");
 </script>
 
 <section class="queue" aria-label="Playback queue">
@@ -24,7 +24,7 @@
   </header>
 
   {#if items.length === 0}
-    <p class="queue-empty">Nothing queued. Start a track in Spotify.</p>
+    <p class="queue-empty">Nothing queued. Start a track in the Library.</p>
   {:else}
     <ol class="queue-list">
       {#each items as item (item.index)}

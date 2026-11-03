@@ -31,6 +31,13 @@ tasks:
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 
+  audio:build:
+    summary: Builds the pinned go-librespot audio engine into bin/
+    cmds:
+      - mkdir -p {{.BIN_DIR}}
+      - GOBIN="{{.ROOT_DIR}}/{{.BIN_DIR}}" go install github.com/devgianlu/go-librespot/cmd/daemon@v0.10.6-0.20261102145552-522adcae8d65
+      - mv "{{.BIN_DIR}}/daemon" "{{.BIN_DIR}}/go-librespot"
+
   test:
     summary: Builds the frontend, then runs Go and frontend tests
     deps:

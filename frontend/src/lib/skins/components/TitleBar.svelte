@@ -20,7 +20,7 @@
     compact = false,
   }: Props = $props();
 
-  let providerLabel = $derived(player.state.provider === "demo" ? "DEMO" : "CONNECT");
+  let providerLabel = $derived(player.state.provider === "demo" ? "DEMO" : "LOCAL");
   let deviceLabel = $derived(player.state.device.name || "No device");
 
   function minimise(): void {
@@ -49,9 +49,9 @@
       <button
         class="cad-provider"
         type="button"
-        title="Spotify account"
-        aria-label="Open Spotify account"
-        onclick={() => skins.openSpotify()}
+        title="Music library"
+        aria-label="Open music library"
+        onclick={() => skins.openMusic()}
       >
         {providerLabel}
       </button>

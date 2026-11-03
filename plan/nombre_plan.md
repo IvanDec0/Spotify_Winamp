@@ -1,19 +1,20 @@
 # Cadence v1 — Implementation Plan
 
-> **Status:** M3 implemented; manual Spotify playback test pending<br>
-> **Design source of truth:** [`../documentacion-cliente-musical-skins.md`](../documentacion-cliente-musical-skins.md)  
-> **Working name:** Cadence  
-> **Platform:** Arch Linux x86_64  
-> **UI and documentation language:** English  
+> **Status:** M3 local playback implemented and verified live<br>
+> **Working name:** Cadence<br>
+> **Platform:** Arch Linux x86_64<br>
+> **UI and documentation language:** English<br>
 > **Last updated:** 2026-11-03
 
 ---
 
 ## 1. Goal
 
-Build a compact Arch Linux desktop controller for Spotify Connect with a single window, an expandable queue and installable declarative skins. Cadence never plays or processes audio; Spotify audio remains in the official Spotify client.
+Build a compact Arch Linux desktop **Spotify player** with a single window, an expandable queue, an in-app library and installable declarative skins.
 
-The first usable milestone (M1) delivers a demo player plus the original default skin, before real Spotify integration.
+Cadence decodes and plays Spotify audio locally through a managed **go-librespot** sidecar. It does not require the official Spotify client, does not use Web Playback SDK/DRM, and never exposes playback credentials to the frontend.
+
+The demo player remains available for development and for machines without Spotify.
 
 ---
 
@@ -21,24 +22,29 @@ The first usable milestone (M1) delivers a demo player plus the original default
 
 | Area | Decision |
 |---|---|
-| Product | Spotify Connect controller, not a player |
-| Auth | Authorization Code + PKCE, system browser, loopback `127.0.0.1`, no client secret |
-| Tokens | Refresh token in OS keyring; access token in Go memory; frontend never receives tokens |
-| Window | One frameless window, 420×220 default, expandable queue |
+| Product | Local Spotify player, library and queue inside Cadence |
+| Audio engine | go-librespot pinned to `v0.10.6-0.20261102145552-522adcae8d65`, managed as a separate process |
+| Engine control | Loopback HTTP REST API on `127.0.0.1` with a random port |
+| Auth | Spotify device pairing (`spotify.com/pair`); credentials stored by the engine |
+| Library | go-librespot endpoints for playlists, saved albums, followed artists, Liked Songs and context tracks |
+| Audio output | PulseAudio/PipeWire, 320 kbps, device name **Cadence** |
+| Window | One frameless window, 420×220 default, 460 px when the Library is open |
 | Skins v1 | Levels 1–2: JSON manifest/layout + CSS + local assets; no JavaScript |
 | Default skin | Original “Clarity”, inspired by cPro Pure; no copied assets |
 | Visualizer | Four simulated modes; no real beat detection |
 | Native Winamp skins | Reference only in v1; read-only importer may be evaluated in v2 |
 | Copyrighted recreations | Personal only, under `skins-local/`, excluded from Git and releases |
 | Platform | Arch Linux x86_64 |
-| Packaging | AppImage and `.tar.gz`; GitHub Actions CI |
-| License | MIT for code; CC BY-SA 4.0 for original skin assets |
+| Packaging | AppImage and `.tar.gz`; engine binary distributed separately or as a sidecar artifact |
+| License | MIT for Cadence code; CC BY-SA 4.0 for original skin assets; go-librespot is GPL-3.0 and kept as a separate process |
 
 Pinned stack: Go 1.26+ (environment 1.27.3), Wails `v3.0.0-beta.34`, Svelte 5.57.2, Vite 8.3.5, TypeScript 6.0.3, Node 26.12.1.
 
+This is a private, personal-use project. The user explicitly accepted the use of an unofficial Spotify client and the associated account/terms risk.
+
 ---
 
-## 3. Pre-development status
+## 3. Status
 
 | Item | Status |
 |---|---|
@@ -46,22 +52,26 @@ Pinned stack: Go 1.26+ (environment 1.27.3), Wails `v3.0.0-beta.34`, Svelte 5.57
 | Default skin direction | Done |
 | Skin format scope | Done |
 | Native `.wsz`/`.wal` decision | Done |
-| Design document updated | Done |
-| Plan saved in `plan/nombre_plan.md` | Done |
 | Git repository initialized | Done |
 | Wails v3 beta.34 CLI installed | Done |
 | Task 3.54.0 installed | Done |
 | `wails3 doctor` passes | Done |
-| Spotify Developer app created | User action pending |
-| Fixed OAuth callback port registered | User action pending |
-| Final app name and bundle ID | Non-blocking; working name Cadence |
 | Wails project scaffold | Done (M0) |
 | Frontend toolchain pinned and linted | Done (M0) |
 | CI skeleton | Done (M0) |
+| Demo player and Clarity | Done (M1) |
+| Declarative skin system | Done (M2) |
+| Local audio engine | Done (M3) |
+| Real Spotify pairing | Done and verified live |
+| Local audio playback | Done and verified with 320 kbps OGG |
+| Library browsing and selection | Implemented; extended live verification in progress |
+| `task audio:build` | Done |
+| Engine documentation | Done |
+| Packaging and release | Pending (M4) |
 
 ### Toolchain note
 
-The Go-installed binaries are in `$(go env GOPATH)/bin` (`/home/ivan/go/bin`), which is not currently in `PATH`. Add this to the shell configuration:
+The Go-installed binaries are in `$(go env GOPATH)/bin` (`/home/ivan/go/bin`), which is not always in `PATH`. Add this to the shell configuration:
 
 ```bash
 export PATH="$PATH:$(go env GOPATH)/bin"
@@ -77,8 +87,6 @@ node 26.12.1
 npm 12.2.1
 ```
 
-`wails3 doctor` reports: “Your system is ready for Wails development!”
-
 ---
 
 ## 4. Milestones
@@ -87,110 +95,64 @@ npm 12.2.1
 
 **Goal:** a clean Wails v3 + Svelte project that builds and runs, with the existing docs preserved.
 
-**Status: complete.** The scaffold is pinned to Wails `v3.0.0-beta.34`, the demo service and time event were removed, and the Linux-only Taskfile now builds a frameless 420×220 shell.
-
-Tasks:
-
-- [x] Scaffold Wails v3 with the `svelte` template in a temporary directory.
-- [x] Merge the generated `main.go`, `go.mod`, `frontend/`, `build/` and Wails configuration into the repository root without overwriting `plan/`, `docs/` or the design document.
-- [x] Add the project `Taskfile.yml` and verify `wails3 dev`.
-- [x] Add `.gitignore`, `.editorconfig`, README and license files.
-- [x] Add the CI skeleton.
-- [x] Record the exact scaffold version and template changes.
-
-Exit criteria:
-
-- [x] `wails3 dev` opens the Cadence window.
-- [x] Filtered Go tests and frontend checks pass on the scaffold.
-- [x] The repository contains no generated secrets or local-only files.
-- [x] The docs and plan are still intact.
+**Status: complete.** The scaffold is pinned to Wails `v3.0.0-beta.34`, the demo service and time event were removed, and the Linux-only Taskfile builds a frameless 420×220 shell.
 
 ### M1 — Demo player and Clarity skin
 
 **Goal:** a usable simulated player and the first original skin, with no Spotify dependency.
 
-**Status: complete.** The demo provider, player store, Clarity skin and window services are implemented. The queue expands and collapses through a native GTK4 resize helper because Wails v3 beta.34 maps `SetSize` to `gtk_window_set_default_size`, which does not resize a mapped window on GTK4.
-
-Tasks:
-
-- [x] Define `PlayerState` and the provider interface.
-- [x] Implement the demo provider with a small fake queue and deterministic track metadata.
-- [x] Build the frameless 420×220 shell and custom titlebar.
-- [x] Implement core components: album art, track info, progress, transport, volume, shuffle, repeat, queue, device picker placeholder and settings button.
-- [x] Implement the Clarity skin with six themes and four visualizer modes.
-- [x] Implement play/pause, next/previous, seek, volume, shuffle and repeat against the demo provider.
-- [x] Implement queue expansion and reduced-motion behavior.
-- [x] Add keyboard focus states and basic accessibility.
-
-Exit criteria:
-
-- [x] The app runs without Spotify.
-- [x] The demo player responds to every control.
-- [x] The default skin renders, animates and switches themes.
-- [x] The queue expands and collapses smoothly.
-- [x] No token, OAuth or Spotify code is required to run the demo.
+**Status: complete.** The demo provider, player store, Clarity skin and window services are implemented. The queue expands and collapses through a native GTK4 resize helper.
 
 ### M2 — Skin system levels 1–2
 
 **Goal:** install, validate, activate and remove declarative skins without recompiling.
 
-**Status: complete.** Manifest and layout schemas, semantic validation, CSS parsing, local asset checks, directory and ZIP installation, staging with rollback, last-known-good fallback, safe mode, a Shadow DOM runtime, a skin library and the Afterglow development skin are implemented. The built-in Clarity skin remains native and always available.
+**Status: complete.** Manifest and layout schemas, semantic validation, CSS parsing, local asset checks, directory and ZIP installation, staging with rollback, last-known-good fallback, safe mode, a Shadow DOM runtime, a skin library and the Afterglow development skin are implemented.
+
+### M3 — Local Spotify playback and in-app library
+
+**Goal:** Cadence plays Spotify audio itself, pairs without the official client, and lets the user choose music inside the app.
+
+**Status: implemented and verified live.** Device pairing, authentication and 320 kbps local playback were verified on Arch Linux. Playlist browsing, context listing, track selection, play-all, add-to-queue, pause, queue expansion and album-art proxying were verified in the running app.
 
 Tasks:
 
-- [x] Define JSON Schemas for `manifest.json` and `layout.json`.
-- [x] Implement manifest/layout/CSS validation in Go.
-- [x] Implement the Shadow DOM skin runtime and component registry.
-- [x] Implement theme tokens and CSS variable application.
-- [x] Implement directory and ZIP installation with staging, atomic activation and rollback.
-- [x] Enforce path, size, asset-type and ZIP limits.
-- [x] Implement safe mode, last-known-good skin and fallback to the built-in skin.
-- [x] Add a second development skin with a deliberately different layout.
-- [x] Write `docs/skin-format.md` and a skin authoring guide.
+- [x] Evaluate librespot, spotifyd and go-librespot for local playback and library APIs.
+- [x] Choose go-librespot and pin a master build with albums, artists and Liked Songs endpoints.
+- [x] Add `task audio:build` for the pinned engine.
+- [x] Implement the managed sidecar runtime, config, free-port allocation and log capture.
+- [x] Implement the loopback REST client for status, auth, playback, volume, shuffle, repeat and queue.
+- [x] Implement device-auth pairing and expose the pairing URL/code to the UI.
+- [x] Implement the provider that maps engine status to `PlayerState`.
+- [x] Implement library endpoints for playlists, albums, artists and context tracks.
+- [x] Implement the Library panel with tabs, playback and add-to-queue.
+- [x] Proxy and cache album art through Go.
+- [x] Keep the frontend free of credentials.
+- [x] Remove the old Spotify Connect/OAuth/keyring path from the app.
+- [x] Rewrite setup documentation for the local engine.
+- [ ] Finish live verification of volume, next/previous, shuffle/repeat and every library tab.
+- [ ] Verify reset pairing from a clean state.
 
 Exit criteria:
 
-- [x] A second skin can be installed and activated without recompiling.
-- [x] Invalid or malicious skins are rejected before activation.
-- [x] A broken active skin cannot prevent startup.
-- [x] The built-in Clarity skin is always available.
-- [x] The skin format documentation is sufficient to create a new level 1–2 skin.
-
-### M3 — Spotify Connect integration
-
-**Goal:** control the official Spotify client with a real Premium account.
-
-**Status: implemented; manual playback test pending.** The live authorization flow, keyring persistence/restore and the no-active-device state were verified on Arch Linux. A Spotify desktop client logged in as a Connect device is still needed to verify real playback, queue content and device transfer end to end.
-
-Tasks:
-
-- [x] Create and document the Spotify Developer app setup.
-- [x] Implement OAuth Authorization Code + PKCE with a fixed loopback callback.
-- [x] Store the refresh token in the OS keyring; keep access tokens in Go memory.
-- [x] Implement the Spotify provider, rate limiting, polling and state reconciliation.
-- [x] Implement device listing and playback transfer.
-- [x] Implement play/pause, next/previous, seek, volume, shuffle and repeat.
-- [x] Implement queue display and album-art caching/proxying.
-- [x] Implement error states: no device, Premium restriction, offline, rate limit, revoked token.
-- [x] Ensure the frontend never receives tokens.
-- [ ] Test with the official Spotify client on Arch Linux.
-
-Exit criteria:
-
-- [x] Cadence authenticates through the system browser.
-- [ ] Cadence controls the official Spotify client.
-- [ ] Device transfer and queue display work end to end.
-- [x] Tokens are not present in frontend state, logs or the repository.
-- [x] Rate limits and error states are handled without crashing.
-- [x] Demo mode remains available without Spotify.
+- [x] Cadence pairs with Spotify through the device flow.
+- [x] Cadence decodes and plays Spotify audio locally.
+- [x] The official Spotify client is not required.
+- [x] Playlists, tracks and queue are visible in the app.
+- [x] A selected track or context starts local playback.
+- [x] The frontend never receives playback credentials.
+- [x] `--demo` still works without the engine.
+- [ ] Every transport control is verified against the local engine.
+- [ ] Pairing reset is verified from a clean state.
 
 ### M4 — Packaging and release
 
-**Goal:** reproducible Arch Linux artifacts.
+**Goal:** reproducible Arch Linux artifacts that include or clearly declare the audio engine.
 
 Tasks:
 
 - Build AppImage and `.tar.gz` artifacts in an Arch Linux CI container.
+- Bundle `bin/go-librespot` or document it as a required sidecar artifact.
 - Add GitHub Actions test/build/release workflows.
 - Generate SHA-256 checksums.
 - Write installation and first-run documentation.
@@ -199,7 +161,7 @@ Tasks:
 
 Exit criteria:
 
-- A clean Arch user can install the artifact, authenticate and control playback.
+- A clean Arch user can install Cadence, build/install the engine, pair and play.
 - Skins can be installed from the release build.
 - CI produces reproducible artifacts and checksums.
 - No Windows or macOS artifacts are produced.
@@ -217,18 +179,20 @@ Exit criteria:
 
 1. **M0:** scaffold Wails in a temporary directory and merge it into the repo.
 2. **M1:** build the demo provider and the Clarity skin.
-3. **M2:** lock the skin format and the installer before adding Spotify complexity.
-4. **M3:** add OAuth and Spotify Connect only after the UI and skins are stable.
+3. **M2:** lock the skin format and the installer.
+4. **M3:** add the local audio engine, pairing, library and selection.
 5. **M4:** package and release.
 6. **M5:** evaluate v2 features only after v1 is usable.
 
-Do not start with OAuth, native Winamp importers or level 3 modules.
+Do not start with native Winamp importers or level 3 modules.
 
 ---
 
 ## 6. Test gates
 
 ### Gate A — after M0
+
+**Status: passed.**
 
 - `go test ./...`
 - `go vet ./...`
@@ -248,7 +212,7 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 ### Gate C — after M2
 
-**Status: passed.** `task check`, `task test` and `wails3 build` pass locally. The Go suite covers schemas, CSS, traversal, symlinks, ZIP limits, staging, activation, rollback, uninstall, safe mode, last-known-good fallback and a second skin. The frontend suite covers Shadow DOM mount/theme/queue updates and invalid-layout fallback.
+**Status: passed.** The Go suite covers schemas, CSS, traversal, symlinks, ZIP limits, staging, activation, rollback, uninstall, safe mode, last-known-good fallback and a second skin. The frontend suite covers Shadow DOM mount/theme/queue updates and invalid-layout fallback.
 
 - [x] manifest/layout schema tests
 - [x] path traversal, symlink and ZIP-bomb rejection
@@ -259,22 +223,26 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 ### Gate D — after M3
 
-**Status: automated tests passed; manual playback test pending.**
+**Status: automated tests passed; extended live verification in progress.**
 
-- [x] OAuth PKCE and state tests
-- [x] token redaction test
-- [x] Spotify client tests with `httptest` for 200/401/403/404/429/5xx
-- [x] polling and backoff tests
-- [x] no-active-device, offline and revoked-token UI tests
-- [ ] manual test against the official Spotify client
+- [x] REST client tests with `httptest` for status/auth/playback/library/context/errors
+- [x] provider mapping tests for playback status, queue, art, volume and controls
+- [x] engine process discovery test
+- [x] `go test -race ./internal/golibrespot`
+- [x] `task check`, `task test` and `wails3 build`
+- [x] live device pairing and local playback
+- [x] live library browsing, track selection and add-to-queue
+- [ ] live volume, next/previous and shuffle/repeat verification
+- [ ] live pairing reset from a clean state
 
 ### Gate E — after M4
 
 - clean Arch install test
 - AppImage and tarball smoke test
+- engine binary discovery in the packaged build
 - checksum verification
 - skin installation from the packaged build
-- no secrets in the repository or artifacts
+- no credentials in the repository or artifacts
 
 ---
 
@@ -282,17 +250,20 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 | Risk | Mitigation |
 |---|---|
-| Spotify Development Mode limits | Personal use only; document the five-user limit and Premium requirement |
-| OAuth redirect registration mismatch | Use one fixed loopback port; register the exact URI; document it |
+| Unofficial Spotify protocol breaks | Pin the engine version; document the risk; expose clear engine errors |
+| Spotify account/terms risk | Private personal use only; user accepted the risk; no redistribution |
+| GPL-3.0 engine licensing | Keep go-librespot as a separate process; do not link it into Cadence |
+| Engine auth state loss | Pairing reset flow; document `state.json` and the pairing URL |
+| Audio backend unavailable | Detect PulseAudio/PipeWire failures in the engine log; show actionable errors |
+| go-librespot API changes | Pin a known-good pseudo-version; keep the client narrowly scoped |
+| Library endpoint gaps | Use the pinned master build, not the older release without albums/artists |
 | Wails v3 beta API churn | Pin `v3.0.0-beta.34`; review release notes before upgrading |
-| WebKitGTK limitations | Do not use Web Playback SDK or EME; test on Arch WebKitGTK 6.0 |
+| WebKitGTK limitations | Do not use Web Playback SDK or EME; audio is handled outside the webview |
 | Frameless window differences on Wayland | Test on Sway; provide a fallback titlebar/drag region if needed |
-| Keyring availability | Detect Secret Service availability; show a clear error if unavailable |
 | Malicious skin packages | Strict schemas, path canonicalization, ZIP limits, CSP, safe mode |
 | Skin CSS exfiltration | No remote URLs, no scripts, local assets only |
-| Queue API limitations | Display-only queue in v1 unless a context-preserving action is confirmed |
 | Album art remote content | Proxy/cache art through Go; keep CSP restricted |
-| Real beat detection impossible without audio | Simulated visualizer only; document the limitation |
+| Real beat detection impossible without audio access | Simulated visualizer only; document the limitation |
 
 ---
 
@@ -303,25 +274,31 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 - [x] The Clarity skin is the default and looks correct at 420×220.
 - [x] The queue expands and collapses.
 - [x] Four simulated visualizer modes and six themes work.
-- [ ] Spotify OAuth PKCE works through the system browser.
-- [ ] The refresh token is stored in the OS keyring.
-- [x] No token appears in the frontend, logs or repository.
-- [ ] Device listing and transfer work end to end with the official client.
-- [ ] Play/pause, next/previous, seek, volume, shuffle, repeat and queue work end to end.
-- [x] Rate-limit, offline, no-device and revoked-token states are handled.
+- [x] Cadence pairs through the Spotify device flow.
+- [x] Cadence decodes and plays Spotify audio locally.
+- [x] The official Spotify client is not required for playback.
+- [x] Playlists, saved albums, followed artists and Liked Songs are browsable.
+- [x] A context or individual track can be played from the Library.
+- [x] Tracks can be added to the local queue.
+- [x] No playback credential appears in the frontend, logs or repository.
+- [x] The old Spotify Connect/OAuth/keyring path is removed from the app.
+- [ ] Volume, next/previous and shuffle/repeat are verified live.
+- [ ] Pairing reset is verified from a clean state.
 - [x] A second skin can be installed, activated and removed without recompiling.
 - [x] Invalid or malicious skins are rejected or safely rolled back.
 - [x] `--safe-mode` starts without third-party skins.
 - [x] Skin authoring documentation is sufficient for level 1–2 skins.
 - [ ] CI passes and produces AppImage and `.tar.gz` artifacts.
-- [ ] A clean Arch installation can install, authenticate and control playback.
+- [ ] A clean Arch installation can install, pair and play.
 
 ---
 
 ## 9. Immediate next actions
 
-1. Open the official Spotify desktop client, log in and start playback.
-2. Verify Cadence playback controls, queue content and device transfer against that device.
-3. Then begin M4: packaging, CI/release workflows and clean Arch verification.
+1. Verify volume, next/previous and shuffle/repeat against the running engine.
+2. Verify reset pairing from a clean state and confirm the new pairing code appears.
+3. Run `task format:write`, `task check`, `task test` and `wails3 build`.
+4. Commit the local-player integration.
+5. Begin M4: packaging, CI/release workflows and clean Arch verification.
 
-Do not begin with native Winamp importers or level 3 modules. M1 and M2 are complete; M3 implementation is complete except the manual Spotify client test.
+Do not begin with native Winamp importers or level 3 modules.

@@ -7,20 +7,20 @@ import type { Events } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import type * as golibrespot$0 from "../../../../../cadence/internal/golibrespot/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import type * as player$0 from "../../../../../cadence/internal/player/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import type * as skins$0 from "../../../../../cadence/internal/skins/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import type * as spotify$0 from "../../../../../cadence/internal/spotify/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "audio:state": golibrespot$0.AudioState;
             "player:state": player$0.PlayerState;
             "skins:changed": skins$0.SkinCatalog;
-            "spotify:auth": spotify$0.AuthState;
         }
     }
 }

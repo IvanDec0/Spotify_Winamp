@@ -11,11 +11,11 @@
   import { skins } from "../skins.svelte";
 
   interface Props {
-    onOpenSpotify: () => void;
+    onOpenMusic: () => void;
     onClose: () => void;
   }
 
-  let { onOpenSpotify, onClose }: Props = $props();
+  let { onOpenMusic, onClose }: Props = $props();
 
   let installing = $state<"zip" | "directory" | null>(null);
   let pendingRemove = $state<string | null>(null);
@@ -98,7 +98,7 @@
       <h2>Skins</h2>
     </div>
     <div class="head-actions">
-      <button class="spotify-link" type="button" onclick={onOpenSpotify}>Spotify</button>
+      <button class="spotify-link" type="button" onclick={onOpenMusic}>Library</button>
       <button class="close" type="button" aria-label="Close skin library" onclick={onClose}>
         <Icon name="close" size={12} />
       </button>

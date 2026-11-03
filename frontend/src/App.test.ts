@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { music } from "./lib/music.svelte";
 import { preferences } from "./lib/preferences.svelte";
 import { skins } from "./lib/skins.svelte";
 
@@ -118,15 +119,6 @@ const mocks = vi.hoisted(() => {
     canChangeActiveSkin: true,
   };
 
-  const auth = {
-    status: "unauthenticated",
-    clientId: "",
-    redirectUri: "http://127.0.0.1:43821/callback",
-    keyringAvailable: true,
-    playerMode: "demo",
-    error: "",
-  };
-
   const runtime = {
     id: "clarity",
     name: "Clarity",
@@ -147,9 +139,24 @@ const mocks = vi.hoisted(() => {
     queueHeight: 460,
   };
 
+  const audio = {
+    available: true,
+    running: true,
+    authenticated: false,
+    engine: "go-librespot",
+    engineVersion: "",
+    deviceName: "Cadence",
+    deviceType: "",
+    pairing: null,
+    error: "",
+    binaryPath: "/tmp/go-librespot",
+    configDirectory: "/tmp/cadence-audio",
+    audioBackend: "pulseaudio",
+  };
+
   const on = vi.fn(() => () => {});
 
-  return { setSize, minimise, close, player, catalog, runtime, auth, on };
+  return { setSize, minimise, close, player, catalog, runtime, audio, on };
 });
 
 vi.mock("@wailsio/runtime", () => ({
@@ -168,21 +175,21 @@ vi.mock("../bindings/cadence/internal/platform", () => ({
   WindowService: { SetSize: mocks.setSize },
 }));
 
-vi.mock("../bindings/cadence/internal/spotify", () => ({
-  AuthStatus: {
-    AuthChecking: "checking",
-    AuthUnauthenticated: "unauthenticated",
-    AuthAuthenticating: "authenticating",
-    AuthAuthenticated: "authenticated",
-    AuthError: "error",
-  },
+vi.mock("../bindings/cadence/internal/golibrespot", () => ({
   Service: {
-    GetAuthState: vi.fn(() => Promise.resolve(mocks.auth)),
-    Login: vi.fn(() => Promise.resolve()),
-    Logout: vi.fn(() => Promise.resolve()),
-    SetClientID: vi.fn(() => Promise.resolve()),
-    UseDemo: vi.fn(() => Promise.resolve()),
-    UseSpotify: vi.fn(() => Promise.resolve()),
+    GetState: vi.fn(() => Promise.resolve(mocks.audio)),
+    OpenPairing: vi.fn(() => Promise.resolve()),
+    ResetSession: vi.fn(() => Promise.resolve(mocks.audio)),
+    Restart: vi.fn(() => Promise.resolve(mocks.audio)),
+    Playlists: vi.fn(() => Promise.resolve({ total: 0, offset: 0, limit: 100, items: [] })),
+    Albums: vi.fn(() => Promise.resolve({ total: 0, offset: 0, limit: 100, items: [] })),
+    Artists: vi.fn(() => Promise.resolve({ total: 0, offset: 0, limit: 100, items: [] })),
+    ContextTracks: vi.fn(() =>
+      Promise.resolve({ uri: "", ready: true, length: 0, cached: 0, items: [] }),
+    ),
+    PlayContext: vi.fn(() => Promise.resolve()),
+    PlayTrack: vi.fn(() => Promise.resolve()),
+    AddToQueue: vi.fn(() => Promise.resolve()),
   },
 }));
 
@@ -214,6 +221,8 @@ describe("App shell", () => {
     skins.queueOpen = false;
     skins.error = null;
     skins.notice = null;
+    music.error = null;
+    music.notice = null;
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   });
 
@@ -290,13 +299,13 @@ describe("App shell", () => {
     expect(screen.getByRole("button", { name: "Close skin library" })).not.toBeNull();
   });
 
-  it("opens the Spotify account panel from the provider badge", async () => {
+  it("opens the music library from the provider badge", async () => {
     render(App);
 
-    await fireEvent.click(screen.getByRole("button", { name: "Open Spotify account" }));
+    await fireEvent.click(screen.getByRole("button", { name: "Open music library" }));
 
-    expect(screen.getByRole("dialog", { name: "Spotify account" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Close Spotify account" })).not.toBeNull();
+    expect(screen.getByRole("dialog", { name: "Music library" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Close music library" })).not.toBeNull();
   });
 
   it("applies the reduced-motion preference to the shell", async () => {

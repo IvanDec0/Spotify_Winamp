@@ -9,6 +9,11 @@ import type {} from "../github.com/wailsapp/wails/v3/internal/eventdata.js";
 import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 
 /**
+ * Name of the custom event "audio:state".
+ */
+export const AudioState = "audio:state";
+
+/**
  * Name of the custom event "player:state".
  */
 export const PlayerState = "player:state";
@@ -17,9 +22,4 @@ export const PlayerState = "player:state";
  * Name of the custom event "skins:changed".
  */
 export const SkinsChanged = "skins:changed";
-
-/**
- * Name of the custom event "spotify:auth".
- */
-export const SpotifyAuth = "spotify:auth";
 

@@ -38,8 +38,8 @@ type Track struct {
 	DurationMS int      `json:"durationMs"`
 }
 
-// Device is a Spotify Connect target. The demo provider uses fictional
-// devices with the same shape the Spotify provider will return.
+// Device is a playback target. The demo provider uses fictional devices; the
+// local engine reports Cadence itself as the active device.
 type Device struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`

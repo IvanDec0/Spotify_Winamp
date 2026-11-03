@@ -24,18 +24,11 @@ type SkinState struct {
 	ThirdPartyDisabled bool   `json:"thirdPartyDisabled"`
 }
 
-// SpotifyState is the persisted, non-secret Spotify configuration.
-type SpotifyState struct {
-	ClientID string `json:"clientId"`
-	DemoMode bool   `json:"demoMode"`
-}
-
 // Config is the root configuration document. New top-level sections can be
 // added without changing the skin or Spotify stores.
 type Config struct {
-	SchemaVersion int          `json:"schemaVersion"`
-	Skins         SkinState    `json:"skins"`
-	Spotify       SpotifyState `json:"spotify"`
+	SchemaVersion int       `json:"schemaVersion"`
+	Skins         SkinState `json:"skins"`
 }
 
 // Default returns a configuration that always selects the built-in skin and
@@ -106,14 +99,6 @@ func (s *Store) loadLocked() (Config, error) {
 func (s *Store) UpdateSkins(mutate func(*SkinState) error) error {
 	return s.update(func(config *Config) error {
 		return mutate(&config.Skins)
-	})
-}
-
-// UpdateSpotify atomically updates only the Spotify section while preserving
-// the latest skin settings on disk.
-func (s *Store) UpdateSpotify(mutate func(*SpotifyState) error) error {
-	return s.update(func(config *Config) error {
-		return mutate(&config.Spotify)
 	})
 }
 

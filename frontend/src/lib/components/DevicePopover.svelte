@@ -23,7 +23,7 @@
   </header>
 
   {#if devices.length === 0}
-    <p class="empty">No Spotify devices are available.</p>
+    <p class="empty">The local audio engine is not available.</p>
   {:else}
     <div class="device-list">
       {#each devices as device (device.id)}
@@ -58,7 +58,7 @@
     </div>
   {/if}
 
-  <p class="hint mono">Spotify Connect · choose a device</p>
+  <p class="hint mono">Local playback · Cadence</p>
 </div>
 
 <style>

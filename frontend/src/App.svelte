@@ -13,14 +13,14 @@
   import SkinHost from "./lib/skins/SkinHost.svelte";
   import SkinManager from "./lib/skins/SkinManager.svelte";
   import { skins } from "./lib/skins.svelte";
-  import SpotifyPanel from "./lib/SpotifyPanel.svelte";
-  import { spotify } from "./lib/spotify.svelte";
+  import MusicBrowser from "./lib/MusicBrowser.svelte";
+  import { music } from "./lib/music.svelte";
 
   let queueClosing = $state(false);
   let settingsOpen = $state(false);
   let devicesOpen = $state(false);
   let skinManagerOpen = $state(false);
-  let spotifyOpen = $state(false);
+  let musicOpen = $state(false);
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   let lastVolume = 65;
 
@@ -46,14 +46,14 @@
     }
     devicesOpen = false;
     skinManagerOpen = false;
-    spotifyOpen = false;
+    musicOpen = false;
     settingsOpen = true;
   }
 
   function openSkinManager(): void {
     devicesOpen = false;
     settingsOpen = false;
-    spotifyOpen = false;
+    musicOpen = false;
     if (queueOpen) setQueue(false);
     skinManagerOpen = true;
   }
@@ -62,22 +62,23 @@
     skinManagerOpen = false;
   }
 
-  function openSpotify(): void {
+  function openMusic(): void {
     devicesOpen = false;
     settingsOpen = false;
     skinManagerOpen = false;
     if (queueOpen) setQueue(false);
-    spotifyOpen = true;
+    musicOpen = true;
   }
 
-  function closeSpotify(): void {
-    spotifyOpen = false;
+  function closeMusic(): void {
+    musicOpen = false;
+    music.clearContext();
   }
 
   function openDevices(): void {
     settingsOpen = false;
     skinManagerOpen = false;
-    spotifyOpen = false;
+    musicOpen = false;
     devicesOpen = true;
   }
 
@@ -85,7 +86,7 @@
     settingsOpen = false;
     devicesOpen = false;
     skinManagerOpen = false;
-    spotifyOpen = false;
+    musicOpen = false;
   }
 
   function setQueue(open: boolean): void {
@@ -165,8 +166,8 @@
     if (event.key === "Escape") {
       if (skinManagerOpen) {
         skinManagerOpen = false;
-      } else if (spotifyOpen) {
-        spotifyOpen = false;
+      } else if (musicOpen) {
+        closeMusic();
       } else if (settingsOpen || devicesOpen) {
         closePopovers();
       } else if (queueOpen) {
@@ -240,7 +241,7 @@
 
   $effect(() => {
     if (skins.loading) return;
-    resizeWindow(queueOpen ? expandedHeight : baseHeight);
+    resizeWindow(musicOpen ? 460 : queueOpen ? expandedHeight : baseHeight);
   });
 
   $effect(() => {
@@ -254,17 +255,17 @@
       toggleQueue,
       openDevices,
       openSettings,
-      openSpotify,
+      openMusic,
     });
     void player.start();
     void skins.start();
-    void spotify.start();
+    void music.start();
     const cleanupMotion = preferences.syncSystemMotion();
     return () => {
       cleanupMotion();
       player.stop();
       skins.stop();
-      spotify.stop();
+      music.stop();
       skins.setHandlers(null);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
@@ -294,7 +295,7 @@
           onToggleQueue={toggleQueue}
           onOpenDevices={openDevices}
           onOpenSettings={openSettings}
-          onOpenSpotify={openSpotify}
+          onOpenMusic={openMusic}
           onMinimise={minimise}
           onClose={closeWindow}
         />
@@ -389,13 +390,13 @@
 
   {#if skinManagerOpen}
     <div class="clarity overlay-layer" data-theme={preferences.theme}>
-      <SkinManager onOpenSpotify={openSpotify} onClose={closeSkinManager} />
+      <SkinManager onOpenMusic={openMusic} onClose={closeSkinManager} />
     </div>
   {/if}
 
-  {#if spotifyOpen}
+  {#if musicOpen}
     <div class="clarity overlay-layer" data-theme={preferences.theme}>
-      <SpotifyPanel onClose={closeSpotify} />
+      <MusicBrowser onClose={closeMusic} />
     </div>
   {/if}
 

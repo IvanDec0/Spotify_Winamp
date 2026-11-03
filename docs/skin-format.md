@@ -307,5 +307,5 @@ Safe mode does not overwrite the persisted active skin. It disables third-party 
 - CSS is parsed and validated before activation; all asset URLs are local and canonicalized.
 - The asset route serves only the active skin, only CSS and allowlisted asset types.
 - The application response includes a Content Security Policy that disallows remote scripts, remote styles and remote connections.
-- Skins never receive Spotify tokens, keyring access, network access or arbitrary filesystem access.
+- Skins never receive Spotify playback credentials, engine state files, network access or arbitrary filesystem access.
 - A broken active skin cannot prevent startup: Cadence falls back to the last known good skin, then to Clarity.

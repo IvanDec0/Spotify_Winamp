@@ -6,10 +6,15 @@ export {
     Service
 };
 
-export {
-    AuthStatus
-} from "./models.js";
-
 export type {
-    AuthState
+    AlbumPage,
+    ArtistPage,
+    AudioState,
+    ContextTrackInfo,
+    LibraryAlbum,
+    LibraryArtist,
+    LibraryContext,
+    LibraryPlaylist,
+    Pairing,
+    PlaylistPage
 } from "./models.js";
