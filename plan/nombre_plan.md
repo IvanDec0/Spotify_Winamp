@@ -1,11 +1,11 @@
 # Cadence v1 — Implementation Plan
 
-> **Status:** Ready for development  
+> **Status:** M1 complete; M2 next<br>
 > **Design source of truth:** [`../documentacion-cliente-musical-skins.md`](../documentacion-cliente-musical-skins.md)  
 > **Working name:** Cadence  
 > **Platform:** Arch Linux x86_64  
 > **UI and documentation language:** English  
-> **Last updated:** 2026-10-25
+> **Last updated:** 2026-11-02
 
 ---
 
@@ -13,7 +13,7 @@
 
 Build a compact Arch Linux desktop controller for Spotify Connect with a single window, an expandable queue and installable declarative skins. Cadence never plays or processes audio; Spotify audio remains in the official Spotify client.
 
-The first usable milestone is a demo player plus the original default skin, before real Spotify integration.
+The first usable milestone (M1) delivers a demo player plus the original default skin, before real Spotify integration.
 
 ---
 
@@ -109,24 +109,26 @@ Exit criteria:
 
 **Goal:** a usable simulated player and the first original skin, with no Spotify dependency.
 
+**Status: complete.** The demo provider, player store, Clarity skin and window services are implemented. The queue expands and collapses through a native GTK4 resize helper because Wails v3 beta.34 maps `SetSize` to `gtk_window_set_default_size`, which does not resize a mapped window on GTK4.
+
 Tasks:
 
-- Define `PlayerState` and the provider interface.
-- Implement the demo provider with a small fake queue and deterministic track metadata.
-- Build the frameless 420×220 shell and custom titlebar.
-- Implement core components: album art, track info, progress, transport, volume, shuffle, repeat, queue, device picker placeholder and settings button.
-- Implement the Clarity skin with six themes and four visualizer modes.
-- Implement play/pause, next/previous, seek, volume, shuffle and repeat against the demo provider.
-- Implement queue expansion and reduced-motion behavior.
-- Add keyboard focus states and basic accessibility.
+- [x] Define `PlayerState` and the provider interface.
+- [x] Implement the demo provider with a small fake queue and deterministic track metadata.
+- [x] Build the frameless 420×220 shell and custom titlebar.
+- [x] Implement core components: album art, track info, progress, transport, volume, shuffle, repeat, queue, device picker placeholder and settings button.
+- [x] Implement the Clarity skin with six themes and four visualizer modes.
+- [x] Implement play/pause, next/previous, seek, volume, shuffle and repeat against the demo provider.
+- [x] Implement queue expansion and reduced-motion behavior.
+- [x] Add keyboard focus states and basic accessibility.
 
 Exit criteria:
 
-- The app runs without Spotify.
-- The demo player responds to every control.
-- The default skin renders, animates and switches themes.
-- The queue expands and collapses smoothly.
-- No token, OAuth or Spotify code is required to run the demo.
+- [x] The app runs without Spotify.
+- [x] The demo player responds to every control.
+- [x] The default skin renders, animates and switches themes.
+- [x] The queue expands and collapses smoothly.
+- [x] No token, OAuth or Spotify code is required to run the demo.
 
 ### M2 — Skin system levels 1–2
 
@@ -232,6 +234,8 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 ### Gate B — after M1
 
+**Status: passed.** `task check`, `task test` and `wails3 build` pass locally; queue expansion was verified on Sway with app-driven native resizing.
+
 - Player store and demo provider unit tests
 - Clarity layout/theme rendering tests
 - visualizer determinism and reduced-motion tests
@@ -286,11 +290,11 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 ## 8. Definition of done for v1
 
-- [ ] Cadence starts on Arch Linux with Wails v3.
-- [ ] The demo player works without Spotify.
-- [ ] The Clarity skin is the default and looks correct at 420×220.
-- [ ] The queue expands and collapses.
-- [ ] Four simulated visualizer modes and six themes work.
+- [x] Cadence starts on Arch Linux with Wails v3.
+- [x] The demo player works without Spotify.
+- [x] The Clarity skin is the default and looks correct at 420×220.
+- [x] The queue expands and collapses.
+- [x] Four simulated visualizer modes and six themes work.
 - [ ] Spotify OAuth PKCE works through the system browser.
 - [ ] The refresh token is stored in the OS keyring.
 - [ ] No token appears in the frontend, logs or repository.
@@ -308,10 +312,8 @@ Do not start with OAuth, native Winamp importers or level 3 modules.
 
 ## 9. Immediate next actions
 
-1. Create the Spotify Developer app and register `http://127.0.0.1:43821/callback` (see `docs/spotify-setup.md`).
-2. Add `$(go env GOPATH)/bin` to `PATH`.
-3. Begin M1 with `PlayerState`, the demo provider and the Clarity shell.
-4. Build the queue expansion, the four visualizer modes and the six themes.
-5. Run the M1 test gate.
+1. Begin M2 with the manifest/layout schemas and the Go validator.
+2. Add the Shadow DOM skin runtime and the declarative component registry.
+3. Create the Spotify Developer app and register `http://127.0.0.1:43821/callback` (see `docs/spotify-setup.md`) before starting M3.
 
-Do not begin with Spotify OAuth, native Winamp importers or level 3 modules.
+Do not begin with Spotify OAuth, native Winamp importers or level 3 modules. M1 is complete; M2 does not depend on Spotify credentials.

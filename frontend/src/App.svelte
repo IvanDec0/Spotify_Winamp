@@ -1,79 +1,430 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { Window } from "@wailsio/runtime";
+  import { WindowService } from "../bindings/cadence/internal/platform";
+  import DevicePopover from "./lib/components/DevicePopover.svelte";
+  import Icon from "./lib/components/Icon.svelte";
+  import Player from "./lib/components/Player.svelte";
+  import Queue from "./lib/components/Queue.svelte";
+  import SettingsPopover from "./lib/components/SettingsPopover.svelte";
+  import TitleBar from "./lib/components/TitleBar.svelte";
+  import { player } from "./lib/player.svelte";
+  import { preferences, themes, visualizerModes, type ThemeId } from "./lib/preferences.svelte";
 
-  const appWindow = Window;
-  const appVersion = "0.1.0";
+  let queueOpen = $state(false);
+  let queueClosing = $state(false);
+  let settingsOpen = $state(false);
+  let devicesOpen = $state(false);
+  let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastVolume = 65;
+
+  let activeTheme = $derived(themes.find((theme) => theme.id === preferences.theme) ?? themes[0]);
+  let activeModeLabel = $derived(
+    visualizerModes.find((mode) => mode.id === preferences.visualizer)?.label ?? "Spectrum",
+  );
+
+  function resizeWindow(height: number): void {
+    void WindowService.SetSize(420, height).catch(() => {});
+  }
+
+  function openSettings(): void {
+    devicesOpen = false;
+    settingsOpen = true;
+  }
+
+  function openDevices(): void {
+    settingsOpen = false;
+    devicesOpen = true;
+  }
+
+  function closePopovers(): void {
+    settingsOpen = false;
+    devicesOpen = false;
+  }
+
+  function setQueue(open: boolean): void {
+    if (open) {
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+        resizeTimer = null;
+      }
+      queueClosing = false;
+      if (!queueOpen) queueOpen = true;
+      closePopovers();
+      resizeWindow(460);
+      return;
+    }
+
+    if (!queueOpen || queueClosing) return;
+    queueClosing = true;
+    closePopovers();
+    resizeTimer = setTimeout(() => {
+      queueOpen = false;
+      queueClosing = false;
+      resizeTimer = null;
+      resizeWindow(220);
+    }, 180);
+  }
+
+  function toggleQueue(): void {
+    setQueue(!queueOpen);
+  }
 
   function minimise(): void {
-    void appWindow.Minimise();
+    void Window.Minimise().catch(() => {});
   }
 
-  function close(): void {
-    void appWindow.Close();
+  function closeWindow(): void {
+    void Window.Close().catch(() => {});
   }
+
+  function toggleMute(): void {
+    if (player.state.volume > 0) {
+      lastVolume = player.state.volume;
+      void player.setVolume(0);
+    } else {
+      void player.setVolume(lastVolume || 65);
+    }
+  }
+
+  function cycleTheme(): void {
+    const index = themes.findIndex((theme) => theme.id === preferences.theme);
+    const next = themes[(index + 1) % themes.length];
+    preferences.setTheme(next.id as ThemeId);
+  }
+
+  $effect(() => {
+    if (player.state.volume > 0) lastVolume = player.state.volume;
+  });
+
+  function isInteractiveTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    return Boolean(
+      target.closest(
+        "input, textarea, select, button, a, [contenteditable='true'], [role='slider']",
+      ),
+    );
+  }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+    if (event.key === "Escape") {
+      if (settingsOpen || devicesOpen) {
+        closePopovers();
+      } else if (queueOpen) {
+        setQueue(false);
+      }
+      return;
+    }
+
+    if (isInteractiveTarget(event.target)) return;
+
+    switch (event.key) {
+      case " ":
+      case "k":
+        event.preventDefault();
+        void player.toggle();
+        break;
+      case "ArrowLeft":
+        event.preventDefault();
+        if (event.shiftKey) {
+          void player.previous();
+        } else if (player.state.canSeek) {
+          void player.seek(player.state.progressMs - 5_000);
+        }
+        break;
+      case "ArrowRight":
+        event.preventDefault();
+        if (event.shiftKey) {
+          void player.next();
+        } else if (player.state.canSeek) {
+          void player.seek(player.state.progressMs + 5_000);
+        }
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        void player.setVolume(Math.min(100, player.state.volume + 5));
+        break;
+      case "ArrowDown":
+        event.preventDefault();
+        void player.setVolume(Math.max(0, player.state.volume - 5));
+        break;
+      case "m":
+        toggleMute();
+        break;
+      case "s":
+        void player.toggleShuffle();
+        break;
+      case "r":
+        void player.cycleRepeat();
+        break;
+      case "q":
+        event.preventDefault();
+        setQueue(!queueOpen);
+        break;
+      case "v":
+        preferences.cycleVisualizer();
+        break;
+      case "t":
+        cycleTheme();
+        break;
+      default:
+        break;
+    }
+  }
+
+  onMount(() => {
+    void player.start();
+    const cleanupMotion = preferences.syncSystemMotion();
+    return () => {
+      cleanupMotion();
+      player.stop();
+      if (resizeTimer) clearTimeout(resizeTimer);
+    };
+  });
 </script>
 
 <svelte:head>
   <title>Cadence</title>
 </svelte:head>
 
-<div class="shell">
-  <header class="titlebar">
-    <div class="identity">
-      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          d="M16.4 7.7A6 6 0 1 0 16.4 16.3"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.1"
-          stroke-linecap="round"
-        />
-        <circle cx="16.4" cy="7.7" r="1.3" fill="currentColor" />
-      </svg>
-      <span class="brand-name">CADENCE</span>
-      <span class="badge">DEMO</span>
-    </div>
+<svelte:window onkeydown={handleKeydown} />
 
-    <div class="window-actions">
-      <button class="window-button" type="button" aria-label="Minimise window" onclick={minimise}>
-        <svg viewBox="0 0 12 12" aria-hidden="true">
-          <path d="M2 6h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
-        </svg>
-      </button>
-      <button class="window-button close" type="button" aria-label="Close window" onclick={close}>
-        <svg viewBox="0 0 12 12" aria-hidden="true">
-          <path
-            d="m2.5 2.5 7 7m0-7-7 7"
-            stroke="currentColor"
-            stroke-width="1.2"
-            stroke-linecap="round"
-          />
-        </svg>
-      </button>
-    </div>
-  </header>
+<div class="clarity" class:reduce-motion={preferences.reducedMotion} data-theme={preferences.theme}>
+  <div class="shell">
+    <TitleBar
+      provider={player.state.provider}
+      deviceName={player.state.device.name}
+      {queueOpen}
+      onToggleQueue={toggleQueue}
+      onOpenDevices={openDevices}
+      onOpenSettings={openSettings}
+      onMinimise={minimise}
+      onClose={closeWindow}
+    />
 
-  <main class="stage">
-    <div class="intro">
-      <div class="signal" aria-hidden="true">
-        <span style="--i: 0; --level: 0.35"></span>
-        <span style="--i: 1; --level: 0.75"></span>
-        <span style="--i: 2; --level: 1"></span>
-        <span style="--i: 3; --level: 0.55"></span>
-        <span style="--i: 4; --level: 0.2"></span>
+    <main class="player-region" aria-label="Cadence player">
+      <Player
+        state={player.state}
+        visualizerMode={preferences.visualizer}
+        visualizerLabel={activeModeLabel}
+        accent={activeTheme.accent}
+        secondary={activeTheme.secondary}
+        reducedMotion={preferences.reducedMotion}
+        onToggle={() => void player.toggle()}
+        onPrevious={() => void player.previous()}
+        onNext={() => void player.next()}
+        onSeek={(positionMs) => void player.seek(positionMs)}
+        onVolume={(volume) => void player.setVolume(volume)}
+        onShuffle={() => void player.toggleShuffle()}
+        onRepeat={() => void player.cycleRepeat()}
+        onCycleVisualizer={() => preferences.cycleVisualizer()}
+      />
+    </main>
+
+    {#if queueOpen}
+      <div class="queue-slot" class:is-closing={queueClosing}>
+        <Queue items={player.state.queue ?? []} />
       </div>
+    {/if}
 
-      <div class="copy">
-        <p class="eyebrow">Spotify Connect controller</p>
-        <h1>A quieter way to control playback.</h1>
-        <p class="muted">The demo player and Clarity skin arrive in the next milestone.</p>
+    {#if settingsOpen || devicesOpen}
+      <div class="popover-layer">
+        <button
+          class="popover-backdrop"
+          type="button"
+          aria-label="Close popover"
+          tabindex="-1"
+          onclick={closePopovers}
+        ></button>
+        <div class="popover-position">
+          {#if settingsOpen}
+            <SettingsPopover
+              theme={preferences.theme}
+              visualizer={preferences.visualizer}
+              motion={preferences.motion}
+              systemReducedMotion={preferences.systemReducedMotion}
+              onTheme={(theme) => preferences.setTheme(theme)}
+              onVisualizer={(mode) => preferences.setVisualizer(mode)}
+              onMotion={(motion) => preferences.setMotion(motion)}
+              onClose={closePopovers}
+            />
+          {:else}
+            <DevicePopover
+              devices={player.state.devices ?? []}
+              onTransfer={(deviceId) => {
+                closePopovers();
+                void player.transfer(deviceId);
+              }}
+              onClose={closePopovers}
+            />
+          {/if}
+        </div>
       </div>
-    </div>
+    {/if}
 
-    <footer class="status">
-      <span class="dot" aria-hidden="true"></span>
-      <span>Scaffold ready</span>
-      <span class="version">v{appVersion}</span>
-    </footer>
-  </main>
+    {#if player.error}
+      <div class="toast" role="alert">
+        <span class="toast-icon" aria-hidden="true">
+          <Icon name="info" size={13} />
+        </span>
+        <span class="toast-message">{player.error}</span>
+        <button
+          class="toast-close"
+          type="button"
+          aria-label="Dismiss error"
+          onclick={() => player.dismissError()}
+        >
+          <Icon name="close" size={11} />
+        </button>
+      </div>
+    {/if}
+  </div>
 </div>
+
+<style>
+  .shell {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .player-region {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .queue-slot {
+    flex: 0 0 240px;
+    min-height: 0;
+    overflow: hidden;
+    animation: queue-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .queue-slot.is-closing {
+    animation: queue-out 180ms ease-in forwards;
+  }
+
+  .popover-layer {
+    position: absolute;
+    z-index: 50;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .popover-backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: rgb(0 0 0 / 16%);
+    cursor: default;
+    pointer-events: auto;
+    backdrop-filter: blur(0.8px);
+  }
+
+  .popover-backdrop:focus-visible {
+    outline: none;
+  }
+
+  .popover-position {
+    position: absolute;
+    top: 35px;
+    right: 10px;
+    z-index: 1;
+    animation: pop-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: auto;
+  }
+
+  .toast {
+    position: absolute;
+    z-index: 60;
+    right: 12px;
+    bottom: 10px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 8px 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--danger) 34%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--surface) 92%, var(--danger));
+    box-shadow: 0 10px 28px rgb(0 0 0 / 48%);
+    animation: toast-in 180ms ease-out;
+  }
+
+  .toast-icon {
+    display: grid;
+    place-items: center;
+    color: var(--danger);
+  }
+
+  .toast-message {
+    overflow: hidden;
+    flex: 1 1 auto;
+    color: color-mix(in srgb, var(--text) 88%, var(--danger));
+    font-size: 9.5px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .toast-close {
+    display: grid;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    place-items: center;
+    border-radius: 3px;
+    color: var(--faint);
+  }
+
+  .toast-close:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  @keyframes queue-in {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes queue-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>

@@ -9,9 +9,13 @@ export default defineConfig({
     strictPort: true,
   },
   plugins: [svelte(), wails("./bindings")],
+  resolve: {
+    conditions: ["browser"],
+  },
   test: {
     environment: "jsdom",
     include: ["src/**/*.{test,spec}.{ts,js}"],
+    setupFiles: ["./src/test-setup.ts"],
     restoreMocks: true,
   },
 });

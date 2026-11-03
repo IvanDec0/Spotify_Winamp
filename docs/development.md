@@ -85,6 +85,10 @@ for_window [app_id="io.github.ivandec0.cadence"] resize set 420 220
 
 The app sets `WebviewGpuPolicyOnDemand` for WebKitGTK. If rendering is broken on a particular driver, set `WebviewGpuPolicyNever` temporarily to isolate the issue.
 
+### Native window resizing
+
+Wails v3 beta.34 maps `Window.SetSize` to `gtk_window_set_default_size` on GTK4, which does not resize an already mapped window. The queue expansion therefore calls `internal/platform.WindowService`, a small cgo GTK4 helper that sets both a size request and the default size on the GTK main thread. If a later Wails release provides a real resize operation, remove the helper and the generated platform binding.
+
 ## Architecture rules for v1
 
 - The frontend never receives Spotify access tokens, refresh tokens or PKCE values.

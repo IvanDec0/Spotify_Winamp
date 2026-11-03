@@ -4,7 +4,7 @@
 
 ## Status
 
-**M0 complete.** The Wails v3 scaffold builds, runs and opens the frameless 420×220 Cadence shell. The next milestone is M1: the demo player and the original Clarity skin.
+**M1 complete.** The demo player and the original Clarity skin run without Spotify: a frameless 420×220 window, six themes, four simulated visualizer modes, queue expansion with native GTK4 resizing, device picker placeholders and keyboard controls. The next milestone is M2: the declarative skin system (levels 1–2).
 
 - Design source of truth: [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md)
 - Implementation plan: [`plan/nombre_plan.md`](plan/nombre_plan.md)

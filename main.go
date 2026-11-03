@@ -4,6 +4,9 @@ import (
 	"embed"
 	"log"
 
+	"cadence/internal/platform"
+	"cadence/internal/player"
+
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -18,12 +21,23 @@ const (
 	appID   = "io.github.ivandec0.cadence"
 )
 
+func init() {
+	application.RegisterEvent[player.PlayerState](player.StateEvent)
+}
+
 func main() {
+	playerService := player.NewService(player.NewDemoProvider())
+	windowService := platform.NewWindowService()
+
 	cadence := application.New(application.Options{
 		Name:        appName,
 		Description: "A compact Spotify Connect controller with declarative skins",
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
+		},
+		Services: []application.Service{
+			application.NewService(playerService),
+			application.NewService(windowService),
 		},
 		Linux: application.LinuxOptions{
 			ProgramName:   "cadence",
