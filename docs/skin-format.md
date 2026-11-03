@@ -88,7 +88,7 @@ Rules:
 | `visualizer.modes` | 1–4 unique modes from `spectrum`, `radial`, `oscilloscope`, `grid`. |
 | `visualizer.default` | Must appear in `modes`. |
 | `visualizer.intensity` | Number from `0` to `1`. |
-| `window` | Fixed at 420×220, minimum 380×200, queue height 460. `resizable` may be `true` or `false`. |
+| `window` | Logical design size 420×220, minimum 380×200, queue height 460. Cadence renders this space at 200% UI scale on Linux. `resizable` may be `true` or `false`. |
 
 Unknown fields are rejected. The complete manifest is limited to 64 KB.
 

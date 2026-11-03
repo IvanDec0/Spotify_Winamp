@@ -235,11 +235,11 @@ describe("App shell", () => {
     render(App);
 
     await fireEvent.click(screen.getByRole("button", { name: "Show queue" }));
-    expect(mocks.setSize).toHaveBeenCalledWith(420, 460);
+    expect(mocks.setSize).toHaveBeenCalledWith(840, 920);
     expect(screen.getByLabelText("Playback queue")).not.toBeNull();
 
     await fireEvent.click(screen.getByRole("button", { name: "Hide queue" }));
-    await waitFor(() => expect(mocks.setSize).toHaveBeenLastCalledWith(420, 220), {
+    await waitFor(() => expect(mocks.setSize).toHaveBeenLastCalledWith(840, 440), {
       timeout: 1_000,
     });
     expect(screen.queryByLabelText("Playback queue")).toBeNull();
@@ -306,6 +306,7 @@ describe("App shell", () => {
 
     expect(screen.getByRole("dialog", { name: "Music library" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Close music library" })).not.toBeNull();
+    expect(mocks.setSize).toHaveBeenCalledWith(840, 920);
   });
 
   it("applies the reduced-motion preference to the shell", async () => {

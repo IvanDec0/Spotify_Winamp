@@ -30,6 +30,15 @@ const (
 	appName = "Cadence"
 	appID   = "io.github.ivandec0.cadence"
 
+	// The webview keeps a 420x220 logical layout. The native window and the
+	// webview zoom are multiplied by uiScale so the compact UI stays legible.
+	uiScale          = 2.0
+	logicalWidth     = 420
+	logicalHeight    = 220
+	minLogicalWidth  = 380
+	minLogicalHeight = 200
+	maxLogicalHeight = 560
+
 	contentSecurityPolicy = "default-src 'self'; " +
 		"script-src 'self'; " +
 		"style-src 'self' 'unsafe-inline'; " +
@@ -140,16 +149,18 @@ func main() {
 		},
 	})
 
-	// One frameless window. Clarity's default size is 420x220; the queue
-	// expands the window vertically while keeping the player visible.
+	// One frameless window. The logical Clarity layout is 420x220; the queue
+	// and Library expand it vertically while the webview zoom keeps text
+	// readable.
 	cadence.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             "main",
 		Title:            appName,
-		Width:            420,
-		Height:           220,
-		MinWidth:         380,
-		MinHeight:        200,
-		MaxHeight:        560,
+		Width:            int(logicalWidth * uiScale),
+		Height:           int(logicalHeight * uiScale),
+		MinWidth:         int(minLogicalWidth * uiScale),
+		MinHeight:        int(minLogicalHeight * uiScale),
+		MaxHeight:        int(maxLogicalHeight * uiScale),
+		Zoom:             uiScale,
 		Frameless:        true,
 		BackgroundColour: application.NewRGB(9, 11, 15),
 		URL:              "/",

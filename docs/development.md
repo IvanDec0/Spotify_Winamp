@@ -79,18 +79,27 @@ Use `task test` and `task check` for the supported workflow.
 
 ## Wayland and Sway
 
-Cadence is frameless and relies on its custom titlebar for dragging. Tiling compositors ignore the requested 420×220 size, so add a floating rule for the application ID:
+Cadence is frameless and relies on its custom titlebar for dragging. Tiling compositors ignore the requested window size, so add a floating rule for the application ID (840×440 is the 200%-scaled base window):
 
 ```text
 for_window [app_id="io.github.ivandec0.cadence"] floating enable
-for_window [app_id="io.github.ivandec0.cadence"] resize set 420 220
+for_window [app_id="io.github.ivandec0.cadence"] resize set 840 440
 ```
 
 The app sets `WebviewGpuPolicyOnDemand` for WebKitGTK. If rendering is broken on a particular driver, set `WebviewGpuPolicyNever` temporarily to isolate the issue.
 
 ### Native window resizing
 
-Wails v3 beta.34 maps `Window.SetSize` to `gtk_window_set_default_size` on GTK4, which does not resize an already mapped window. The queue expansion therefore calls `internal/platform.WindowService`, a small cgo GTK4 helper that sets both a size request and the default size on the GTK main thread. If a later Wails release provides a real resize operation, remove the helper and the generated platform binding.
+Wails v3 beta.34 maps `Window.SetSize` to `gtk_window_set_default_size` on GTK4, which does not resize an already mapped window. The queue expansion therefore calls `internal/platform.WindowService`, a small cgo GTK4 helper that sets both a size request and the default size on the GTK main thread. The helper receives physical pixels: the logical 420×220 design is multiplied by the 2× UI scale. If a later Wails release provides a real resize operation, remove the helper and the generated platform binding.
+
+### UI scale
+
+The webview keeps the original compact 420×220 logical layout and is rendered at 200% zoom. The native window is therefore created at 840×440 and the queue/Library expand it to 920 px. The scale is defined in two places that must stay in sync:
+
+- `uiScale` in [`main.go`](../main.go) configures the initial Wails window and `Zoom`.
+- `UI_SCALE` in [`frontend/src/lib/layout.ts`](../frontend/src/lib/layout.ts) scales every runtime `WindowService.SetSize` call.
+
+Skins keep authoring against the 420×220 logical space.
 
 ## Skin development
 

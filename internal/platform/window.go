@@ -16,7 +16,7 @@ func NewWindowService() *WindowService {
 	return &WindowService{}
 }
 
-// SetSize resizes the main window in logical pixels. It must run on the GTK
+// SetSize resizes the main window in physical pixels. It must run on the GTK
 // main thread, hence the InvokeSyncWithError wrapper.
 func (s *WindowService) SetSize(width, height int) error {
 	app := application.Get()

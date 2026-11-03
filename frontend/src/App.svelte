@@ -15,6 +15,7 @@
   import { skins } from "./lib/skins.svelte";
   import MusicBrowser from "./lib/MusicBrowser.svelte";
   import { music } from "./lib/music.svelte";
+  import { EXPANDED_HEIGHT, UI_SCALE, WINDOW_HEIGHT, WINDOW_WIDTH } from "./lib/layout";
 
   let queueClosing = $state(false);
   let settingsOpen = $state(false);
@@ -26,8 +27,12 @@
 
   let queueOpen = $derived(skins.queueOpen);
   let declarative = $derived(skins.isDeclarative);
-  let baseHeight = $derived(declarative ? (skins.runtime?.baseHeight ?? 220) : 220);
-  let expandedHeight = $derived(declarative ? (skins.runtime?.queueHeight ?? 460) : 460);
+  let baseHeight = $derived(
+    declarative ? (skins.runtime?.baseHeight ?? WINDOW_HEIGHT) : WINDOW_HEIGHT,
+  );
+  let expandedHeight = $derived(
+    declarative ? (skins.runtime?.queueHeight ?? EXPANDED_HEIGHT) : EXPANDED_HEIGHT,
+  );
 
   let activeTheme = $derived(themes.find((theme) => theme.id === preferences.theme) ?? themes[0]);
   let activeModeLabel = $derived(
@@ -36,7 +41,13 @@
   let displayError = $derived(player.error || skins.error);
 
   function resizeWindow(height: number): void {
-    void WindowService.SetSize(420, height).catch(() => {});
+    // The webview is zoomed 2x, so the native window must be twice the
+    // logical design size. The CSS layout keeps using the original 420-wide
+    // coordinate space.
+    void WindowService.SetSize(
+      Math.round(WINDOW_WIDTH * UI_SCALE),
+      Math.round(height * UI_SCALE),
+    ).catch(() => {});
   }
 
   function openSettings(): void {

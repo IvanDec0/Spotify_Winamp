@@ -14,7 +14,7 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 /**
- * SetSize resizes the main window in logical pixels. It must run on the GTK
+ * SetSize resizes the main window in physical pixels. It must run on the GTK
  * main thread, hence the InvokeSyncWithError wrapper.
  */
 export function SetSize(width: number, height: number): $CancellablePromise<void> {
