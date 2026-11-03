@@ -14,8 +14,11 @@ an adjacent executable in the tarball and inside the AppImage. Its complete
 license text is in [`LICENSES/go-librespot-GPL-3.0.txt`](LICENSES/go-librespot-GPL-3.0.txt).
 
 The corresponding source is available from the upstream repository at the
-pinned revision. This project is intended for private personal use; if you
-redistribute the engine, comply with the GPL-3.0, including source availability.
+pinned revision. Cadence applies the local patch in
+[`build/patches/go-librespot-search-radio.patch`](build/patches/go-librespot-search-radio.patch)
+to add the internal search and radio endpoints; that patch is also GPL-3.0.
+This project is intended for private personal use; if you redistribute the
+engine, comply with the GPL-3.0, including source availability.
 
 ## GTK, WebKitGTK and runtime libraries
 

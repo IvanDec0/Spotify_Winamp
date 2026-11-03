@@ -10,6 +10,15 @@ const mocks = vi.hoisted(() => {
   const getZoom = vi.fn(() => Promise.resolve(2));
   const setZoom = vi.fn(() => Promise.resolve());
   const size = vi.fn(() => Promise.resolve({ width: 840, height: 440 }));
+  const search = vi.fn(() =>
+    Promise.resolve({
+      tracks: { hits: [], total: 0 },
+      albums: { hits: [], total: 0 },
+      artists: { hits: [], total: 0 },
+      playlists: { hits: [], total: 0 },
+    }),
+  );
+  const startRadio = vi.fn(() => Promise.resolve());
   const minimise = vi.fn(() => Promise.resolve());
   const close = vi.fn(() => Promise.resolve());
 
@@ -166,6 +175,8 @@ const mocks = vi.hoisted(() => {
     getZoom,
     setZoom,
     size,
+    search,
+    startRadio,
     minimise,
     close,
     player,
@@ -216,6 +227,8 @@ vi.mock("../bindings/cadence/internal/golibrespot", () => ({
     ContextTracks: vi.fn(() =>
       Promise.resolve({ uri: "", ready: true, length: 0, cached: 0, items: [] }),
     ),
+    Search: mocks.search,
+    StartRadio: mocks.startRadio,
     PlayContext: vi.fn(() => Promise.resolve()),
     PlayTrack: vi.fn(() => Promise.resolve()),
     AddToQueue: vi.fn(() => Promise.resolve()),
@@ -252,6 +265,9 @@ describe("App shell", () => {
     skins.notice = null;
     music.error = null;
     music.notice = null;
+    music.clearSearch();
+    mocks.search.mockClear();
+    mocks.startRadio.mockClear();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   });
 
@@ -337,6 +353,18 @@ describe("App shell", () => {
     expect(screen.getByRole("dialog", { name: "Music library" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Close music library" })).not.toBeNull();
     await waitFor(() => expect(mocks.setSize).toHaveBeenCalledWith(840, 920));
+  });
+
+  it("searches the Spotify catalog from the library", async () => {
+    render(App);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Open music library" }));
+    const input = screen.getByRole("searchbox", { name: "Search Spotify" });
+    await fireEvent.input(input, { target: { value: "daft punk" } });
+    await fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() => expect(mocks.search).toHaveBeenCalledWith("daft punk", 20));
+    expect(screen.getByText("No results in this category.")).not.toBeNull();
   });
 
   it("applies the reduced-motion preference to the shell", async () => {

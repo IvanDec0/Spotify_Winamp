@@ -2,6 +2,8 @@
   import Icon from "./components/Icon.svelte";
   import LibrarySkeleton from "./components/LibrarySkeleton.svelte";
   import MediaCover from "./components/MediaCover.svelte";
+  import SearchRow from "./components/SearchRow.svelte";
+  import type { SearchHit } from "../../bindings/cadence/internal/golibrespot";
   import { player } from "./player.svelte";
   import { music } from "./music.svelte";
   import { formatTime } from "./format";
@@ -11,11 +13,13 @@
   }
 
   type Tab = "playlists" | "albums" | "artists" | "liked";
+  type SearchKind = "track" | "album" | "artist" | "playlist";
 
   let { onClose }: Props = $props();
 
   let tab = $state<Tab>("playlists");
   let contextTitle = $state("");
+  let searchQuery = $state("");
   let loaded = $state<Record<Tab, boolean>>({
     playlists: false,
     albums: false,
@@ -29,6 +33,26 @@
   let audio = $derived(music.audio);
   let context = $derived(music.context);
   let currentTrackURI = $derived(player.state.track.uri);
+  let searchResults = $derived(music.searchResults);
+  let searchActive = $derived(
+    music.searchQuery !== "" || music.searching || music.searchError !== null,
+  );
+  let searchTab = $state<SearchKind>("track");
+  let searchCounts = $derived({
+    track: searchResults?.tracks.length ?? 0,
+    album: searchResults?.albums.length ?? 0,
+    artist: searchResults?.artists.length ?? 0,
+    playlist: searchResults?.playlists.length ?? 0,
+  });
+
+  $effect(() => {
+    if (!searchResults) return;
+    if (searchCounts[searchTab] > 0) return;
+    const first = (["track", "album", "artist", "playlist"] as const).find(
+      (kind) => searchCounts[kind] > 0,
+    );
+    if (first) searchTab = first;
+  });
 
   $effect(() => {
     const authenticated = music.authenticated;
@@ -60,11 +84,41 @@
 
   async function openContext(uri: string, title: string): Promise<void> {
     contextTitle = title;
+    music.clearSearch();
+    searchQuery = "";
     await music.loadContext(uri);
+  }
+
+  async function runSearch(): Promise<void> {
+    if (!searchQuery.trim()) {
+      clearSearch();
+      return;
+    }
+    await music.search(searchQuery);
+  }
+
+  function clearSearch(): void {
+    searchQuery = "";
+    music.clearSearch();
+  }
+
+  function openSearchHit(hit: SearchHit, kind: SearchKind): void {
+    if (kind === "track") {
+      music.clearSearch();
+      searchQuery = "";
+      void music.playTrack(hit.uri);
+      return;
+    }
+    void openContext(hit.uri, hit.name);
+  }
+
+  function startRadio(uri: string): void {
+    void music.startRadio(uri);
   }
 
   function close(): void {
     music.clearContext();
+    music.clearSearch();
     onClose();
   }
 
@@ -125,6 +179,33 @@
     </div>
   </header>
 
+  <form
+    class="searchbar"
+    role="search"
+    onsubmit={(event) => {
+      event.preventDefault();
+      void runSearch();
+    }}
+  >
+    <span class="searchbar-icon" aria-hidden="true"><Icon name="search" size={12} /></span>
+    <input
+      type="search"
+      bind:value={searchQuery}
+      placeholder="Search songs, albums, artists, playlists"
+      aria-label="Search Spotify"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    {#if searchActive}
+      <button class="searchbar-clear" type="button" aria-label="Clear search" onclick={clearSearch}>
+        <Icon name="close" size={10} />
+      </button>
+    {/if}
+    <button class="searchbar-submit" type="submit" disabled={music.searching}>
+      {music.searching ? "Searching…" : "Search"}
+    </button>
+  </form>
+
   {#if music.error}
     <div class="banner error banner-row">
       <span>{music.error}</span>
@@ -139,7 +220,93 @@
   {/if}
 
   <div class="library-body">
-    {#if !audio.available}
+    {#if searchActive}
+      <section class="search-panel" aria-label="Search results">
+        <div class="search-summary">
+          <span class="eyebrow">Search</span>
+          <strong>{music.searchQuery || "Spotify"}</strong>
+          <button class="head-button" type="button" onclick={clearSearch}>Clear</button>
+        </div>
+        {#if music.searchError}
+          <p class="banner error">{music.searchError}</p>
+        {/if}
+        {#if music.searching && !searchResults}
+          <LibrarySkeleton rows={8} />
+        {:else if searchResults}
+          <div class="search-tabs" role="group" aria-label="Search result types">
+            {#each [{ id: "track", label: "Tracks" }, { id: "album", label: "Albums" }, { id: "artist", label: "Artists" }, { id: "playlist", label: "Playlists" }] as option (option.id)}
+              <button
+                class="search-tab"
+                class:is-active={searchTab === option.id}
+                type="button"
+                aria-pressed={searchTab === option.id}
+                onclick={() => {
+                  searchTab = option.id as SearchKind;
+                }}
+              >
+                {option.label}
+                <span>{searchCounts[option.id as SearchKind]}</span>
+              </button>
+            {/each}
+          </div>
+
+          {#if searchTab === "track" && searchResults.tracks.length > 0}
+            <ul class="search-list">
+              {#each searchResults.tracks as hit (hit.uri)}
+                <SearchRow
+                  {hit}
+                  kind="track"
+                  meta={`${hit.artists?.map((artist) => artist.name).join(", ") || "Unknown artist"}${hit.album ? ` · ${hit.album.name}` : ""}${hit.duration > 0 ? ` · ${formatTime(hit.duration / 1000)}` : ""}`}
+                  onOpen={() => openSearchHit(hit, "track")}
+                  onQueue={() => void music.addToQueue(hit.uri)}
+                  onRadio={() => startRadio(hit.uri)}
+                />
+              {/each}
+            </ul>
+          {:else if searchTab === "album" && searchResults.albums.length > 0}
+            <ul class="search-list">
+              {#each searchResults.albums as hit (hit.uri)}
+                <SearchRow
+                  {hit}
+                  kind="album"
+                  meta={hit.artists?.map((artist) => artist.name).join(", ") || "Album"}
+                  onOpen={() => openSearchHit(hit, "album")}
+                  onRadio={() => startRadio(hit.uri)}
+                />
+              {/each}
+            </ul>
+          {:else if searchTab === "artist" && searchResults.artists.length > 0}
+            <ul class="search-list">
+              {#each searchResults.artists as hit (hit.uri)}
+                <SearchRow
+                  {hit}
+                  kind="artist"
+                  meta="Artist"
+                  onOpen={() => openSearchHit(hit, "artist")}
+                  onRadio={() => startRadio(hit.uri)}
+                />
+              {/each}
+            </ul>
+          {:else if searchTab === "playlist" && searchResults.playlists.length > 0}
+            <ul class="search-list">
+              {#each searchResults.playlists as hit (hit.uri)}
+                <SearchRow
+                  {hit}
+                  kind="playlist"
+                  meta={`${hit.author || "Playlist"}${hit.followersCount > 0 ? ` · ${hit.followersCount.toLocaleString()} followers` : ""}`}
+                  onOpen={() => openSearchHit(hit, "playlist")}
+                  onRadio={() => startRadio(hit.uri)}
+                />
+              {/each}
+            </ul>
+          {:else}
+            <p class="empty-copy">No results in this category.</p>
+          {/if}
+        {:else if !music.searching}
+          <p class="empty-copy">Type a search to explore the Spotify catalog.</p>
+        {/if}
+      </section>
+    {:else if !audio.available}
       <section class="empty-state">
         <span class="empty-glyph" aria-hidden="true"><Icon name="visualizer" size={20} /></span>
         <h3>Local audio engine unavailable</h3>
@@ -223,6 +390,15 @@
             <Icon name="play" size={10} />
             Play all
           </button>
+          <button
+            class="secondary radio-button"
+            type="button"
+            disabled={music.busy}
+            onclick={() => startRadio(context.uri || "")}
+          >
+            <Icon name="radio" size={10} />
+            Radio
+          </button>
           <span class="context-chip mono">
             {context.length || context.items.length} tracks
           </span>
@@ -271,6 +447,16 @@
                   onclick={() => void music.addToQueue(item.uri)}
                 >
                   +
+                </button>
+                <button
+                  class="queue-add radio-add"
+                  type="button"
+                  title="Start radio from this track"
+                  aria-label={`Start radio from ${item.title || "this track"}`}
+                  disabled={!item.uri || music.busy}
+                  onclick={() => startRadio(item.uri)}
+                >
+                  <Icon name="radio" size={9} />
                 </button>
               </li>
             {/each}
@@ -512,6 +698,175 @@
     display: flex;
     align-items: center;
     gap: 4px;
+  }
+
+  .searchbar {
+    display: flex;
+    min-height: 30px;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 12px 0;
+    padding: 0 6px 0 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 3%), transparent),
+      color-mix(in srgb, var(--surface-2) 45%, transparent);
+    transition:
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease;
+  }
+
+  .searchbar:focus-within {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 7%, transparent),
+      0 0 16px color-mix(in srgb, var(--accent) 7%, transparent);
+  }
+
+  .searchbar-icon {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    color: var(--faint);
+  }
+
+  .searchbar input {
+    min-width: 0;
+    flex: 1 1 auto;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 8.5px;
+  }
+
+  .searchbar input::placeholder {
+    color: var(--faint);
+  }
+
+  .searchbar input::-webkit-search-cancel-button {
+    display: none;
+  }
+
+  .searchbar-clear {
+    display: grid;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    place-items: center;
+    border-radius: 3px;
+    color: var(--faint);
+  }
+
+  .searchbar-clear:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .searchbar-submit {
+    height: 20px;
+    flex: 0 0 auto;
+    padding: 0 6px;
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    color: var(--accent);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 6.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition:
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
+  }
+
+  .searchbar-submit:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .search-summary {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .search-tabs {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 5px;
+  }
+
+  .search-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--faint);
+    font-size: 7.5px;
+    transition:
+      color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
+  }
+
+  .search-tab span {
+    color: var(--faint);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 5.5px;
+  }
+
+  .search-tab:hover {
+    color: var(--text);
+    transform: translateY(-1px);
+  }
+
+  .search-tab.is-active {
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    color: var(--accent);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 7%, transparent);
+  }
+
+  .search-tab.is-active span {
+    color: color-mix(in srgb, var(--accent) 70%, var(--faint));
+  }
+
+  .search-summary strong {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 10px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-summary .head-button {
+    margin-left: auto;
+  }
+
+  .search-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .radio-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
   }
 
   .head-button {
@@ -945,6 +1300,15 @@
   .queue-add:hover:not(:disabled) {
     border-color: color-mix(in srgb, var(--accent) 35%, transparent);
     color: var(--accent);
+  }
+
+  .radio-add {
+    color: color-mix(in srgb, var(--accent) 70%, var(--faint));
+  }
+
+  .radio-button {
+    border-color: color-mix(in srgb, var(--accent) 26%, var(--line-strong));
+    color: color-mix(in srgb, var(--accent) 78%, var(--muted));
   }
 
   .empty-copy {

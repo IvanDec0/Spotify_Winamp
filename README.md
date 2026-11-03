@@ -20,6 +20,8 @@ Cadence is a desktop **Spotify player** with a compact single window, an expanda
 - **Audio is local.** A bundled or externally installed `go-librespot` process decodes and plays Spotify audio through PulseAudio or PipeWire.
 - **No Spotify Desktop dependency.** Cadence appears to Spotify as a device named **Cadence** and is paired once through `spotify.com/pair`.
 - **The library lives inside Cadence.** Playlists, saved albums, followed artists and Liked Songs are browsed and started from the Library panel.
+- **Discover new music.** Search the Spotify catalog for tracks, albums, artists and playlists, then play them or start a radio from any result.
+- **Spotify radio, locally.** Start a radio station from a track, album, artist or playlist and keep it playing through the local engine.
 - **Skins are declarative.** The built-in Clarity skin is native; third-party skins are JSON layouts, CSS and local assets with no JavaScript.
 - **The demo player remains available.** Run `cadence --demo` to use the app without Spotify or network access.
 
@@ -152,9 +154,9 @@ task build     # bin/cadence
 task package   # AppImage, tar.gz and SHA-256 checksums in bin/
 ```
 
-`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. It also includes the Lumina and Afterglow skins. The AppImage and tarball are named `cadence-0.1.0-linux-x86_64.*`. See [`docs/installation.md`](docs/installation.md).
+`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. The engine build applies the small search/radio patch in [`build/patches/`](build/patches/) and is documented in [`docs/development.md`](docs/development.md). It also includes the Lumina, Vanta and Afterglow skins. The AppImage and tarball are named `cadence-0.1.0-linux-x86_64.*`. See [`docs/installation.md`](docs/installation.md).
 
-The engine binary is not committed. `task audio:build` downloads the pinned source and builds it with the local CGO libraries. Cadence also discovers `go-librespot` from `CADENCE_GO_LIBRESPOT`, `PATH` or next to the Cadence binary.
+The engine binary is not committed. `task audio:build` downloads the pinned source, applies the search/radio patch and builds it with the local CGO libraries. Cadence also discovers `go-librespot` from `CADENCE_GO_LIBRESPOT`, `PATH` or next to the Cadence binary.
 
 ## Spotify setup
 
@@ -164,10 +166,19 @@ The engine binary is not committed. `task audio:build` downloads the pinned sour
 4. If the engine is not paired, copy the pairing code or choose **Open pairing page**.
 5. Approve **Cadence** at `spotify.com/pair`.
 6. Browse playlists, albums, artists and Liked Songs; play a context or select a track.
+7. Use the Library search bar to find new tracks, albums, artists and playlists, or start a radio from any track, album, artist or playlist.
 
 Playback requires Spotify Premium and an audio sink. The engine runs as a separate process; its log is written to `$XDG_CACHE_HOME/cadence/logs/go-librespot.log`.
 
 See [`docs/spotify-setup.md`](docs/spotify-setup.md) for prerequisites, binary discovery, reset pairing and troubleshooting.
+
+## Search and radio
+
+The Library search bar queries the Spotify catalog directly through the local engine. Results are split into **Tracks**, **Albums**, **Artists** and **Playlists**. Tracks play immediately, the other result types open their context, and every result has a radio action. Any open playlist, album, artist or Liked Songs context also has a **Radio** button.
+
+![Search results](docs/screenshots/search-tracks.png)
+
+Radio stations are resolved by the engine and play through the same local output as normal tracks. This requires Spotify Premium, like playback.
 
 ## Skins
 
@@ -178,6 +189,12 @@ The included **Lumina** development skin is an original, glossy media-player des
 ![Lumina Azure](docs/screenshots/lumina-azure.png)
 
 ![Lumina Carbon and Ember](docs/screenshots/lumina-carbon.png)
+
+**Vanta** is the darker, more aggressive counterpart: carbon-fibre surfaces, an animated reactor ring, segmented LED progress, scanning light, beveled corners and three themes: Darkstar, Bionic and Reactor. It is also original CSS artwork.
+
+![Vanta Darkstar](docs/screenshots/vanta-darkstar.png)
+
+![Vanta Bionic](docs/screenshots/vanta-bionic.png)
 
 Development skins live in [`skins-dev/`](skins-dev/) and are discovered automatically when Cadence runs from the repository root. The included **Afterglow** skin demonstrates a different layout, theme files and the Shadow DOM runtime.
 
@@ -215,7 +232,7 @@ The Library panel and the queue expand the same window vertically; at the defaul
 │   ├── settings/                    # Persisted configuration
 │   ├── artcache/                    # Album-art proxying and caching
 │   └── platform/                    # GTK4 window sizing helper
-├── skins-dev/                       # Development skins: Afterglow and Lumina
+├── skins-dev/                       # Development skins: Afterglow, Lumina and Vanta
 ├── documentacion-cliente-musical-skins.md
 ├── plan/
 │   └── nombre_plan.md

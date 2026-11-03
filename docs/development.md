@@ -26,7 +26,7 @@ Run commands from the repository root. The Taskfile is Linux-only.
 |---|---|
 | `task dev` | Start the Wails development loop with Vite HMR |
 | `task build` | Build the production frontend and `bin/cadence` |
-| `task audio:build` | Build the pinned go-librespot engine into `bin/go-librespot` |
+| `task audio:build` | Build the pinned go-librespot engine with the search/radio patch |
 | `task run` | Run the built binary |
 | `task test` | Build the frontend, run Go tests and Vitest |
 | `task check` | Run Go vet, `svelte-check`, ESLint and Prettier |
@@ -53,7 +53,8 @@ The following paths are generated and ignored by Git:
 
 - `frontend/dist/` — Vite production bundle embedded into the Go binary.
 - `frontend/node_modules/` — npm dependencies.
-- `bin/` — compiled binary, audio engine and release artifacts.
+- `bin/` — compiled binary, patched audio engine and release artifacts.
+- `build/audio/` — temporary patched go-librespot source used by `task audio:build`.
 - `build/linux/cadence.desktop` and `build/linux/appimage/build/` — packaging outputs.
 
 `bin/go-librespot` is built locally with `task audio:build` and is not committed. Cadence discovers the engine from `CADENCE_GO_LIBRESPOT`, `PATH`, the directory next to the Cadence binary, or `bin/go-librespot` in the repository root.
@@ -130,6 +131,8 @@ sudo pacman -S --needed libogg libvorbis flac mpg123 alsa-lib libpulse
 task audio:build
 ```
 
+`audio:build` runs [`scripts/build-go-librespot.sh`](../scripts/build-go-librespot.sh), which copies the pinned source, applies [`build/patches/go-librespot-search-radio.patch`](../build/patches/go-librespot-search-radio.patch) and builds the daemon. The patch adds the internal `/search` and `/player/radio` endpoints. It is a local GPL-3.0 modification kept as a patch, not linked into Cadence.
+
 Run the app:
 
 ```bash
@@ -137,7 +140,7 @@ Run the app:
 ./bin/cadence --demo     # simulated player, no engine
 ```
 
-Open the provider badge in the titlebar to show the Library. On first run the engine prints a pairing code; approve it at `spotify.com/pair`. The engine stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json` with owner-only permissions. Cadence receives only token-free state.
+Open the provider badge in the titlebar to show the Library. The search bar queries Spotify's internal catalog and groups results into Tracks, Albums, Artists and Playlists. The radio button starts a station from any track, album, artist or playlist context. On first run the engine prints a pairing code; approve it at `spotify.com/pair`. The engine stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json` with owner-only permissions. Cadence receives only token-free state.
 
 The engine writes its log to `$XDG_CACHE_HOME/cadence/logs/go-librespot.log`. Its loopback API binds to a random port on `127.0.0.1`, and the port is written into `$XDG_CONFIG_HOME/cadence/audio/config.yml`.
 

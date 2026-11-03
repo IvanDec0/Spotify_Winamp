@@ -6,9 +6,17 @@ import {
   type AudioState,
   type LibraryContext,
   type PlaylistPage,
+  type SearchHit,
 } from "../../bindings/cadence/internal/golibrespot";
 
 const AUDIO_EVENT = "audio:state";
+
+export type SearchResultsView = {
+  tracks: SearchHit[];
+  albums: SearchHit[];
+  artists: SearchHit[];
+  playlists: SearchHit[];
+};
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -59,6 +67,10 @@ class MusicStore {
   artists = $state<NonNullable<ArtistPage["items"]>>([]);
   context = $state<(LibraryContext & { items: NonNullable<LibraryContext["items"]> }) | null>(null);
   contextLoading = $state(false);
+  searchQuery = $state("");
+  searchResults = $state<SearchResultsView | null>(null);
+  searching = $state(false);
+  searchError = $state<string | null>(null);
 
   #unsubscribe: (() => void) | null = null;
   #started = false;
@@ -222,6 +234,53 @@ class MusicStore {
     this.albums = [];
     this.artists = [];
     this.clearContext();
+    this.clearSearch();
+  }
+
+  async search(query: string): Promise<void> {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      this.clearSearch();
+      return;
+    }
+    this.searchQuery = trimmed;
+    this.searching = true;
+    this.searchError = null;
+    try {
+      const results = await AudioService.Search(trimmed, 20);
+      this.searchResults = {
+        tracks: results.tracks?.hits ?? [],
+        albums: results.albums?.hits ?? [],
+        artists: results.artists?.hits ?? [],
+        playlists: results.playlists?.hits ?? [],
+      };
+    } catch (error) {
+      this.searchError = errorMessage(error);
+      this.searchResults = null;
+    } finally {
+      this.searching = false;
+    }
+  }
+
+  clearSearch(): void {
+    this.searchQuery = "";
+    this.searchResults = null;
+    this.searching = false;
+    this.searchError = null;
+  }
+
+  async startRadio(uri: string): Promise<void> {
+    if (!uri) return;
+    this.busy = true;
+    try {
+      await AudioService.StartRadio(uri);
+      this.notice = "Radio started.";
+      this.error = null;
+    } catch (error) {
+      this.error = errorMessage(error);
+    } finally {
+      this.busy = false;
+    }
   }
 
   async playContext(uri: string, skipToURI = ""): Promise<void> {

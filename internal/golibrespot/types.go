@@ -167,3 +167,42 @@ type LibraryContext struct {
 	Cached int                `json:"cached"`
 	Items  []ContextTrackInfo `json:"items"`
 }
+
+// SearchArtist is an artist reference inside a search hit.
+type SearchArtist struct {
+	Name string `json:"name"`
+	URI  string `json:"uri"`
+}
+
+// SearchAlbum is an album reference inside a search hit.
+type SearchAlbum struct {
+	Name string `json:"name"`
+	URI  string `json:"uri"`
+}
+
+// SearchHit is one result from the engine's internal Spotify search.
+type SearchHit struct {
+	Name           string         `json:"name"`
+	URI            string         `json:"uri"`
+	Image          string         `json:"image"`
+	Artists        []SearchArtist `json:"artists"`
+	Album          *SearchAlbum   `json:"album,omitempty"`
+	Duration       int            `json:"duration"`
+	Author         string         `json:"author"`
+	FollowersCount int            `json:"followersCount"`
+	Verified       bool           `json:"verified"`
+}
+
+// SearchGroup is one category of search results.
+type SearchGroup struct {
+	Hits  []SearchHit `json:"hits"`
+	Total int         `json:"total"`
+}
+
+// SearchResults are the categories returned by the engine search.
+type SearchResults struct {
+	Tracks    SearchGroup `json:"tracks"`
+	Albums    SearchGroup `json:"albums"`
+	Artists   SearchGroup `json:"artists"`
+	Playlists SearchGroup `json:"playlists"`
+}

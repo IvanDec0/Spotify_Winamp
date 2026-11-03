@@ -111,6 +111,54 @@ func TestClientLibraryAndContext(t *testing.T) {
 	}
 }
 
+func TestClientSearchAndRadio(t *testing.T) {
+	var lastRadio map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case "/search":
+			if request.URL.Query().Get("q") != "daft punk" || request.URL.Query().Get("limit") != "7" {
+				t.Errorf("search query = %q", request.URL.RawQuery)
+			}
+			_, _ = writer.Write([]byte(`{
+				"tracks":{"hits":[{"name":"One More Time","uri":"spotify:track:1","image":"https://images.example/1.jpg","artists":[{"name":"Daft Punk","uri":"spotify:artist:1"}],"album":{"name":"Discovery","uri":"spotify:album:1"},"duration":320000}],"total":1},
+				"albums":{"hits":[{"name":"Discovery","uri":"spotify:album:1","artists":[{"name":"Daft Punk","uri":"spotify:artist:1"}]}],"total":1},
+				"artists":{"hits":[{"name":"Daft Punk","uri":"spotify:artist:1"}],"total":1},
+				"playlists":{"hits":[{"name":"This Is Daft Punk","uri":"spotify:playlist:1","author":"Spotify","followersCount":42}],"total":1}
+			}`))
+		case "/player/radio":
+			body, _ := io.ReadAll(request.Body)
+			_ = json.Unmarshal(body, &lastRadio)
+			_, _ = writer.Write([]byte(`null`))
+		default:
+			writer.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	client := NewClient(server.URL, server.Client())
+
+	results, err := client.Search(context.Background(), "daft punk", 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results.Tracks.Hits) != 1 || results.Tracks.Hits[0].Name != "One More Time" {
+		t.Fatalf("tracks = %#v", results.Tracks)
+	}
+	if len(results.Albums.Hits) != 1 || results.Albums.Hits[0].Name != "Discovery" {
+		t.Fatalf("albums = %#v", results.Albums)
+	}
+	if len(results.Artists.Hits) != 1 || len(results.Playlists.Hits) != 1 {
+		t.Fatalf("artists/playlists = %#v / %#v", results.Artists, results.Playlists)
+	}
+
+	if err := client.StartRadio(context.Background(), "spotify:artist:1"); err != nil {
+		t.Fatal(err)
+	}
+	if lastRadio["uri"] != "spotify:artist:1" {
+		t.Fatalf("radio payload = %#v", lastRadio)
+	}
+}
+
 func TestClientAPIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusBadGateway)

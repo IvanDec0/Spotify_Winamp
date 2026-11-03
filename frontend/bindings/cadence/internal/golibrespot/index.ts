@@ -16,5 +16,10 @@ export type {
     LibraryContext,
     LibraryPlaylist,
     Pairing,
-    PlaylistPage
+    PlaylistPage,
+    SearchAlbum,
+    SearchArtist,
+    SearchGroup,
+    SearchHit,
+    SearchResults
 } from "./models.js";

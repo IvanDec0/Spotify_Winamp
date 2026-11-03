@@ -35,16 +35,16 @@ tasks:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 
   audio:build:
-    summary: Builds the pinned go-librespot audio engine into bin/
+    summary: Builds the pinned go-librespot audio engine with search and radio support
     cmds:
-      - mkdir -p {{.BIN_DIR}}
-      - GOBIN="{{.ROOT_DIR}}/{{.BIN_DIR}}" go install github.com/devgianlu/go-librespot/cmd/daemon@v0.10.6-0.20261102145552-522adcae8d65
-      - mv "{{.BIN_DIR}}/daemon" "{{.BIN_DIR}}/go-librespot"
+      - ./scripts/build-go-librespot.sh
 
   audio:ensure:
-    summary: Ensures the go-librespot engine exists before packaging
+    summary: Ensures the patched go-librespot engine exists before packaging
     status:
       - test -x "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot"
+      - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/build/patches/go-librespot-search-radio.patch"
+      - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/scripts/build-go-librespot.sh"
     cmds:
       - task: audio:build
 

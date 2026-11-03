@@ -61,7 +61,8 @@ This is a private, personal-use project. The user explicitly accepted the use of
 | CI skeleton | Done (M0) |
 | Demo player and Clarity | Done (M1) |
 | Declarative skin system | Done (M2) |
-| UI/UX polish and Lumina skin | Done (post-M4) |
+| UI/UX polish, Lumina and Vanta skins | Done (post-M4) |
+| Catalog search and Spotify radio | Done (M3 extension) |
 | Local audio engine | Done (M3) |
 | Real Spotify pairing | Done and verified live |
 | Local audio playback | Done and verified with 320 kbps OGG |
@@ -126,7 +127,9 @@ Tasks:
 - [x] Implement device-auth pairing and expose the pairing URL/code to the UI.
 - [x] Implement the provider that maps engine status to `PlayerState`.
 - [x] Implement library endpoints for playlists, albums, artists and context tracks.
-- [x] Implement the Library panel with tabs, playback and add-to-queue.
+- [x] Extend the engine with internal catalog search for tracks, albums, artists and playlists.
+- [x] Add Spotify radio stations seeded from tracks, albums, artists and playlists.
+- [x] Implement the Library panel with tabs, search, playback, radio and add-to-queue.
 - [x] Proxy and cache album art through Go.
 - [x] Keep the frontend free of credentials.
 - [x] Remove the old Spotify Connect/OAuth/keyring path from the app.
@@ -288,6 +291,8 @@ Do not start with native Winamp importers or level 3 modules.
 - [x] Cadence decodes and plays Spotify audio locally.
 - [x] The official Spotify client is not required for playback.
 - [x] Playlists, saved albums, followed artists and Liked Songs are browsable.
+- [x] The Spotify catalog can be searched for tracks, albums, artists and playlists.
+- [x] Spotify radio can be started from a track, album, artist or playlist.
 - [x] A context or individual track can be played from the Library.
 - [x] Tracks can be added to the local queue.
 - [x] No playback credential appears in the frontend, logs or repository.

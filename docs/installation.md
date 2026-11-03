@@ -73,7 +73,18 @@ install -Dm644 cadence.png ~/.local/share/icons/hicolor/512x512/apps/cadence.png
 
 ## Skins included in the release
 
-The AppImage and tarball include the development skins **Lumina** (four glossy themes with animated chrome) and **Afterglow** as a second layout example. They are discovered from the bundled `skins/` directory and appear in the skin library, where you can activate them and switch themes. To install additional skins, use **Install .zip…** or **Install folder…**.
+The AppImage and tarball include the development skins **Lumina** (glossy chrome with four themes), **Vanta** (carbon/LED with Darkstar, Bionic and Reactor themes) and **Afterglow** as a second layout example. They are discovered from the bundled `skins/` directory and appear in the skin library, where you can activate them and switch themes. To install additional skins, use **Install .zip…** or **Install folder…**.
+
+## Search and radio
+
+The Library panel has a search bar for the Spotify catalog. Results are grouped into **Tracks**, **Albums**, **Artists** and **Playlists**:
+
+- Click a track to play it immediately.
+- Click an album, artist or playlist to open its context.
+- Use the **+** button to add a track to the local queue.
+- Use the radio button on any result or context to start a Spotify radio station from that seed.
+
+Radio playback is resolved by the local engine and uses the same PulseAudio/PipeWire output as normal playback.
 
 ## First run and pairing
 

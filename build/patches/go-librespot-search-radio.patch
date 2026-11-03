@@ -1,0 +1,302 @@
+diff --git a/daemon/api_server.go b/daemon/api_server.go
+index c4afe25..d134ffd 100644
+--- a/daemon/api_server.go
++++ b/daemon/api_server.go
+@@ -137,6 +137,8 @@ const (
+ 	ApiRequestTypeLibraryPlaylists    ApiRequestType = "library_playlists"
+ 	ApiRequestTypeLibraryAlbums       ApiRequestType = "library_albums"
+ 	ApiRequestTypeLibraryArtists      ApiRequestType = "library_artists"
++	ApiRequestTypeSearch              ApiRequestType = "search"
++	ApiRequestTypeRadio               ApiRequestType = "radio"
+ 	ApiRequestTypeSetLiked            ApiRequestType = "set_liked"
+ 	ApiRequestTypeGetLiked            ApiRequestType = "get_liked"
+ 	ApiRequestTypePlaylistAddTracks   ApiRequestType = "playlist_add_tracks"
+@@ -888,6 +890,8 @@ func (s *ConcreteApiServer) GetEvents(w http.ResponseWriter, r *http.Request) {
+ 
+ func (s *ConcreteApiServer) serve() {
+ 	m := http.NewServeMux()
++	m.HandleFunc("GET /search", s.HandleSearch)
++	m.HandleFunc("POST /player/radio", s.HandlePlayerRadio)
+ 	handler := HandlerFromMux(s, m)
+ 
+ 	c := cors.New(cors.Options{
+diff --git a/daemon/player.go b/daemon/player.go
+index 7b3b133..1528b65 100644
+--- a/daemon/player.go
++++ b/daemon/player.go
+@@ -23,6 +23,7 @@ import (
+ 	"github.com/devgianlu/go-librespot/dealer"
+ 	"github.com/devgianlu/go-librespot/player"
+ 	connectpb "github.com/devgianlu/go-librespot/proto/spotify/connectstate"
++	playerpb "github.com/devgianlu/go-librespot/proto/spotify/player"
+ 	"github.com/devgianlu/go-librespot/session"
+ 	"github.com/devgianlu/go-librespot/spclient"
+ 	"github.com/devgianlu/go-librespot/tracks"
+@@ -859,6 +860,52 @@ func (p *AppPlayer) handleApiRequest(req ApiRequest) (any, error) {
+ 	case ApiRequestTypeAddToQueue:
+ 		p.addToQueue(&connectpb.ContextTrack{Uri: req.Data.(string)})
+ 		return nil, nil
++	case ApiRequestTypeSearch:
++		data := req.Data.(ApiSearchRequest)
++		reply := apiReply(req)
++		p.goDetached(30*time.Second, func(ctx context.Context) {
++			country := "US"
++			if code := p.countryCode.Load(); code != nil && *code != "" {
++				country = *code
++			}
++			results, err := p.sess.Spclient().Search(ctx, data.Query, p.sess.Username(), country, "en_US", data.Limit)
++			if err != nil {
++				reply.done(nil, fmt.Errorf("failed searching Spotify: %w", err))
++				return
++			}
++			reply.done(results, nil)
++		})
++		return nil, errReplyDeferred
++	case ApiRequestTypeRadio:
++		data := req.Data.(ApiRadioRequest)
++		reply := apiReply(req)
++		p.loadGen++
++		p.loader.submit(loaderJob{
++			name:  "resolve radio for " + data.Uri,
++			class: classLoad,
++			gen:   p.loadGen,
++			run: func(ctx context.Context) loaderResult {
++				spotCtx, err := p.sess.Spclient().ContextResolveAutoplay(ctx, &playerpb.AutoplayContextRequest{
++					ContextUri: proto.String(data.Uri),
++				})
++				if err != nil {
++					return loaderResult{err: fmt.Errorf("failed resolving radio for %s: %w", data.Uri, err)}
++				}
++				return loaderResult{commit: func(p *AppPlayer, err error) {
++					if err != nil {
++						return
++					}
++					p.loadContext(spotCtx, func(_ *connectpb.ContextTrack) bool { return true }, false, true, func(err error) {
++						if err != nil {
++							reply.done(nil, err)
++							return
++						}
++						reply.done(nil, nil)
++					})
++				}}
++			},
++		})
++		return nil, errReplyDeferred
+ 	case ApiRequestTypeToken:
+ 		// Nothing here touches player state, so it is answered from its own
+ 		// goroutine rather than holding up the loop for a token renewal.
+diff --git a/daemon/search.go b/daemon/search.go
+new file mode 100644
+index 0000000..327e53e
+--- /dev/null
++++ b/daemon/search.go
+@@ -0,0 +1,47 @@
++package daemon
++
++import (
++	"net/http"
++	"strconv"
++	"strings"
++)
++
++type ApiSearchRequest struct {
++	Query string
++	Limit int
++}
++
++type ApiRadioRequest struct {
++	Uri string `json:"uri"`
++}
++
++// HandleSearch accepts GET /search?q=...&limit=... and returns tracks, albums,
++// artists and playlists from Spotify's internal search.
++func (s *ConcreteApiServer) HandleSearch(w http.ResponseWriter, r *http.Request) {
++	query := strings.TrimSpace(r.URL.Query().Get("q"))
++	if query == "" {
++		w.WriteHeader(http.StatusBadRequest)
++		return
++	}
++	limit := 20
++	if raw := r.URL.Query().Get("limit"); raw != "" {
++		if value, err := strconv.Atoi(raw); err == nil && value > 0 {
++			limit = value
++		}
++	}
++	s.handleRequest(ApiRequest{
++		Type: ApiRequestTypeSearch,
++		Data: ApiSearchRequest{Query: query, Limit: limit},
++	}, w)
++}
++
++// HandlePlayerRadio accepts POST /player/radio with a seed URI and starts a
++// Spotify radio station derived from it.
++func (s *ConcreteApiServer) HandlePlayerRadio(w http.ResponseWriter, r *http.Request) {
++	var data ApiRadioRequest
++	if err := jsonDecode(r, &data); err != nil || strings.TrimSpace(data.Uri) == "" {
++		w.WriteHeader(http.StatusBadRequest)
++		return
++	}
++	s.handleRequest(ApiRequest{Type: ApiRequestTypeRadio, Data: data}, w)
++}
+diff --git a/daemon/track_meta_cache.go b/daemon/track_meta_cache.go
+index d16e383..7be27b5 100644
+--- a/daemon/track_meta_cache.go
++++ b/daemon/track_meta_cache.go
+@@ -228,7 +228,7 @@ func metaExtensionKind(uri string) (extmetadatapb.ExtensionKind, bool) {
+ // user's Liked Songs collection, ...) is worth handing to the resolver, and
+ // anything it cannot classify would fail there anyway.
+ func isListableContextUri(uri string) bool {
+-	return librespot.InferSpotifyIdTypeFromContextUri(uri) != librespot.SpotifyIdTypeUnknown
++	return librespot.InferSpotifyIdTypeFromContextUri(uri) != librespot.SpotifyIdTypeUnknown || strings.HasPrefix(uri, "spotify:search:")
+ }
+ 
+ const (
+diff --git a/spclient/context_resolver.go b/spclient/context_resolver.go
+index 2742598..b33005b 100644
+--- a/spclient/context_resolver.go
++++ b/spclient/context_resolver.go
+@@ -72,6 +72,9 @@ func isItemUri(uri string) bool {
+ 
+ func NewContextResolver(ctx context.Context, log librespot.Logger, sp *Spclient, spotCtx *connectpb.Context) (_ *ContextResolver, err error) {
+ 	typ := librespot.InferSpotifyIdTypeFromContext(spotCtx)
++	if typ == librespot.SpotifyIdTypeUnknown && strings.HasPrefix(spotCtx.Uri, "spotify:search:") {
++		typ = librespot.SpotifyIdTypeTrack
++	}
+ 	if typ == librespot.SpotifyIdTypeUnknown {
+ 		return nil, fmt.Errorf("unsupported context type: %s", spotCtx.Uri)
+ 	}
+diff --git a/spclient/searchview.go b/spclient/searchview.go
+new file mode 100644
+index 0000000..8952a15
+--- /dev/null
++++ b/spclient/searchview.go
+@@ -0,0 +1,116 @@
++package spclient
++
++import (
++	"context"
++	"crypto/rand"
++	"encoding/json"
++	"fmt"
++	"io"
++	"net/url"
++	"strconv"
++	"strings"
++	"time"
++)
++
++type SearchArtist struct {
++	Name string `json:"name"`
++	URI  string `json:"uri"`
++}
++
++type SearchAlbum struct {
++	Name string `json:"name"`
++	URI  string `json:"uri"`
++}
++
++type SearchHit struct {
++	Name           string         `json:"name"`
++	URI            string         `json:"uri"`
++	Image          string         `json:"image"`
++	Artists        []SearchArtist `json:"artists"`
++	Album          *SearchAlbum   `json:"album,omitempty"`
++	Duration       int            `json:"duration"`
++	Author         string         `json:"author"`
++	FollowersCount int            `json:"followersCount"`
++	Verified       bool           `json:"verified"`
++}
++
++type SearchGroup struct {
++	Hits  []SearchHit `json:"hits"`
++	Total int         `json:"total"`
++}
++
++type SearchResults struct {
++	Tracks    SearchGroup `json:"tracks"`
++	Albums    SearchGroup `json:"albums"`
++	Artists   SearchGroup `json:"artists"`
++	Playlists SearchGroup `json:"playlists"`
++}
++
++type searchResponse struct {
++	Results SearchResults `json:"results"`
++}
++
++func searchUUID() string {
++	var b [16]byte
++	_, _ = rand.Read(b[:])
++	b[6] = (b[6] & 0x0f) | 0x40
++	b[8] = (b[8] & 0x3f) | 0x80
++	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
++}
++
++// Search queries Spotify's internal search view, which, unlike the public Web
++// API, is available from the session's own access token.
++func (c *Spclient) Search(ctx context.Context, query, username, country, locale string, limit int) (*SearchResults, error) {
++	query = strings.TrimSpace(query)
++	if query == "" {
++		return nil, fmt.Errorf("empty search query")
++	}
++	if country == "" {
++		country = "US"
++	}
++	if locale == "" {
++		locale = "en_US"
++	}
++	if limit < 1 {
++		limit = 20
++	} else if limit > 50 {
++		limit = 50
++	}
++
++	params := url.Values{}
++	params.Set("username", username)
++	params.Set("country", country)
++	params.Set("catalogue", "premium")
++	params.Set("locale", locale)
++	params.Set("limit", strconv.Itoa(limit))
++	params.Set("search-image-size", "240")
++	params.Set("search-image-size-cards", "720")
++	params.Set("echo", "onDemand")
++	params.Set("radio", "false")
++	params.Set("mft", "false")
++	params.Set("searchIntentID", searchUUID())
++	params.Set("sequenceNumber", "2")
++	params.Set("entityVersion", "6")
++	params.Set("clientVersion", "8.9.0")
++	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
++
++	path := url.PathEscape(strings.ReplaceAll(query, " ", "+"))
++	hm := "hm://searchview/km/v4/search/" + path + "?" + params.Encode()
++	resp, err := c.RequestHm(ctx, "GET", hm, nil, nil)
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++	if resp.StatusCode != 200 {
++		return nil, fmt.Errorf("search returned status %d", resp.StatusCode)
++	}
++	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
++	if err != nil {
++		return nil, err
++	}
++	var result searchResponse
++	if err := json.Unmarshal(body, &result); err != nil {
++		return nil, fmt.Errorf("invalid search response: %w", err)
++	}
++	return &result.Results, nil
++}
+diff --git a/spclient/spclient.go b/spclient/spclient.go
+index 60a7373..98b32c2 100644
+--- a/spclient/spclient.go
++++ b/spclient/spclient.go
+@@ -522,7 +522,7 @@ func (e *ContextResolveError) IsAccessDenied() bool {
+ }
+ 
+ func (c *Spclient) ContextResolve(ctx context.Context, uri string) (*connectpb.Context, error) {
+-	if librespot.InferSpotifyIdTypeFromContextUri(uri) == librespot.SpotifyIdTypeUnknown {
++	if librespot.InferSpotifyIdTypeFromContextUri(uri) == librespot.SpotifyIdTypeUnknown && !strings.HasPrefix(uri, "spotify:search:") {
+ 		return nil, fmt.Errorf("unsupported context type: %s", uri)
+ 	}
+ 

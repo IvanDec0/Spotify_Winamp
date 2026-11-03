@@ -54,7 +54,7 @@ tasks:
       - cp "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
       - cp -R "{{.ROOT_DIR}}/LICENSES" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
       - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/cadence/skins"
-      - cp -R "{{.ROOT_DIR}}/skins-dev/lumina" "{{.ROOT_DIR}}/skins-dev/afterglow" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/cadence/skins/"
+      - cp -R "{{.ROOT_DIR}}/skins-dev/lumina" "{{.ROOT_DIR}}/skins-dev/afterglow" "{{.ROOT_DIR}}/skins-dev/vanta" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/cadence/skins/"
       - chmod -R a+rX "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence"
       - cd "{{.ROOT_DIR}}/build/linux/appimage/build" && NO_STRIP=1 OUTPUT="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage" ./linuxdeploy-{{.ARCH}}.AppImage --appimage-extract-and-run --appdir {{.APP_NAME}}-{{.ARCH}}.AppDir --output appimage
       - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/out"
@@ -74,7 +74,7 @@ tasks:
       - cp "{{.ROOT_DIR}}/LICENSE" "{{.ROOT_DIR}}/LICENSE-ASSETS" "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.APP_NAME}}-{{.APP_VERSION}}/"
       - cp -R "{{.ROOT_DIR}}/docs" "{{.ROOT_DIR}}/LICENSES" "{{.APP_NAME}}-{{.APP_VERSION}}/"
       - mkdir -p "{{.APP_NAME}}-{{.APP_VERSION}}/skins"
-      - cp -R "{{.ROOT_DIR}}/skins-dev/lumina" "{{.ROOT_DIR}}/skins-dev/afterglow" "{{.APP_NAME}}-{{.APP_VERSION}}/skins/"
+      - cp -R "{{.ROOT_DIR}}/skins-dev/lumina" "{{.ROOT_DIR}}/skins-dev/afterglow" "{{.ROOT_DIR}}/skins-dev/vanta" "{{.APP_NAME}}-{{.APP_VERSION}}/skins/"
       - tar -czf "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.tar.gz" "{{.APP_NAME}}-{{.APP_VERSION}}"
       - rm -rf "{{.APP_NAME}}-{{.APP_VERSION}}"
 

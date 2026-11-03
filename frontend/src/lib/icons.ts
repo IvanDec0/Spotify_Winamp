@@ -58,6 +58,15 @@ const iconDefinitions = {
     { kind: "path", d: "M3.5 10v4h3.8l5 4V6l-5 4H3.5Z" },
     { kind: "path", d: "M16 9.4a3.7 3.7 0 0 1 0 5.2M18.6 7a7.2 7.2 0 0 1 0 10" },
   ],
+  search: [
+    { kind: "circle", cx: 10.5, cy: 10.5, r: 6.2 },
+    { kind: "path", d: "m15.2 15.2 5.3 5.3" },
+  ],
+  radio: [
+    { kind: "circle", cx: 12, cy: 12, r: 2.1, fill: true },
+    { kind: "path", d: "M7.2 8.2a6.8 6.8 0 0 0 0 7.6M16.8 8.2a6.8 6.8 0 0 1 0 7.6" },
+    { kind: "path", d: "M9.4 10.1a3.2 3.2 0 0 0 0 3.8M14.6 10.1a3.2 3.2 0 0 1 0 3.8" },
+  ],
   volume: [
     { kind: "path", d: "M4 10v4h3.6l4.8 3.8V6.2L7.6 10H4Z" },
     { kind: "path", d: "M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7.2a7 7 0 0 1 0 9.6" },

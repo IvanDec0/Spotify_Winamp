@@ -129,6 +129,23 @@ func (c *Client) AddToQueue(ctx context.Context, uri string) error {
 	return c.request(ctx, http.MethodPost, "/player/add_to_queue", nil, map[string]any{"uri": uri}, nil)
 }
 
+// Search queries the engine's internal Spotify search.
+func (c *Client) Search(ctx context.Context, query string, limit int) (SearchResults, error) {
+	var results SearchResults
+	params := url.Values{
+		"q":     {query},
+		"limit": {strconv.Itoa(limit)},
+	}
+	err := c.request(ctx, http.MethodGet, "/search", params, nil, &results)
+	return results, err
+}
+
+// StartRadio asks the engine to build and play a Spotify radio station from a
+// seed uri (track, album, artist or playlist).
+func (c *Client) StartRadio(ctx context.Context, uri string) error {
+	return c.request(ctx, http.MethodPost, "/player/radio", nil, map[string]any{"uri": uri}, nil)
+}
+
 type rawPlaylistPage struct {
 	Total  int `json:"total"`
 	Offset int `json:"offset"`

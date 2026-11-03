@@ -1,0 +1,15 @@
+:host {
+  --bg: #050506;
+  --surface: #0b0d11;
+  --surface-2: #15191f;
+  --text: #f4f6f8;
+  --muted: #9aa2ad;
+  --faint: #626b77;
+  --accent: #ff3b48;
+  --accent-2: #ff9d45;
+  --line: rgb(255 255 255 / 10%);
+  --line-strong: rgb(255 255 255 / 20%);
+  --panel: rgb(9 11 15 / 88%);
+  --carbon-a: rgb(255 255 255 / 3.5%);
+  --carbon-b: rgb(0 0 0 / 34%);
+}

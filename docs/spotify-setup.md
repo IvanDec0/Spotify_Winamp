@@ -60,12 +60,15 @@ The Library panel is the Spotify account/library surface:
 - browse playlists, saved albums and followed artists;
 - open a context and play any track;
 - play an entire playlist, album, artist or Liked Songs;
+- search the Spotify catalog for tracks, albums, artists and playlists;
+- start a Spotify radio station from a track, album, artist or playlist;
 - add tracks to the local play queue;
 - queue expansion and playback controls use the local engine.
 
-The library endpoints are provided by go-librespot's internal Spotify session,
-not the rate-limited public Web API. Audio output uses the configured PulseAudio
-device (`default` in v1).
+The library, search and radio endpoints are provided by go-librespot's internal
+Spotify session, not the rate-limited public Web API. The local engine patch in
+`build/patches/go-librespot-search-radio.patch` adds the search and radio
+endpoints. Audio output uses the configured PulseAudio device (`default` in v1).
 
 ## Troubleshooting
 

@@ -95,3 +95,18 @@ export function ResetSession(): $CancellablePromise<$models.AudioState> {
 export function Restart(): $CancellablePromise<$models.AudioState> {
     return $Call.ByID(2620845479);
 }
+
+/**
+ * Search finds tracks, albums, artists and playlists in the Spotify catalog.
+ */
+export function Search(query: string, limit: number): $CancellablePromise<$models.SearchResults> {
+    return $Call.ByID(190771008, query, limit);
+}
+
+/**
+ * StartRadio plays a Spotify radio station seeded by a track, album, artist or
+ * playlist uri.
+ */
+export function StartRadio(uri: string): $CancellablePromise<void> {
+    return $Call.ByID(537959251, uri);
+}

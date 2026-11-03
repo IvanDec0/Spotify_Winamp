@@ -106,3 +106,52 @@ export interface PlaylistPage {
     "limit": number;
     "items": LibraryPlaylist[] | null;
 }
+
+/**
+ * SearchAlbum is an album reference inside a search hit.
+ */
+export interface SearchAlbum {
+    "name": string;
+    "uri": string;
+}
+
+/**
+ * SearchArtist is an artist reference inside a search hit.
+ */
+export interface SearchArtist {
+    "name": string;
+    "uri": string;
+}
+
+/**
+ * SearchGroup is one category of search results.
+ */
+export interface SearchGroup {
+    "hits": SearchHit[] | null;
+    "total": number;
+}
+
+/**
+ * SearchHit is one result from the engine's internal Spotify search.
+ */
+export interface SearchHit {
+    "name": string;
+    "uri": string;
+    "image": string;
+    "artists": SearchArtist[] | null;
+    "album"?: SearchAlbum | null;
+    "duration": number;
+    "author": string;
+    "followersCount": number;
+    "verified": boolean;
+}
+
+/**
+ * SearchResults are the categories returned by the engine search.
+ */
+export interface SearchResults {
+    "tracks": SearchGroup;
+    "albums": SearchGroup;
+    "artists": SearchGroup;
+    "playlists": SearchGroup;
+}

@@ -3,6 +3,7 @@ package golibrespot
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -227,6 +228,46 @@ func (s *Service) AddToQueue(uri string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return client.AddToQueue(ctx, uri)
+}
+
+// Search finds tracks, albums, artists and playlists in the Spotify catalog.
+func (s *Service) Search(query string, limit int) (SearchResults, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return SearchResults{}, errors.New("the search query is empty")
+	}
+	client, err := s.client()
+	if err != nil {
+		return SearchResults{}, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	results, err := client.Search(ctx, query, limit)
+	if err != nil {
+		return SearchResults{}, err
+	}
+	for _, group := range []*SearchGroup{&results.Tracks, &results.Albums, &results.Artists, &results.Playlists} {
+		for index := range group.Hits {
+			group.Hits[index].Image = s.artURL(group.Hits[index].Image)
+		}
+	}
+	return results, nil
+}
+
+// StartRadio plays a Spotify radio station seeded by a track, album, artist or
+// playlist uri.
+func (s *Service) StartRadio(uri string) error {
+	uri = strings.TrimSpace(uri)
+	if uri == "" {
+		return errors.New("the radio seed is empty")
+	}
+	client, err := s.client()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return client.StartRadio(ctx, uri)
 }
 
 func (s *Service) client() (*Client, error) {
