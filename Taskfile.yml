@@ -39,6 +39,11 @@ tasks:
     cmds:
       - ./scripts/build-go-librespot.sh
 
+  audio:check:
+    summary: Verifies that the pinned go-librespot patches apply without building the engine
+    cmds:
+      - ./scripts/build-go-librespot.sh --check
+
   audio:ensure:
     summary: Ensures the patched go-librespot engine exists before packaging
     status:
@@ -64,6 +69,13 @@ tasks:
     cmds:
       - go vet $(go list ./... | grep -v '/node_modules/')
       - task: common:check:frontend
+
+  verify:
+    summary: Runs Go checks, tests and the engine patch check
+    cmds:
+      - task: check
+      - task: test
+      - task: audio:check
 
   lint:
     summary: Runs Go vet, ESLint and Prettier checks

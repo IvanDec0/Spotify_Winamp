@@ -64,6 +64,9 @@ jobs:
           go test $(go list ./... | grep -v '/node_modules/')
           go vet $(go list ./... | grep -v '/node_modules/')
 
+      - name: Engine patch check
+        run: task audio:check
+
       - name: Wails build
         run: wails3 build
 

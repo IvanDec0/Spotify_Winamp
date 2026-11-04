@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+CHECK_ONLY=false
+for ARG in "$@"; do
+	case "${ARG}" in
+		--check) CHECK_ONLY=true ;;
+		*)
+			echo "unknown argument: ${ARG}" >&2
+			echo "usage: $0 [--check]" >&2
+			exit 2
+			;;
+	esac
+done
+
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 VERSION="v0.10.6-0.20261102145552-522adcae8d65"
 MODULE="github.com/devgianlu/go-librespot"
@@ -25,6 +37,11 @@ for PATCH_FILE in \
 		exit 1
 	fi
 done
+
+if [ "${CHECK_ONLY}" = true ]; then
+	echo "go-librespot patches apply cleanly to ${VERSION}; skipping build (--check)"
+	exit 0
+fi
 
 (
 	cd "${BUILD_DIR}"

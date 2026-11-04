@@ -59,10 +59,10 @@ records that the module split will follow.
 
 ### T0.3 — Engine patch verification in CI
 
-- [ ] `scripts/build-go-librespot.sh --check` applies both patches and exits
+- [x] `scripts/build-go-librespot.sh --check` applies both patches and exits
       without building.
-- [ ] `Taskfile.yml`: `audio:check` and `verify` tasks.
-- [ ] CI runs `task audio:check`.
+- [x] `Taskfile.yml`: `audio:check` and `verify` tasks.
+- [x] CI runs `task audio:check`.
 - Commit: `build: verify go-librespot patches without building`
 
 ### T0.4 — Baseline and decision records
@@ -90,3 +90,4 @@ records that the module split will follow.
 | 2026-11-04 | Plan | `5cb1d2b` | Plan committed; no code changes |
 | 2026-11-04 | T0.1 | `feat(diagnostics): add engine and artwork metrics recorder` | Recorder, snapshot and transport wrapper with tests |
 | 2026-11-04 | T0.2 | `feat(diagnostics): expose loopback stats and pprof behind a flag` | Artcache/player instrumentation, loopback stats and pprof, 12 s timeout preserved |
+| 2026-11-04 | T0.3 | `build: verify go-librespot patches without building` | `--check` mode, `audio:check`/`verify` tasks, CI step |
