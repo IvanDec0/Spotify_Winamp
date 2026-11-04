@@ -16,8 +16,8 @@ domain  <-  adapters  <-  app
   `wailsapi/audio`, `wailsapi/player`, `wailsapi/skins`.
 - **App** is the composition root in `main.go`.
 
-Domain packages never import Wails. Only `internal/wailsapi/**` and the native
-window exception `internal/platform` import
+Domain packages never import Wails. Only `internal/wailsapi/**`, the native
+window exception `internal/platform`, and the `main.go` composition root import
 `github.com/wailsapp/wails/v3/pkg/application`.
 
 ## Package graph

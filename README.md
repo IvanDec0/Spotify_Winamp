@@ -245,12 +245,18 @@ Shaped windows need a compositing environment with an alpha channel. Sway and th
 ├── build/                           # Wails metadata and Linux build tasks
 ├── frontend/                        # Svelte 5 + TypeScript UI
 ├── internal/
-│   ├── golibrespot/                 # Managed engine, REST client, provider and library service
-│   ├── player/                      # Provider-independent player service
+│   ├── engine/                      # Sidecar supervisor, REST client and wire DTOs
+│   ├── catalog/                     # Library, search and context orchestration
+│   ├── playback/                    # Provider, player state, demo and engine providers
+│   ├── artwork/                     # Album-art proxying and caching
+│   ├── diagnostics/                 # Counters and engine transport instrumentation
 │   ├── skins/                       # Skin validation, installation and runtime support
 │   ├── settings/                    # Persisted configuration
-│   ├── artcache/                    # Album-art proxying and caching
-│   └── platform/                    # GTK4 window sizing and transparency helpers
+│   ├── platform/                    # GTK4 window sizing and transparency helpers
+│   └── wailsapi/
+│       ├── audio/                   # Wails audio adapter (audioapi)
+│       ├── player/                  # Wails player adapter (playerapi)
+│       └── skins/                   # Wails skins adapter (skinsapi)
 ├── skins-dev/                       # Development skins: Afterglow, Lumina, Vanta and Nightstar
 ├── documentacion-cliente-musical-skins.md
 ├── plan/

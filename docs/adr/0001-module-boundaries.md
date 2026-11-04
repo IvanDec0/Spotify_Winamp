@@ -53,9 +53,11 @@ internal/
     `Status`, `RepeatMode`, `PlayerError`, `DemoProvider`, `EngineProvider`.
   - `wailsapi/{audio,player,skins}`: service structs plus `types.go` aliases for
     every type used in service signatures.
-- Constructors return interfaces owned by the consumer. Blocking calls take
+- Constructors return concrete types; `playback.Provider` is the substitution
+  seam used by the demo and engine providers. Blocking calls take
   `context.Context`. Errors are wrapped with `%w` and classified at the edge.
-  One `log/slog` logger is used instead of `fmt.Println`.
+  The standard `log` package is used today; structured `log/slog` logging is
+  future work.
 - `internal/engine/rest.go` is the only place that knows engine routes.
 
 ## Consequences

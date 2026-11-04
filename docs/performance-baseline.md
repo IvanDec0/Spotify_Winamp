@@ -140,9 +140,9 @@ explain where idle traffic comes from; they do not replace runtime capture.
 
 | Source | Code path | Static rate |
 |---|---|---|
-| Player ticker | `internal/player/service.go` emits every 500 ms; each `Provider.State()` calls `GET /status` | 2.0 req/s |
+| Player ticker | `internal/wailsapi/player/service.go` emits every 500 ms; each `Provider.State()` calls `GET /status` | 2.0 req/s |
 | Frontend audio poll | `frontend/src/lib/music.svelte.ts` calls `AudioService.GetState()` every 2 s | 0.5 req/s |
-| Context fetch | `internal/golibrespot/provider.go` fetches `/context/tracks` only while the context is not `Ready`; once a successful response reports `Ready`, that URI is cached indefinitely. The 5 s window gates warmup and retries only. | 0.2 req/s while warming up or retrying; 0 in steady state |
+| Context fetch | `internal/playback/engine_provider.go` fetches `/context/tracks` only while the context is not `Ready`; once a successful response reports `Ready`, that URI is cached indefinitely. The 5 s window gates warmup and retries only. | 0.2 req/s while warming up or retrying; 0 in steady state |
 | **Steady idle total** | | **≈2.5 req/s** |
 | **Warmup total** | | **≈2.7 req/s** |
 
@@ -153,14 +153,14 @@ rate is ≈2.5 req/s (2.0 ticker + 0.5 frontend); context warmup or retry adds
 Other static properties that affect the baseline:
 
 - Every 500 ms tick emits the full `PlayerState`, including up to 50 queue items
-  (`internal/player/service.go`, queue cap in `internal/golibrespot/provider.go`).
+  (`internal/wailsapi/player/service.go`, queue cap in `internal/playback/engine_provider.go`).
   Payload size grows with the queue; plan §5 estimates 15-30 KB per tick at 50
   items.
 - The artwork cache is memory-only: 96 entries, 48 MiB total, 3 MiB per image,
   with no size variants, no single-flight and no disk cache
-  (`internal/artcache/cache.go`).
+  (`internal/artwork/cache.go`).
 - Context lists can reach 800 rows (`metadata.max_tracks: 800` in
-  `internal/golibrespot/runtime.go`) and are rendered without virtualization
+  `internal/engine/supervisor.go`) and are rendered without virtualization
   (`frontend/src/lib/MusicBrowser.svelte`).
 
 ## Baseline table (fill on the reference machine)

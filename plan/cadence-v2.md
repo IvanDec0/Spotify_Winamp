@@ -1,6 +1,7 @@
 # Cadence v2 — Architecture, Performance and Catalog Plan
 
-> **Status:** Proposed. No production code changes yet.
+> **Status:** Implemented through Phase 3 on 2026-11-04; phases 4-8 remain. The
+> codebase sections below are the plan-time snapshot and are kept for context.
 > **Base commit:** `24f7f4c` on `feat/cadence-v2` (branched from `feat/go-librespot-http-proxy`).
 > **Language policy:** technical artifacts and code stay in English. UI copy is externalized (see §7).
 > **Last updated:** 2026-11-04

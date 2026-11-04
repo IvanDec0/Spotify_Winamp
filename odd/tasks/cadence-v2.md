@@ -545,8 +545,8 @@ frontend/bindings/cadence/internal/skins/{index,models}.ts
 | T3.2 | `ca2dc58` |
 | T3.3 | `8b8ab2e` |
 | T3.4 | `d8887e4` |
-| Review: catalog tests | this commit |
-| Review: docs alignment | pending |
+| Review: catalog tests | `b16a453` |
+| Review: docs alignment | this commit |
 
 ## Progress log
 
@@ -576,4 +576,5 @@ frontend/bindings/cadence/internal/skins/{index,models}.ts
 | 2026-11-04 | T3.2 | `ca2dc58` | `catalog` owns engine-backed library/search/context orchestration; `playback` owns provider, state, demo and engine provider; temporary adapters delegate; Go tests, vet and gofmt green |
 | 2026-11-04 | T3.3 | `8b8ab2e` | Wails adapters moved to `internal/wailsapi/{audio,player,skins}` with `audioapi`/`playerapi`/`skinsapi`; old packages deleted; bindings regenerated (4 services, 39 methods, 38 models, 3 events); frontend facades and mocks repointed; Go and frontend checks green |
 | 2026-11-04 | T3.4 | `d8887e4` | ADR-0001 accepted with the final layout and `internal/platform` exception; `docs/architecture.md` linked from README and docs index; verification table recorded; all Go, engine, binding and frontend checks green |
-| 2026-11-04 | T3.4 review correction 1 | this commit | Added `internal/catalog/service_test.go` (`catalog_test`) against a fake engine: demo-disabled state, library pages/artwork rewriting, context mapping, all search groups, playback/queue/radio bodies, 500 propagation and missing-client error; `go test -cover ./internal/catalog/` = 80.4% |
+| 2026-11-04 | T3.4 review correction 1 | `b16a453` | Added `internal/catalog/service_test.go` (`catalog_test`) against a fake engine: demo-disabled state, library pages/artwork rewriting, context mapping, all search groups, playback/queue/radio bodies, 500 propagation and missing-client error; `go test -cover ./internal/catalog/` = 80.4% |
+| 2026-11-04 | T3.4 review correction 2 | this commit | README repository tree, plan header and docs index aligned with the Phase 3 split; ADR-0001 constructors/logging claims corrected; architecture Wails boundary includes `main.go`; performance-baseline paths point at the new packages without changing measurements |
