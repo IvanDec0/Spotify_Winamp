@@ -89,7 +89,14 @@ export class I18n {
    */
   async setLocale(locale: Locale): Promise<void> {
     const request = ++this.#request;
-    const catalog = await this.#loaders[locale]();
+    let catalog: Catalog;
+    try {
+      catalog = await this.#loaders[locale]();
+    } catch (error) {
+      // A superseded switch must not surface a rejection from an abandoned load.
+      if (request !== this.#request) return;
+      throw error;
+    }
     if (request !== this.#request) return;
 
     this.#catalog = catalog;

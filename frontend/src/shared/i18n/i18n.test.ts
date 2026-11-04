@@ -128,6 +128,23 @@ describe("i18n runtime", () => {
     expect(document.documentElement.lang).toBe("en");
   });
 
+  it("ignores a stale loader rejection after a newer switch succeeds", async () => {
+    let rejectEs!: (error: unknown) => void;
+    const pendingEs = new Promise<Catalog>((_, reject) => {
+      rejectEs = reject;
+    });
+    const instance = new I18n({ loaders: { es: () => pendingEs } });
+
+    const first = instance.setLocale("es");
+    const second = instance.setLocale("en");
+    await second;
+
+    rejectEs(new Error("stale catalog failure"));
+    await expect(first).resolves.toBeUndefined();
+    expect(instance.locale).toBe("en");
+    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("en");
+  });
+
   it("reacts to locale changes in Svelte templates", async () => {
     render(Fixture);
     expect(screen.getByText("Close")).not.toBeNull();

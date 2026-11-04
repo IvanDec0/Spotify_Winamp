@@ -366,7 +366,7 @@ Environment: Node `v22.23.4`, npm `12.2.1`, Vite `8.3.5`, branch
 | `npm run check` | exit 0, `svelte-check found 0 errors and 0 warnings` |
 | `npm run lint` | exit 0, no findings |
 | `npm run format` | exit 0, `All matched files use Prettier code style!` |
-| `npm run test` | exit 0, 23 files, 106 tests passed |
+| `npm run test` | exit 0, 24 files, 124 tests passed |
 | `npm run build` | exit 0, 226 modules transformed, built in 1.10 s |
 | `rg -n 'bindings/\|@wailsio/runtime' frontend/src` | only `src/shared/api/**` imports and `vi.mock` paths |
 | `git diff --check` | exit 0, no whitespace errors |
@@ -391,8 +391,9 @@ The separate `es-*` chunks prove the Spanish catalog is loaded lazily.
 | T2.1 | `e4c9cb7` |
 | T2.2 | `c0b8c20` |
 | T2.3 | `7adecc5` |
-| T2.4 | verification commit |
-| Review corrections | `fix(frontend)` — hardening commit |
+| T2.4 | `9210648` |
+| Review corrections | `4a28390` |
+| Final review fixes | `fix(frontend): skip non-tabbable dialog elements and stale locale errors` |
 
 ### Phase 2 review corrections — 2026-11-04
 
@@ -402,7 +403,7 @@ The separate `es-*` chunks prove the Spanish catalog is loaded lazily.
   loader rejects, so startup never blocks mount. Locale switches are
   latest-wins via a request token.
 - Dialog focus filtering skips `type="hidden"`, `[hidden]`,
-  `[aria-hidden="true"]`, `[inert]` and `tabindex < -1`; an empty dialog
+  `[aria-hidden="true"]`, `[inert]` and `tabindex < 0`; an empty dialog
   focuses its panel, Escape stops propagation, and App ignores already
   prevented key events.
 - `visibleRange` includes a fractional trailing row; VirtualList documents the
@@ -415,6 +416,8 @@ The separate `es-*` chunks prove the Spanish catalog is loaded lazily.
   syntax coverage.
 - `system.invoke` is typed `string` and documented as fire-and-forget.
   ADR-0003 now marks the ESLint literal guard as Phase 7 work.
+- Final pass: Dialog excludes `tabindex="-1"` from the sequential trap, and a
+  stale locale loader rejection no longer surfaces after a newer switch wins.
 
 Correction verification, run from `frontend/`:
 
@@ -423,7 +426,7 @@ Correction verification, run from `frontend/`:
 | `npm run check` | exit 0, 0 errors and 0 warnings |
 | `npm run lint` | exit 0, no findings |
 | `npm run format` | exit 0, all files match Prettier |
-| `npm run test` | exit 0, 24 files, 122 tests passed |
+| `npm run test` | exit 0, 24 files, 124 tests passed |
 | `npm run build` | exit 0, 226 modules; one lazy `es-*` chunk |
 | `rg -n 'bindings/\|@wailsio/runtime' src` | only `src/shared/api/**` imports and `vi.mock` paths |
 | `git diff --check` | exit 0, no whitespace errors |
@@ -433,7 +436,7 @@ Correction verification, run from `frontend/`:
 - **Code and docs:** complete on `feat/cadence-v2`, including the review
   correction round.
 - **Verification:** check, lint, format, test, build, binding-import grep and
-  `git diff --check` are green (106 tests before corrections, 122 after).
+  `git diff --check` are green (106 tests before corrections, 124 after the final fixes).
 - **Behavior:** unchanged; the navigation store and toast host are not wired into
   `App.svelte` until Phase 6, and existing screens remain English until Phase 7.
 - **Next:** Phase 3 (Go decomposition).
@@ -458,5 +461,7 @@ Correction verification, run from `frontend/`:
 | 2026-11-04 | T2.1 | `e4c9cb7` | Typed `shared/api` boundary with ApiError normalization, player/audio/skins/window/event facades and client/event/window tests; all binding imports migrated |
 | 2026-11-04 | T2.2 | `c0b8c20` | `intl-messageformat@12.1.4`, literal-key TS catalogs with compile-time parity, cached ICU formatters, locale detection/persistence and `Intl` helpers; ADR-0003 and plan §7 updated |
 | 2026-11-04 | T2.3 | `7adecc5` | Button, focus-trapped Dialog, virtual list helper/component, Skeleton, toast store/components and typed navigation store; not wired into App yet |
-| 2026-11-04 | T2.4 | `chore(verify)` | All frontend checks green; 23 test files / 106 tests; build emits lazy `es` chunks; binding imports confined to `shared/api` and mocks |
-| 2026-11-04 | Phase 2 corrections | `fix(frontend)` | Rounded seek/volume, non-blocking i18n startup, latest-wins locale switches, dialog focus/escape hardening, fractional virtual rows, Button attribute forwarding, single live region, lazy `es` barrel fix, extra i18n tests and docs |
+| 2026-11-04 | T2.4 | `9210648` | All frontend checks green; 23 test files / 106 tests; build emits lazy `es` chunks; binding imports confined to `shared/api` and mocks |
+| 2026-11-04 | Phase 2 corrections | `4a28390` | Rounded seek/volume, non-blocking i18n startup, latest-wins locale switches, dialog focus/escape hardening, fractional virtual rows, Button attribute forwarding, single live region, lazy `es` barrel fix, extra i18n tests and docs |
+
+| 2026-11-04 | Phase 2 final fixes | `fix(frontend): skip non-tabbable dialog elements and stale locale errors` | Excluded `tabindex="-1"` from the dialog trap; ignored stale locale loader rejections; 124 tests green |

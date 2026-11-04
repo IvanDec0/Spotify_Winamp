@@ -30,7 +30,7 @@
       if (node instanceof HTMLInputElement && node.type === "hidden") return false;
       if (node.closest("[hidden], [aria-hidden='true'], [inert]")) return false;
       const tabindex = node.getAttribute("tabindex");
-      if (tabindex !== null && Number(tabindex) < -1) return false;
+      if (tabindex !== null && Number(tabindex) < 0) return false;
       return isVisible(node);
     });
   }

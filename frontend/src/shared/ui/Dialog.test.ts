@@ -29,6 +29,15 @@ const hiddenBeforeButton = createRawSnippet(() => ({
   `,
 }));
 
+const negativeTabindexBeforeButton = createRawSnippet(() => ({
+  render: () => `
+    <div>
+      <button type="button" tabindex="-1">Programmatic</button>
+      <button type="button">Visible action</button>
+    </div>
+  `,
+}));
+
 function props(open: boolean, onclose = vi.fn()) {
   return { open, title: "Test dialog", onclose, children };
 }
@@ -90,6 +99,22 @@ describe("Dialog", () => {
   it("skips hidden inputs when looking for the first focusable element", async () => {
     render(Dialog, {
       props: { open: true, title: "Test dialog", onclose: vi.fn(), children: hiddenBeforeButton },
+    });
+    screen.getByRole("button", { name: "Close" }).setAttribute("disabled", "");
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Visible action" })),
+    );
+  });
+
+  it("skips tabindex=-1 elements when looking for the first focusable element", async () => {
+    render(Dialog, {
+      props: {
+        open: true,
+        title: "Test dialog",
+        onclose: vi.fn(),
+        children: negativeTabindexBeforeButton,
+      },
     });
     screen.getByRole("button", { name: "Close" }).setAttribute("disabled", "");
 
