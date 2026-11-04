@@ -156,11 +156,11 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 
 ### T1.1 — Pin go-librespot `master@16b65bb4`
 
-- [ ] Set `VERSION="v0.10.6-0.20261104085532-16b65bb4cd2b"` in
+- [x] Set `VERSION="v0.10.6-0.20261104085532-16b65bb4cd2b"` in
       `scripts/build-go-librespot.sh`.
-- [ ] Verify both patches still apply with `--fuzz=0`; rebase them if the
-      station-page fix conflicts.
-- [ ] Build the engine with `task audio:build` and confirm the binary runs.
+- [x] Verify both patches still apply with `--fuzz=0`; rebase them if the
+      station-page fix conflicts. No rebase was needed.
+- [x] Build the engine with `task audio:build` and confirm the binary runs.
 - Commit: `build: pin go-librespot master for device_is_group support`
 
 ### T1.2 — Engine configuration
@@ -205,3 +205,4 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 | 2026-11-04 | T0.4 | `939e949` | Baseline procedure + static estimate + gates; ADRs 0001-0003 |
 | 2026-11-04 | T0.5 | `14644ca` | All verification commands green |
 | 2026-11-04 | Review corrections | `1e02e7f` | Atomic artwork recorder, `missing` counter, successful-write-only `served`, emission-only event accounting, corrected baseline provenance, transport edge cases, strict patch fuzz; all checks green |
+| 2026-11-04 | T1.1 | `build: pin go-librespot master for device_is_group support` | Pin updated to `16b65bb4`; both patches apply unchanged with `--fuzz=0`; `task audio:build` exit 0 |

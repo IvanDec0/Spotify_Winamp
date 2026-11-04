@@ -14,7 +14,7 @@ for ARG in "$@"; do
 done
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-VERSION="v0.10.6-0.20261102145552-522adcae8d65"
+VERSION="v0.10.6-0.20261104085532-16b65bb4cd2b"
 MODULE="github.com/devgianlu/go-librespot"
 MODULE_DIR="$(go env GOPATH)/pkg/mod/${MODULE}@${VERSION}"
 BUILD_DIR="${ROOT_DIR}/build/audio/go-librespot-src"
