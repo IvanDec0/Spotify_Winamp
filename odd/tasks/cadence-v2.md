@@ -76,19 +76,75 @@ records that the module split will follow.
 
 ### T0.5 — Phase 0 verification
 
-- [ ] `go test $(go list ./... | grep -v '/node_modules/')`
-- [ ] `go vet $(go list ./... | grep -v '/node_modules/')`
-- [ ] `gofmt -l` over non-vendored Go directories
-- [ ] `./scripts/build-go-librespot.sh --check`
-- [ ] Record exact results in this file.
+- [x] `go test $(go list ./... | grep -v '/node_modules/')`
+- [x] `go vet $(go list ./... | grep -v '/node_modules/')`
+- [x] `gofmt -l` over non-vendored Go directories
+- [x] `./scripts/build-go-librespot.sh --check`
+- [x] Record exact results in this file.
 - Commit: `chore: record Phase 0 verification`
+
+## Phase 0 verification — 2026-11-04
+
+Environment: Go `go1.27.3-X:nodwarf5 linux/amd64`, Task `3.54.0`, branch
+`feat/cadence-v2`.
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `go vet $(go list ./... \| grep -v '/node_modules/')` | exit 0, no findings |
+| `gofmt -l $(go list -f '{{.Dir}}' ./... \| grep -v '/node_modules/')` | exit 0, no files listed |
+| `./scripts/build-go-librespot.sh --check` | exit 0, both patches applied |
+| `git diff --check` | exit 0, no whitespace errors |
+
+`go test` output:
+
+```text
+ok  	cadence	0.046s
+ok  	cadence/internal/artcache	0.007s
+ok  	cadence/internal/diagnostics	0.007s
+ok  	cadence/internal/golibrespot	0.164s
+?   	cadence/internal/platform	[no test files]
+ok  	cadence/internal/player	0.067s
+ok  	cadence/internal/settings	(cached)
+ok  	cadence/internal/skins	(cached)
+```
+
+Patch check output:
+
+```text
+patching file daemon/api_server.go
+patching file daemon/player.go
+patching file daemon/search.go
+patching file daemon/track_meta_cache.go
+patching file spclient/context_resolver.go
+patching file spclient/searchview.go
+patching file spclient/spclient.go
+patching file ap/ap.go
+patching file ap/proxy.go
+go-librespot patches apply cleanly to v0.10.6-0.20261102145552-522adcae8d65; skipping build (--check)
+```
+
+Additional checks run during the phase: `go test -race` for
+`internal/diagnostics`, `internal/artcache`, `internal/player` and the root
+package; all passed. `task --list-all` shows `audio:check` and `verify`.
+
+### Commit map
+
+| Task | Commit |
+|---|---|
+| T0.1 | `5e7449f` |
+| T0.2 | `db2f968` |
+| T0.3 | `67143fe` |
+| T0.4 | `939e949` |
+| T0.5 | this commit (`chore: record Phase 0 verification`) |
 
 ## Progress log
 
 | Date | Task | Commit | Result |
 |---|---|---|---|
 | 2026-11-04 | Plan | `5cb1d2b` | Plan committed; no code changes |
-| 2026-11-04 | T0.1 | `feat(diagnostics): add engine and artwork metrics recorder` | Recorder, snapshot and transport wrapper with tests |
-| 2026-11-04 | T0.2 | `feat(diagnostics): expose loopback stats and pprof behind a flag` | Artcache/player instrumentation, loopback stats and pprof, 12 s timeout preserved |
-| 2026-11-04 | T0.3 | `build: verify go-librespot patches without building` | `--check` mode, `audio:check`/`verify` tasks, CI step |
-| 2026-11-04 | T0.4 | `docs: add performance baseline and v2 ADRs` | Baseline procedure + static estimate + gates; ADRs 0001-0003 |
+| 2026-11-04 | T0.1 | `5e7449f` | Recorder, snapshot and transport wrapper with tests |
+| 2026-11-04 | T0.2 | `db2f968` | Artcache/player instrumentation, loopback stats and pprof, 12 s timeout preserved |
+| 2026-11-04 | T0.3 | `67143fe` | `--check` mode, `audio:check`/`verify` tasks, CI step |
+| 2026-11-04 | T0.4 | `939e949` | Baseline procedure + static estimate + gates; ADRs 0001-0003 |
+| 2026-11-04 | T0.5 | `chore: record Phase 0 verification` | All verification commands green |
