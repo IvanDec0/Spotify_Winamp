@@ -645,9 +645,9 @@ the context list without nested scrolling or sticky-header regressions.
 
 ### T4.4 — After-baseline and verification
 
-- [ ] Run the app with `--diagnostics` and capture the same idle sample; record
+- [x] Run the app with `--diagnostics` and capture the same idle sample; record
       the after numbers in `docs/performance-baseline.md`.
-- [ ] Run `go test`, race on the touched packages, `go vet`, `gofmt`, bindings
+- [x] Run `go test`, race on the touched packages, `go vet`, `gofmt`, bindings
       regeneration with no diff, `task audio:check`, and frontend
       check/lint/format/test/build.
 - Commit: `docs: record the Phase 4 after-baseline and verification`
@@ -713,15 +713,21 @@ the context list without nested scrolling or sticky-header regressions.
   on demand with `GetQueue`.
 - **Idle work:** progress and visualizer loops stop when paused or hidden; the
   visualizer caps at 30 fps.
-- **Pending measurement:** T4.4 after-baseline on the reference machine
-  (`./bin/cadence --diagnostics`, 60 s paused). Capture `engine_total`,
-  `events["player:state"]`, idle CPU and RSS, then update
-  `docs/performance-baseline.md`.
+- **After measurement:** captured on the reference machine. Engine traffic is
+  **0.067 req/s** (4 requests in 60 s, down from 2.5), `player:state` is
+  **541 B/event**, and the paused/unchanged delta is **0 events**. The single
+  error is a startup error and does not change.
+- **Gates:** request rate and payload/no-idle-event are green. Idle CPU remains
+  unproven: only a 3.2% `ps` lifetime average was captured, not the 60 s mean
+  the gate asks for. RSS is a 299,060 KiB point sample; 10-minute stability was
+  not captured.
 - **Deferred:** context-list virtualization moves to Phase 6. The measured row
   pitch is 36 px inside the shared `.library-body` scroll container; forcing
   `VirtualList` there would nest scroll containers and change the context header
   behavior.
-- **Next:** T4.4 measurement, then Phase 5 (catalog features).
+- **Next:** **stopped here by user instruction.** Phase 5 has not started.
+  When work resumes, the open decisions are Phase 5 catalog work and D1 (Browse
+  surface) for Phase 6.
 
 ## Progress log
 
@@ -758,4 +764,5 @@ the context list without nested scrolling or sticky-header regressions.
 | 2026-11-04 | T4.2 | `perf(art)` | `GET /art/{key}?size=` variants (64/128/240/640, JPEG q85, no upscale), per-`key@size` single-flight, 256 MiB disk LRU of resized variants with scan/write eviction, `disk_hit` diagnostics, 256-entry/64 MiB memory bounds, `coverURL`/`coverLoading` wired into the frontend covers |
 | 2026-11-04 | T4.3 | `perf(ui)` | Progress and both visualizers now start rAF loops only while playing, visible and (for visualizers) not reduced-motion; loops cancel on pause/hide with a final static frame; visualizer frame cap at 30 fps; skin progress paused-state and unmount cleanup covered by tests; context-list virtualization deferred to Phase 6 (34 px row + 2 px gap, shared scroll container) |
 
-| 2026-11-04 | Phase 4 verification | `docs(odd): record Phase 4 verification and pending after-baseline` | Static gates green; idle structure is 0.067 req/s; after-baseline pending reference-machine run |
+| 2026-11-04 | Phase 4 verification | `e301b99` | Static gates green; idle structure is 0.067 req/s; after-baseline pending reference-machine run |
+| 2026-11-04 | T4.4 after-baseline | `docs: record the Phase 4 after-baseline` | Measured 0.067 req/s (4/60 s), 541 B/event, 0 idle events; CPU/RSS caveats recorded; Phase 5 not started |

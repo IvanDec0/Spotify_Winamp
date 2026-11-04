@@ -163,7 +163,7 @@ Other static properties that affect the baseline:
   `internal/engine/supervisor.go`) and are rendered without virtualization
   (`frontend/src/lib/MusicBrowser.svelte`).
 
-## Baseline table (reference machine)
+## Baseline and after comparison (reference machine)
 
 Reference machine:
 
@@ -171,48 +171,75 @@ Reference machine:
 |---|---|
 | Machine / CPU / RAM | pending |
 | OS / kernel | pending |
-| Cadence commit | `b5e326c` (Phase 3 close) |
+| Baseline commit | `b5e326c` (Phase 3 close) |
+| After commit | `a28d8ea` (Phase 4 code) |
 | Engine pin | `v0.10.6-0.20261104085532-16b65bb4cd2b` |
 | Build command and build tags | `task build` |
 | Window size / active skin | pending |
-| Captured at | 2026-11-04, idle with an authenticated session |
+| Captured at | 2026-11-04, authenticated and paused/idle |
 
 Measurements:
 
-| Metric | How measured | Baseline | Phase 4 target |
-|---|---|---|---|
-| Idle engine request rate | `engine_total.requests` delta over 60 s | **2.5 req/s** (150 requests in 60 s) | ≤ 0.2 req/s |
-| Engine response bytes | `engine_total.bytes_out` delta | 396 B/request (59,400 B in 60 s) | — |
-| Engine latency | `engine_total.latency_ms_total` delta | 0.87 ms/request (130.5 ms in 60 s) | — |
-| `player:state` payload | `events["player:state"].bytes / count` | pending (not in the captured sample) | ≤ 4 KB per change |
-| Idle CPU | mean over a 60 s `pidstat`/`top` sample | pending | < 2% |
-| RSS stability | RSS every 30 s for 10 minutes | pending | stable over 10 minutes |
-| 800-row scroll | DevTools performance / manual pass | pending | smooth, no dropped frames |
+| Metric | How measured | Baseline (Phase 3) | After (Phase 4) | Target | Result |
+|---|---|---|---|---|---|
+| Idle engine request rate | `engine_total.requests` delta over 60 s | **2.5 req/s** (150 in 60 s) | **0.067 req/s** (4 in 60 s) | ≤ 0.2 req/s | ✅ 37.5× lower |
+| Engine response bytes | `engine_total.bytes_out` delta | 396 B/request (59,400 B in 60 s) | 396 B/request (1,584 B in 60 s) | — | ✅ |
+| Engine latency | `engine_total.latency_ms_total` delta | 0.87 ms/request | 0.56 ms/request | — | ✅ |
+| `player:state` payload | `events["player:state"].bytes / count` | pending | **541 B/event**; 0 events in the 60 s delta | ≤ 4 KB per change | ✅ |
+| Idle CPU | mean over a 60 s `pidstat`/`top` sample | pending | 3.2% `ps` lifetime average; 60 s mean not captured | < 2% | ⚠️ unproven |
+| RSS stability | RSS every 30 s for 10 minutes | pending | 299,060 KiB point sample; 10 min not captured | stable over 10 minutes | ⚠️ unproven |
+| 800-row scroll | DevTools performance / manual pass | pending | deferred to Phase 6 | smooth, no dropped frames | ⏳ deferred |
 
-Captured `engine_total` samples (60 s apart):
+Baseline `engine_total` samples (60 s apart, Phase 3):
 
 ```json
 {"requests":396,"errors":1,"bytes_in":0,"bytes_out":152881,"latency_ms_total":288.42264099999994}
 {"requests":546,"errors":1,"bytes_in":0,"bytes_out":212281,"latency_ms_total":418.9707769999999}
 ```
 
-The single error is unchanged between samples and is a startup error, not idle
-traffic. The measured 2.5 req/s matches the static estimate exactly: 2.0 from
-the 500 ms player ticker plus 0.5 from the 2 s frontend `GetState` poll. The
-`player:state` payload, CPU, RSS and scroll rows still need capture before the
-Phase 4 after-comparison is complete; the request-rate gate is the primary one.
+After samples (60 s apart, Phase 4, paused/idle):
+
+```json
+{"engine_total":{"requests":11,"errors":1,"bytes_in":0,"bytes_out":1609,"latency_ms_total":6.133521},"events":{"player:state":{"count":2,"bytes":1082}},"artwork":{}}
+{"engine_total":{"requests":15,"errors":1,"bytes_in":0,"bytes_out":3193,"latency_ms_total":8.379857999999998},"events":{"player:state":{"count":2,"bytes":1082}},"artwork":{}}
+```
+
+Reference process sample:
+
+```text
+PID     RSS   %CPU COMMAND
+555439  299060 3.2  cadence
+```
+
+The single engine error is a startup error and does not change between samples.
+The 4 requests in the after window are the 15 s `/status` reconciliation. The
+two `player:state` events are startup emissions: the count did not change over
+the 60 s window while paused and unchanged, which is the no-idle-event gate.
+`artwork` is empty because the library was closed during the sample; it is not
+a failure.
+
+The measured 2.5 req/s baseline matches the static estimate exactly: 2.0 from
+the retired 500 ms player ticker plus 0.5 from the retired 2 s frontend
+`GetState` poll. The after rate confirms the event-driven design: only the 15 s
+reconciliation remains.
+
+CPU and RSS need a longer sample before they can be called green. `ps %CPU` is
+a lifetime average that includes startup and is not the 60 s mean the gate asks
+for. The 800-row scroll gate is deferred with the Phase 6 library-shell
+virtualization; the Phase 4 code does not claim it.
 
 ## Phase 4 gates
 
-The event-driven state and artwork work is accepted only when all of these hold
-on the reference machine:
+Status on the reference machine:
 
-- Idle engine request rate **≤ 0.2 req/s**.
-- Wails event payload **≤ 4 KB per change**, and no event while paused and
-  unchanged.
-- Idle CPU **< 2%**.
-- RSS stable over a **10-minute** run.
-- An **800-item list scrolls smoothly** without dropped frames.
+- ✅ Idle engine request rate **≤ 0.2 req/s**: measured **0.067 req/s**.
+- ✅ Wails event payload **≤ 4 KB per change**: measured **541 B/event**; no
+  event while paused and unchanged (delta count 0 over 60 s).
+- ⚠️ Idle CPU **< 2%**: not proven; only a 3.2% `ps` lifetime average was
+  captured. Needs a 60 s `pidstat` mean.
+- ⚠️ RSS stable over a **10-minute** run: not proven; only a point sample.
+- ⏳ An **800-item list scrolls smoothly**: deferred to Phase 6 with the library
+  shell/virtualization work.
 
 ## Limitations
 
