@@ -2,9 +2,9 @@
 
 > **Design source:** [`../plan/cadence-v2.md`](../plan/cadence-v2.md)
 > **Branch:** `feat/cadence-v2`
-> **Authorized scope:** Phase 2 (user approved on 2026-11-04) after Phase 0 and
-> Phase 1. The runtime baseline capture remains explicitly deferred until before
-> the Phase 4 performance work.
+> **Authorized scope:** Phase 3 (user approved on 2026-11-04) after Phases 0-2.
+> The runtime baseline capture remains explicitly deferred until before the
+> Phase 4 performance work.
 > **TDD:** off — no project or session TDD configuration exists. Ordinary functional
 > checks apply (`go test`, `go vet`, `gofmt`, frontend checks when touched).
 > **Delivery:** one work-unit commit per task on the feature branch. Push, PRs and
@@ -439,7 +439,65 @@ Correction verification, run from `frontend/`:
   `git diff --check` are green (106 tests before corrections, 124 after the final fixes).
 - **Behavior:** unchanged; the navigation store and toast host are not wired into
   `App.svelte` until Phase 6, and existing screens remain English until Phase 7.
-- **Next:** Phase 3 (Go decomposition).
+- **Next:** Phase 3 (Go decomposition) is authorized and in progress.
+
+## Phase 3 tasks
+
+Goal: behavior-preserving split. No JSON field, event name, or product behavior
+may change. Each commit must leave the tree compiling and the Go tests green.
+
+### T3.1 — Engine and artwork extraction
+
+- [ ] `internal/engine`: supervisor (process/config/version), typed REST client,
+      raw engine DTOs (`Root`, `Track`, `Status`, `Pairing`, `AudioState`,
+      `ContextTrack(s)`).
+- [ ] `internal/artwork`: rename `internal/artcache` and keep the cache behavior
+      and diagnostics counters identical.
+- [ ] Update the engine-backed provider, the audio service and `main.go` to use
+      the new packages. Keep temporary Wails adapters in the old packages so the
+      application still compiles.
+- [ ] Move the engine tests with the code.
+- Commit: `refactor(engine): extract the supervisor, transport and artwork cache`
+
+### T3.2 — Catalog and playback split
+
+- [ ] `internal/catalog`: library, search, context and search models plus the
+      audio service logic currently in `golibrespot.Service` (no Wails imports).
+      `OpenPairing` browser launching stays out of the domain.
+- [ ] `internal/playback`: provider interface, player state, demo provider and
+      the engine-backed provider currently in `golibrespot/provider.go`.
+- [ ] Update `main.go` and the temporary adapters. Move the tests with the code.
+- Commit: `refactor(core): split catalog and playback from the Wails adapters`
+
+### T3.3 — Wails adapters, bindings and frontend
+
+- [ ] `internal/wailsapi/{audio,player,skins}`: the three Wails service structs,
+      each in its own package so the generator stays predictable. Only these
+      adapters (plus `internal/platform`) import Wails.
+- [ ] Delete `internal/golibrespot`, the old `internal/player` adapter and
+      `internal/artcache`.
+- [ ] Regenerate bindings with
+      `wails3 generate bindings -clean=true -ts -i .`.
+- [ ] Update `frontend/src/shared/api` imports, `frontend/bindings` consumers and
+      the `vi.mock` paths. Keep the facade API stable for the app.
+- Commit: `refactor(api): move Wails services to wailsapi and regenerate bindings`
+
+### T3.4 — Architecture docs and verification
+
+- [ ] Update ADR-0001 with the final layout and the `internal/platform`
+      exception for native window/GTK code. Add `docs/architecture.md`.
+- [ ] Run and record: `go test`, `go vet`, `gofmt`, `task audio:check`,
+      `wails3 generate bindings` (no diff), `npm run check/lint/format/test/build`.
+- Commit: `docs: record the v2 package layout and Phase 3 verification`
+
+### Phase 3 acceptance
+
+- Domain packages (`engine`, `catalog`, `playback`, `artwork`, `skins`) do not
+  import Wails.
+- No JSON/event/API behavior changes; existing tests keep passing.
+- Bindings regenerate cleanly and the frontend builds with the facade intact.
+- `internal/golibrespot`, the old `internal/player` adapter and
+  `internal/artcache` are gone.
 
 ## Progress log
 
