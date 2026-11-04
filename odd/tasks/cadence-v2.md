@@ -2,9 +2,9 @@
 
 > **Design source:** [`../plan/cadence-v2.md`](../plan/cadence-v2.md)
 > **Branch:** `feat/cadence-v2`
-> **Authorized scope:** Phase 0 (complete) and Phase 1 (user approved on
-> 2026-11-04). The runtime baseline capture is explicitly deferred by the user;
-> capture it before the Phase 4 performance work.
+> **Authorized scope:** Phase 2 (user approved on 2026-11-04) after Phase 0 and
+> Phase 1. The runtime baseline capture remains explicitly deferred until before
+> the Phase 4 performance work.
 > **TDD:** off — no project or session TDD configuration exists. Ordinary functional
 > checks apply (`go test`, `go vet`, `gofmt`, frontend checks when touched).
 > **Delivery:** one work-unit commit per task on the feature branch. Push, PRs and
@@ -297,7 +297,64 @@ and `git diff --check` all exited 0. Smoke first line:
   default because it only changes the Spotify group icon, not Jam participation.
 - **Pending user verification:** live pairing, playback, library browsing and Jam
   behavior need the user's Spotify account and audio device.
-- **Next:** Phase 2 (frontend foundation) or Phase 3 (Go decomposition).
+- **Next:** Phase 2 (frontend foundation) is authorized and in progress.
+
+## Phase 2 tasks
+
+### T2.1 — Typed API boundary
+
+- [ ] `src/shared/api`: `client.ts` (`ApiError`, `toApiError`, `call`),
+      `player.ts`, `audio.ts`, `skins.ts`, `window.ts`, `events.ts`, `types.ts`,
+      `index.ts`. Only this folder may import `bindings/**` and
+      `@wailsio/runtime`.
+- [ ] Migrate the player, music and skins stores, App.svelte, the skin runtime
+      components and component type imports to the wrapper.
+- [ ] Keep the generated Wails bindings untouched and the existing test mocks
+      working. Add tests for error normalization, event subscription and the
+      window wrapper.
+- Commit: `refactor(frontend): route bindings through a typed api boundary`
+
+### T2.2 — i18n foundation
+
+- [ ] Add `intl-messageformat` at an exact version (12.1.4) and update the
+      lockfile.
+- [ ] `src/shared/i18n`: typed `en`/`es` catalogs as TS modules (compile-time key
+      parity), `I18n` runtime with `IntlMessageFormat`, cached formatters, locale
+      detection, `localStorage` persistence and `document.documentElement.lang`.
+- [ ] Call `initI18n()` before mounting in `main.ts`. Add `ui.*` keys used by the
+      shared primitives; do not sweep existing screens yet (Phase 7).
+- [ ] Update ADR-0003 and plan §7 to record TS catalogs instead of JSON plus a
+      generator.
+- [ ] Tests: interpolation, plural, locale switch, persistence, fallback.
+- Commit: `feat(i18n): add typed catalogs and a locale runtime`
+
+### T2.3 — Shared UI primitives and navigation state
+
+- [ ] `src/shared/ui`: `Button.svelte`, `Dialog.svelte` (focus trap, Escape,
+      backdrop, `aria-modal`), `VirtualList.svelte` + pure `visibleRange` helper,
+      `Skeleton.svelte`, `Toast.svelte` + `toasts.svelte.ts` store,
+      `ToastHost.svelte`.
+- [ ] `src/app/navigation.svelte.ts`: typed panels and route stack, with tests.
+      It is not wired into App.svelte in this phase; Phase 6 does that.
+- [ ] Component tests for Dialog, VirtualList, Toast and the navigation store.
+- Commit: `feat(ui): add shared primitives and navigation state`
+
+### T2.4 — Verification
+
+- [ ] `npm run check`, `npm run lint`, `npm run format`, `npm run test`,
+      `npm run build`.
+- [ ] Confirm `rg 'bindings/|@wailsio/runtime' frontend/src` only matches
+      `src/shared/api` and test mock paths.
+- [ ] Record exact results in this tracker.
+- Commit: `chore: record Phase 2 verification`
+
+### Phase 2 deviations
+
+- App.svelte keeps the existing panel booleans; the new navigation store is
+  introduced and tested but wired in Phase 6 to keep Phase 2 behavior-preserving.
+- i18n catalogs are TS modules with literal key types instead of JSON plus a
+  generated `.d.ts`; this removes a build step and keeps key parity compile-time.
+- Existing screens are not translated yet; Phase 7 performs the sweep.
 
 ## Progress log
 
