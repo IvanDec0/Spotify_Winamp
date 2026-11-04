@@ -393,6 +393,8 @@ func (r *Runtime) writeConfig(port int, configDir string) error {
 device_name: %q
 device_type: computer
 bitrate: %d
+# Prefer 443/80 access points; 4070 is blocked on some corporate networks.
+prefer_firewall_friendly_ports: true
 audio_backend: %s
 audio_device: %s
 zeroconf_enabled: false

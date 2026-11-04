@@ -35,7 +35,7 @@ tasks:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 
   audio:build:
-    summary: Builds the pinned go-librespot audio engine with search and radio support
+    summary: Builds the pinned go-librespot audio engine with search, radio and HTTP proxy support
     cmds:
       - ./scripts/build-go-librespot.sh
 
@@ -44,6 +44,7 @@ tasks:
     status:
       - test -x "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot"
       - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/build/patches/go-librespot-search-radio.patch"
+      - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/build/patches/go-librespot-http-proxy.patch"
       - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/scripts/build-go-librespot.sh"
     cmds:
       - task: audio:build
