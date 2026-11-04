@@ -23,6 +23,8 @@
 
   let { mode: declaredMode, layer = "background", intensity = 0.6 }: Props = $props();
 
+  const compact = $derived(layer === "inline");
+
   let canvas: HTMLCanvasElement | null = $state(null);
   let context: CanvasRenderingContext2D | null = null;
   let width = 0;
@@ -57,14 +59,14 @@
 
   function drawSpectrum(time: number, seed: number, active: boolean): void {
     if (!context) return;
-    const count = Math.round(clamp(Math.floor(width / 9), 20, 48));
+    const count = Math.round(clamp(Math.floor(width / (compact ? 7 : 9)), compact ? 14 : 20, 48));
     const step = (width - 24) / count;
-    const baseline = height - 7;
+    const baseline = height - (compact ? 4 : 7);
     const barWidth = Math.max(1.2, step * 0.32);
 
     for (let index = 0; index < count; index += 1) {
       const value = spectrumBar(index, count, time, seed, active) * energyScale;
-      const barHeight = 2 + value * 28;
+      const barHeight = 2 + value * (compact ? 22 : 28);
       const x = 12 + index * step;
       context.globalAlpha = 0.035 + value * 0.16;
       context.fillStyle = accent;
@@ -79,21 +81,22 @@
   function drawRadial(time: number, seed: number, active: boolean): void {
     if (!context) return;
     const centreX = width * 0.5;
-    const centreY = height * 0.8;
+    const centreY = height * (compact ? 0.56 : 0.8);
     const tempo = 78 + seed * 44;
     const beat = active ? beatEnvelope(time, tempo) : 0;
     const energy = signalEnergy(time, seed, active) * energyScale;
-    const base = 22 + beat * 4;
+    const base = (compact ? 12 : 22) + beat * (compact ? 2.5 : 4);
+    const glowRadius = compact ? 34 : 58;
 
-    const glow = context.createRadialGradient(centreX, centreY, 0, centreX, centreY, 58);
+    const glow = context.createRadialGradient(centreX, centreY, 0, centreX, centreY, glowRadius);
     glow.addColorStop(0, accent);
     glow.addColorStop(1, "transparent");
     context.globalAlpha = 0.05 + energy * 0.05;
     context.fillStyle = glow;
-    context.fillRect(centreX - 60, centreY - 60, 120, 120);
+    context.fillRect(centreX - glowRadius, centreY - glowRadius, glowRadius * 2, glowRadius * 2);
 
     for (let ring = 0; ring < 4; ring += 1) {
-      const radius = base + ring * 9 + energy * 2.5;
+      const radius = base + ring * (compact ? 5 : 9) + energy * 2.5;
       context.beginPath();
       context.arc(centreX, centreY, radius, 0, Math.PI * 2);
       context.globalAlpha = 0.16 - ring * 0.028;
@@ -103,7 +106,13 @@
     }
 
     context.beginPath();
-    context.arc(centreX, centreY, base + 30, time * 0.55, time * 0.55 + Math.PI * 0.72);
+    context.arc(
+      centreX,
+      centreY,
+      base + (compact ? 16 : 30),
+      time * 0.55,
+      time * 0.55 + Math.PI * 0.72,
+    );
     context.globalAlpha = 0.22;
     context.strokeStyle = secondary;
     context.lineWidth = 1.4;
@@ -114,9 +123,9 @@
 
   function drawOscilloscope(time: number, seed: number, active: boolean): void {
     if (!context) return;
-    const centreY = height - 52;
+    const centreY = compact ? height * 0.55 : height - 52;
     const energy = signalEnergy(time, seed, active) * energyScale;
-    const amplitude = 4 + energy * 13;
+    const amplitude = 4 + energy * (compact ? 8 : 13);
     const points = 84;
     const startX = 16;
     const span = width - 32;

@@ -245,7 +245,38 @@ func ValidateDir(root string) (*Manifest, *Layout, error) {
 	if err := validateLayoutSemantics(layout, manifest); err != nil {
 		return nil, nil, err
 	}
+	if err := validateLayoutAssets(layout, files); err != nil {
+		return nil, nil, err
+	}
 	return manifest, layout, nil
+}
+
+// validateLayoutAssets makes image props point at real files in the package.
+// CSS URLs are checked above; this closes the same gap for declarative images.
+func validateLayoutAssets(layout *Layout, files map[string]os.FileInfo) error {
+	var walk func(node LayoutNode) error
+	walk = func(node LayoutNode) error {
+		if node.Type == "image" {
+			src := path.Clean(node.Props["src"].(string))
+			info, ok := files[src]
+			if !ok {
+				return validationError(fmt.Sprintf("layout image references a missing asset: %s", src))
+			}
+			if !info.Mode().IsRegular() {
+				return validationError(fmt.Sprintf("layout image references an invalid asset: %s", src))
+			}
+		}
+		for _, child := range node.Children {
+			if err := walk(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := walk(layout.Root); err != nil {
+		return err
+	}
+	return nil
 }
 
 // skinStylesheets returns styles.css plus any optional theme stylesheet that

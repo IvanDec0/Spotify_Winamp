@@ -327,6 +327,106 @@ func TestValidateLayoutSemantics(t *testing.T) {
 	}
 }
 
+func TestValidatePrimitiveSemantics(t *testing.T) {
+	manifest := validManifestStruct()
+	base := LayoutNode{Type: "column", Children: []LayoutNode{
+		{Type: "component", Component: "titlebar", Props: map[string]any{"brand": "NIGHTSTAR", "showMark": false}},
+		{Type: "box", Name: "blade"},
+		{Type: "text", Name: "label", Props: map[string]any{"text": "NIGHTSTAR // MK-IV"}},
+		{Type: "image", Name: "sigil", Props: map[string]any{"src": "assets/bg.png", "fit": "cover"}},
+		{Type: "button", Name: "pad", Props: map[string]any{"action": "play-pause", "text": "PLAY"}},
+	}}
+
+	layout := Layout{SchemaVersion: 1, Root: base}
+	if err := validateLayoutSemantics(&layout, &manifest); err != nil {
+		t.Fatalf("validateLayoutSemantics() error = %v", err)
+	}
+
+	t.Run("button capability", func(t *testing.T) {
+		local := manifest
+		local.Capabilities = []string{"player.read"}
+		err := validateLayoutSemantics(&layout, &local)
+		if err == nil || !strings.Contains(err.Error(), "player.control") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("unsafe image path", func(t *testing.T) {
+		local := base
+		local.Children = append([]LayoutNode(nil), base.Children...)
+		local.Children[3] = LayoutNode{Type: "image", Name: "sigil", Props: map[string]any{"src": "../secret.png"}}
+		err := validateLayoutSemantics(&Layout{SchemaVersion: 1, Root: local}, &manifest)
+		if err == nil || !strings.Contains(err.Error(), "inside the skin") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("unknown box prop", func(t *testing.T) {
+		local := base
+		local.Children = append([]LayoutNode(nil), base.Children...)
+		local.Children[1] = LayoutNode{Type: "box", Name: "blade", Props: map[string]any{"sparkle": true}}
+		err := validateLayoutSemantics(&Layout{SchemaVersion: 1, Root: local}, &manifest)
+		if err == nil || !strings.Contains(err.Error(), "unknown box prop") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("missing button text", func(t *testing.T) {
+		local := base
+		local.Children = append([]LayoutNode(nil), base.Children...)
+		local.Children[4] = LayoutNode{Type: "button", Name: "pad", Props: map[string]any{"action": "open-library"}}
+		err := validateLayoutSemantics(&Layout{SchemaVersion: 1, Root: local}, &manifest)
+		if err == nil || !strings.Contains(err.Error(), "text or label") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+}
+
+func TestValidateLayoutImageAssetExists(t *testing.T) {
+	directory := t.TempDir()
+	writeSkinPackage(t, directory, "afterglow")
+	writeFile(t, filepath.Join(directory, "assets", "sigil.png"), "\x89PNG\r\n\x1a\n")
+	layout := `{
+		"schemaVersion": 1,
+		"root": {"type": "column", "children": [
+			{"type": "component", "component": "titlebar"},
+			{"type": "image", "name": "sigil", "props": {"src": "assets/sigil.png"}}
+		]}
+	}`
+	writeFile(t, filepath.Join(directory, "layout.json"), layout)
+	if _, _, err := ValidateDir(directory); err != nil {
+		t.Fatalf("ValidateDir() error = %v", err)
+	}
+	if err := os.Remove(filepath.Join(directory, "assets", "sigil.png")); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ValidateDir(directory); err == nil || !strings.Contains(err.Error(), "missing asset") {
+		t.Fatalf("ValidateDir() error = %v", err)
+	}
+}
+
+func TestValidateWindowHeightRange(t *testing.T) {
+	manifest := validManifestStruct()
+	document, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := validateManifest(document); err != nil {
+		t.Fatalf("height 220 error = %v", err)
+	}
+	manifest.Window.Height = 420
+	manifest.Window.MinHeight = 340
+	document, _ = json.Marshal(manifest)
+	if _, err := validateManifest(document); err != nil {
+		t.Fatalf("height 420 error = %v", err)
+	}
+	manifest.Window.Height = 500
+	document, _ = json.Marshal(manifest)
+	if _, err := validateManifest(document); err == nil {
+		t.Fatal("height 500 should be rejected")
+	}
+}
+
 func TestValidateLayoutDepthAndNodeCount(t *testing.T) {
 	manifest := validManifestStruct()
 	root := LayoutNode{Type: "component", Component: "titlebar"}

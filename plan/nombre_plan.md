@@ -61,7 +61,7 @@ This is a private, personal-use project. The user explicitly accepted the use of
 | CI skeleton | Done (M0) |
 | Demo player and Clarity | Done (M1) |
 | Declarative skin system | Done (M2) |
-| UI/UX polish, Lumina and Vanta skins | Done (post-M4) |
+| UI/UX polish, Lumina, Vanta and Nightstar skins | Done (post-M4) |
 | Catalog search and Spotify radio | Done (M3 extension) |
 | Local audio engine | Done (M3) |
 | Real Spotify pairing | Done and verified live |
@@ -109,7 +109,7 @@ npm 12.2.1
 
 **Goal:** install, validate, activate and remove declarative skins without recompiling.
 
-**Status: complete.** Manifest and layout schemas, semantic validation, CSS parsing, local asset checks, directory and ZIP installation, staging with rollback, last-known-good fallback, safe mode, a Shadow DOM runtime, a skin library and the Afterglow development skin are implemented. A second development skin, **Lumina**, adds a glossy Windows Media Player-era visual language with animated chrome, ambient light, a rotating album-art halo, LED accents and Azure/Carbon/Ember/Violet themes using CSS-only motion.
+**Status: complete.** Manifest and layout schemas, semantic validation, CSS parsing, local asset checks, directory and ZIP installation, staging with rollback, last-known-good fallback, safe mode, a Shadow DOM runtime, a skin library and the Afterglow development skin are implemented. A second development skin, **Lumina**, adds a glossy Windows Media Player-era visual language with animated chrome, ambient light, a rotating album-art halo, LED accents and Azure/Carbon/Ember/Violet themes using CSS-only motion. **Vanta** adds an asymmetric cockpit, and **Nightstar** adds a shaped, transparent four-blade star console and exercises the declarative box/text/image/button primitives.
 
 ### M3 — Local Spotify playback and in-app library
 
@@ -317,7 +317,7 @@ Do not start with native Winamp importers or level 3 modules.
 2. Push the M4 commit and confirm the CI package job and a `v0.1.0` release workflow on GitHub.
 3. Test the release artifacts on a clean Arch installation or VM, including skin installation.
 4. Add final screenshots to the README or release notes.
-5. Verify that the bundled Lumina and Afterglow skins appear in packaged builds.
+5. Verify that the bundled Lumina, Vanta, Nightstar and Afterglow skins appear in packaged builds.
 6. Optionally add a UI scale preference for smaller displays.
 
 Do not begin with native Winamp importers or level 3 modules.

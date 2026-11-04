@@ -20,7 +20,7 @@
       "required": ["type"],
       "properties": {
         "type": {
-          "enum": ["stack", "row", "column", "grid", "component"]
+          "enum": ["stack", "row", "column", "grid", "component", "box", "text", "image", "button"]
         },
         "name": {
           "type": "string",
@@ -84,6 +84,24 @@
             "required": ["children"],
             "not": {
               "required": ["component"]
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "enum": ["box", "text", "image", "button"]
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["children"] },
+                { "required": ["component"] }
+              ]
             }
           }
         }

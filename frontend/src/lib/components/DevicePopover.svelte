@@ -78,11 +78,13 @@
   }
 
   .devices-head {
+    --wails-draggable: drag;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     padding-bottom: 9px;
     border-bottom: 1px solid var(--line);
+    cursor: grab;
   }
 
   .devices-title {
@@ -110,6 +112,7 @@
   }
 
   .close {
+    --wails-draggable: no-drag;
     display: grid;
     width: 19px;
     height: 19px;
@@ -117,6 +120,7 @@
     border: 1px solid transparent;
     border-radius: 4px;
     color: var(--faint);
+    cursor: pointer;
     transition:
       color 120ms ease,
       background-color 120ms ease;

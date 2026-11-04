@@ -131,6 +131,54 @@ describe("SkinHost", () => {
     expect(mocks.reportReady).toHaveBeenCalledWith("afterglow", "ember");
   });
 
+  it("renders declarative boxes, text, images, buttons and a custom brand", async () => {
+    const primitiveRuntime: SkinRuntime = {
+      ...runtime,
+      layout: {
+        schemaVersion: 1,
+        root: {
+          type: "column",
+          children: [
+            {
+              type: "component",
+              component: "titlebar",
+              props: { brand: "NIGHTSTAR", showMark: false },
+            },
+            { type: "box", name: "blade" },
+            { type: "text", name: "label", props: { text: "VOID LINK" } },
+            {
+              type: "image",
+              name: "sigil",
+              props: { src: "assets/sigil.png", alt: "Nightstar sigil" },
+            },
+            {
+              type: "button",
+              name: "pad",
+              props: { action: "open-library", text: "LIB", label: "Open library" },
+            },
+          ],
+        },
+      },
+    };
+    const { container } = render(SkinHost, {
+      runtime: primitiveRuntime,
+      theme: "ember",
+      queueOpen: false,
+    });
+    const host = container.querySelector<HTMLElement>(".skin-host");
+    await waitFor(() => {
+      expect(host?.shadowRoot?.querySelector("[data-primitive='box']")).not.toBeNull();
+    });
+
+    const shadow = host?.shadowRoot;
+    expect(shadow?.querySelector("[data-primitive='text']")?.textContent?.trim()).toBe("VOID LINK");
+    expect(shadow?.querySelector("[data-primitive='image']")?.getAttribute("src")).toBe(
+      "/skins/afterglow/assets/sigil.png",
+    );
+    expect(shadow?.querySelector("[data-primitive='button']")?.textContent?.trim()).toBe("LIB");
+    expect(shadow?.querySelector(".cad-brand-name")?.textContent?.trim()).toBe("NIGHTSTAR");
+  });
+
   it("updates queue and theme attributes without leaving stale content", async () => {
     const { container, rerender } = render(SkinHost, {
       runtime,

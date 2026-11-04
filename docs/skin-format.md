@@ -88,7 +88,7 @@ Rules:
 | `visualizer.modes` | 1–4 unique modes from `spectrum`, `radial`, `oscilloscope`, `grid`. |
 | `visualizer.default` | Must appear in `modes`. |
 | `visualizer.intensity` | Number from `0` to `1`. |
-| `window` | Logical design size 420×220, minimum 380×200, queue height 460. Cadence renders this space with an adaptive 125–300% UI scale. `resizable` may be `true` or `false`. |
+| `window` | Logical design size `420`×`height`, where `height` is 220–460; `minHeight` is 200–460; `queueHeight` is 300–760. Cadence starts at this size and renders it with an adaptive 125–300% UI scale. `resizable` may be `true` or `false`. |
 
 Unknown fields are rejected. The complete manifest is limited to 64 KB.
 
@@ -96,7 +96,7 @@ Capabilities are declarations checked against the layout. For example, a skin th
 
 ## Layout
 
-`layout.json` is a tree of containers and registered components. Unknown nodes, components and props are rejected.
+`layout.json` is a tree of containers, registered components and declarative primitives. Unknown nodes, components and props are rejected. Skins contain no HTML or JavaScript: a primitive is a safe, built-in leaf that the stylesheet can shape.
 
 ```json
 {
@@ -164,7 +164,7 @@ Rules:
 
 | Component | Props (default) | Required capability |
 |---|---|---|
-| `titlebar` | `showBrand` (true), `showProvider` (true), `showDevice` (true), `showWindowControls` (true), `compact` (false) | `player.read` |
+| `titlebar` | `brand` ("CADENCE", 1–24 chars), `showBrand` (true), `showMark` (true), `showProvider` (true), `showDevice` (true), `showWindowControls` (true), `compact` (false) | `player.read` |
 | `album-art` | `size` (88, range 48–160), `frame` (false), `reflection` (false) | `player.read` |
 | `track-info` | `showAlbum` (true), `showStatus` (true), `align` (`left` or `center`) | `player.read` |
 | `progress` | `showTime` (true), `showRemaining` (false) | `player.read` |
@@ -178,6 +178,35 @@ Rules:
 | `settings-button` | `showLabel` (false) | none |
 
 The queue component is hidden while the queue is collapsed. The app updates the host's `data-queue-open` attribute; base styles display `.cad-queue` only when that attribute is `"true"`. A skin does not need its own visibility logic.
+
+### Primitives
+
+Primitives are leaf nodes for artwork and custom controls. They can be placed anywhere a component can and are styled through their unique `name` with `[data-name="..."]`. They cannot contain children or declare a `component`.
+
+| Type | Props | Purpose |
+|---|---|---|
+| `box` | none | A styleable empty element. Use it for decorative chassis layers, vents, rails, masks and clipping shapes. |
+| `text` | `text` (1–120 chars) | A styleable text label. Content is escaped; it cannot inject markup. |
+| `image` | `src` (1–200 chars, local asset), `alt` (0–120), `fit` (`contain` or `cover`) | A local PNG/JPEG/WebP image from the skin package. The runtime resolves `src` against the skin root. |
+| `button` | `action` (see below), `text` (0–24), `label` (0–80; accessible name) | A native button. It is excluded from titlebar dragging and can drive player or app actions. |
+
+At least one of `text` or `label` is required on a `button`. The allowed actions are:
+
+| Action | Effect | Capability |
+|---|---|---|
+| `open-library` | Open the Library panel | none |
+| `open-settings` | Open the skin settings / library surface | none |
+| `open-devices` | Open the playback device popover | `devices.read` |
+| `toggle-queue` | Show or hide the queue | `queue.read` |
+| `play-pause` | Toggle playback | `player.control` |
+| `next`, `previous` | Skip tracks | `player.control` |
+| `shuffle` | Toggle shuffle | `player.control` |
+| `repeat` | Cycle repeat mode | `player.control` |
+| `cycle-visualizer` | Cycle the visualizer mode | none |
+| `cycle-theme` | Cycle the active theme | none |
+| `minimise`, `close` | Window controls | none |
+
+Images are validated when the skin is installed or activated: `src` must be a relative path inside the package, must not use `..`, and must reference a real PNG, JPEG or WebP file. SVG is not accepted from skins in v1; render original artwork to PNG instead. Test a primitive layout with the development loop before shipping it.
 
 ## Themes
 
@@ -206,6 +235,27 @@ Cadence's components consume these fallback variables when present:
 ```
 
 Themes may also change fonts, borders, shadows, backgrounds, spacing, transitions and animations. Reduced-motion preferences are applied to the host as `data-reduced-motion="true"`; Cadence's base stylesheet reduces animation durations in that state.
+
+## Shaped windows
+
+The native window uses a transparent background, so a declarative skin can leave `.cad-runtime` transparent and clip a full-size shell to an irregular silhouette:
+
+```css
+.cad-runtime {
+  background: transparent;
+}
+
+[data-name="shell"] {
+  width: 100%;
+  height: 100%;
+  clip-path: polygon(0 0, 50% 14%, 100% 0, 86% 50%, 100% 100%, 50% 86%, 0 100%, 14% 50%);
+  filter: drop-shadow(0 20px 40px rgb(0 0 0 / 60%));
+}
+```
+
+Set `window.height` to the square or tall logical canvas the silhouette needs. Keep the titlebar inside the visible shape so the window can be moved. Interactive primitives remain native buttons; do not put controls outside the opaque silhouette. Overlays such as the Library and Skin Manager are always rectangular and opaque, and expand the window vertically when opened.
+
+The bundled **Nightstar** skin uses this approach with a four-blade star chassis, a custom sigil image, decorative boxes, text labels and custom arm buttons. It is a concrete example of primitives and a shaped window.
 
 ## CSS rules
 

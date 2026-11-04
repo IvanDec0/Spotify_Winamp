@@ -5,7 +5,9 @@
   import { skins } from "../../skins.svelte";
 
   interface Props {
+    brand?: string;
     showBrand?: boolean;
+    showMark?: boolean;
     showProvider?: boolean;
     showDevice?: boolean;
     showWindowControls?: boolean;
@@ -13,7 +15,9 @@
   }
 
   let {
+    brand = "CADENCE",
     showBrand = true,
+    showMark = true,
     showProvider = true,
     showDevice = true,
     showWindowControls = true,
@@ -34,17 +38,19 @@
 
 <header class="cad-titlebar" class:is-compact={compact} data-component="titlebar">
   <div class="cad-brand">
-    <svg class="cad-brand-mark" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M17.2 7.1A7 7 0 1 0 17.2 16.9"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.2"
-        stroke-linecap="round"
-      />
-      <circle cx="17.2" cy="7.1" r="1.4" fill="currentColor" />
-    </svg>
-    {#if showBrand}<span class="cad-brand-name">CADENCE</span>{/if}
+    {#if showMark}
+      <svg class="cad-brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          d="M17.2 7.1A7 7 0 1 0 17.2 16.9"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+        />
+        <circle cx="17.2" cy="7.1" r="1.4" fill="currentColor" />
+      </svg>
+    {/if}
+    {#if showBrand}<span class="cad-brand-name">{brand}</span>{/if}
     {#if showProvider}
       <button
         class="cad-provider"

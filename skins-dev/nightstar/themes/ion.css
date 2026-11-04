@@ -1,0 +1,38 @@
+:host {
+  --bg: #04080e;
+  --surface: #08131f;
+  --surface-2: #0e2131;
+  --surface-3: #163246;
+  --text: #f2f9ff;
+  --muted: #94abc2;
+  --faint: #61768c;
+  --accent: #45d4ff;
+  --accent-2: #7c8cff;
+  --line: rgb(185 224 255 / 11%);
+  --line-strong: rgb(185 224 255 / 22%);
+  --panel: rgb(6 15 25 / 94%);
+  --danger: #ff6b8a;
+  --metal-hi: #eefaff;
+  --metal-mid: #7197ae;
+  --metal-low: #1d3344;
+  --metal-dark: #050b12;
+  --blade-hi: #f2fdff;
+  --blade-mid: #6f94aa;
+  --blade-dark: #071018;
+  --plate-hi: #0b1a26;
+  --plate-low: #020609;
+  --core-clip: inset(0 round 26px);
+}
+
+[data-name="shell"] {
+  filter: drop-shadow(0 24px 50px rgb(0 0 0 / 72%))
+    drop-shadow(0 0 24px rgb(69 212 255 / 20%));
+}
+
+[data-name^="arm-"]:not([data-name^="arm-label"]) {
+  border-color: rgb(190 242 255 / 72%);
+}
+
+[data-name="core-sigil"] {
+  opacity: 0.54;
+}

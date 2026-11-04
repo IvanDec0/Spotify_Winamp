@@ -1,15 +1,125 @@
 :host {
-  --bg: #030805;
-  --surface: #07110b;
-  --surface-2: #0d1d13;
-  --text: #efffe9;
-  --muted: #91b39d;
-  --faint: #5d7a66;
-  --accent: #a8ff3e;
+  --bg: #020603;
+  --surface: #061009;
+  --surface-2: #0b1c11;
+  --surface-3: #122a18;
+  --text: #f0ffe9;
+  --muted: #8fb99b;
+  --faint: #5a7b63;
+  --accent: #9dff35;
   --accent-2: #2bffb0;
-  --line: rgb(200 255 220 / 10%);
-  --line-strong: rgb(200 255 220 / 20%);
-  --panel: rgb(5 14 9 / 90%);
-  --carbon-a: rgb(200 255 220 / 3.5%);
-  --carbon-b: rgb(0 0 0 / 38%);
+  --line: rgb(210 255 225 / 9%);
+  --line-strong: rgb(210 255 225 / 18%);
+  --panel: rgb(4 12 7 / 92%);
+  --danger: #ff6b8a;
+  --vanta-chassis-1: #12271a;
+  --vanta-chassis-2: #030805;
+  --vanta-display: rgb(5 15 9 / 84%);
+  --vanta-pod: #07130c;
+  --vanta-edge: rgb(210 255 225 / 14%);
+  --vanta-vent: rgb(210 255 225 / 8%);
+}
+
+.cad-runtime {
+  background:
+    radial-gradient(
+      120% 90% at 8% 0%,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 54%
+    ),
+    radial-gradient(
+      90% 80% at 100% 104%,
+      color-mix(in srgb, var(--accent-2) 15%, transparent),
+      transparent 58%
+    ),
+    repeating-linear-gradient(
+      115deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--text) 2.2%, transparent) 6px 7px,
+      transparent 7px 14px
+    ),
+    linear-gradient(166deg, #07140c 0%, #020603 56%, #010302 100%);
+}
+
+[data-name="shell"] {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--text) 5%, transparent),
+      transparent 14%
+    ),
+    linear-gradient(
+      164deg,
+      color-mix(in srgb, var(--vanta-chassis-1) 72%, transparent),
+      color-mix(in srgb, var(--vanta-chassis-2) 82%, transparent) 62%,
+      color-mix(in srgb, #010302 90%, transparent)
+    );
+  clip-path: polygon(
+    20px 0,
+    100% 0,
+    100% calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    12px 100%,
+    0 calc(100% - 12px),
+    0 20px
+  );
+}
+
+[data-name="shell"]::before {
+  left: 24px;
+  width: 26%;
+}
+
+[data-name="core-stage"]::before {
+  filter: drop-shadow(
+    0 0 9px color-mix(in srgb, var(--accent) 62%, transparent)
+  );
+  opacity: 0.95;
+}
+
+.cad-cover {
+  background: linear-gradient(
+    132deg,
+    var(--accent) 0%,
+    color-mix(in srgb, var(--accent-2) 68%, var(--bg)) 38%,
+    color-mix(in srgb, var(--text) 22%, transparent) 68%,
+    var(--line-strong) 100%
+  );
+  clip-path: polygon(50% 0, 95% 24%, 95% 76%, 50% 100%, 5% 76%, 5% 24%);
+}
+
+[data-name="reactor"]::after {
+  clip-path: polygon(50% 0, 95% 24%, 95% 76%, 50% 100%, 5% 76%, 5% 24%);
+}
+
+[data-name="control-pod"] {
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+}
+
+[data-name="display"] {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 18px) 0,
+    100% 18px,
+    100% 100%,
+    16px 100%,
+    0 calc(100% - 16px)
+  );
+}
+
+[data-name="readout"] {
+  padding-bottom: 12px;
+}
+
+[data-name="core"]::after {
+  opacity: 0.74;
+}
+
+.cad-progress input[type="range"]::-webkit-slider-runnable-track {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.cad-cover:hover {
+  filter: drop-shadow(0 22px 30px rgb(0 0 0 / 64%))
+    drop-shadow(0 0 22px color-mix(in srgb, var(--accent) 42%, transparent));
 }

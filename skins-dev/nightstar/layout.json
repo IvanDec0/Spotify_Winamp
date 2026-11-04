@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "root": {
+    "type": "stack",
+    "name": "stage",
+    "children": [
+      {
+        "type": "column",
+        "name": "shell",
+        "children": [
+          {
+            "type": "stack",
+            "name": "scene",
+            "children": [
+              { "type": "box", "name": "blade-tl" },
+              { "type": "box", "name": "blade-tr" },
+              { "type": "box", "name": "blade-bl" },
+              { "type": "box", "name": "blade-br" },
+              {
+                "type": "text",
+                "name": "arm-label-tl",
+                "props": { "text": "MK-IV" }
+              },
+              {
+                "type": "text",
+                "name": "arm-label-tr",
+                "props": { "text": "VOID" }
+              },
+              {
+                "type": "text",
+                "name": "arm-label-bl",
+                "props": { "text": "AUX 04" }
+              },
+              {
+                "type": "text",
+                "name": "arm-label-br",
+                "props": { "text": "OUT" }
+              },
+              {
+                "type": "button",
+                "name": "arm-lib",
+                "props": {
+                  "action": "open-library",
+                  "text": "LIB",
+                  "label": "Open music library"
+                }
+              },
+              {
+                "type": "button",
+                "name": "arm-sys",
+                "props": {
+                  "action": "open-settings",
+                  "text": "SYS",
+                  "label": "Open skin settings"
+                }
+              },
+              {
+                "type": "button",
+                "name": "arm-shf",
+                "props": {
+                  "action": "shuffle",
+                  "text": "SHF",
+                  "label": "Toggle shuffle"
+                }
+              },
+              {
+                "type": "button",
+                "name": "arm-rpt",
+                "props": {
+                  "action": "repeat",
+                  "text": "RPT",
+                  "label": "Cycle repeat mode"
+                }
+              },
+              {
+                "type": "column",
+                "name": "core",
+                "children": [
+                  { "type": "box", "name": "core-plate" },
+                  {
+                    "type": "component",
+                    "component": "titlebar",
+                    "props": {
+                      "brand": "NIGHTSTAR",
+                      "showBrand": true,
+                      "showMark": false,
+                      "showProvider": true,
+                      "showDevice": false,
+                      "showWindowControls": true,
+                      "compact": true
+                    }
+                  },
+                  {
+                    "type": "stack",
+                    "name": "art-stage",
+                    "children": [
+                      {
+                        "type": "component",
+                        "component": "album-art",
+                        "props": {
+                          "size": 100,
+                          "frame": true,
+                          "reflection": false
+                        }
+                      },
+                      {
+                        "type": "image",
+                        "name": "core-sigil",
+                        "props": {
+                          "src": "assets/sigil.png",
+                          "alt": "",
+                          "fit": "contain"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "component",
+                    "component": "track-info",
+                    "props": {
+                      "showAlbum": true,
+                      "showStatus": true,
+                      "align": "center"
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "progress",
+                    "props": {
+                      "showTime": true,
+                      "showRemaining": false
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "transport-controls",
+                    "props": {
+                      "size": "compact",
+                      "showShuffle": false,
+                      "showRepeat": false
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "name": "core-status",
+                    "props": { "text": "NIGHTSTAR" }
+                  },
+                  {
+                    "type": "component",
+                    "component": "volume",
+                    "props": {
+                      "orientation": "vertical",
+                      "showIcon": false
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "component": "device-picker",
+                    "props": { "compact": true }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "vanta",
   "name": "Vanta",
-  "version": "1.0.0",
-  "description": "An angular, carbon-and-LED media player inspired by the golden age of Windows Media Player skins. Original CSS artwork with a reactor ring, animated scanlines, glowing controls and Darkstar/Bionic themes.",
+  "version": "2.0.0",
+  "description": "An asymmetric cockpit player with a reactor core, blade transport pod, angular telemetry display and theme-specific geometry. Original CSS artwork.",
   "author": "Cadence",
   "license": "CC BY-SA 4.0",
   "entry": {

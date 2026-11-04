@@ -1,83 +1,485 @@
 :host {
-  --bg: #d9e2ec;
-  --surface: #eef4fa;
+  --bg: #b7c6d6;
+  --surface: #e9f1f8;
   --surface-2: #ffffff;
-  --text: #101822;
-  --muted: #536578;
-  --faint: #7e8ea0;
-  --accent: #009fe3;
-  --accent-2: #ff8a00;
-  --line: rgb(14 34 55 / 14%);
-  --line-strong: rgb(14 34 55 / 26%);
-  --panel: rgb(242 247 252 / 90%);
-  --carbon-a: rgb(12 44 72 / 5%);
-  --carbon-b: rgb(0 0 0 / 8%);
+  --surface-3: #d4e1ed;
+  --text: #0a1723;
+  --muted: #4f6478;
+  --faint: #73879a;
+  --accent: #008fd1;
+  --accent-2: #ff8a1e;
+  --line: rgb(10 38 60 / 13%);
+  --line-strong: rgb(10 38 60 / 24%);
+  --panel: rgb(239 247 253 / 94%);
+  --danger: #d63a5a;
+  --vanta-chassis-1: #ffffff;
+  --vanta-chassis-2: #c3d3e3;
+  --vanta-display: rgb(255 255 255 / 74%);
+  --vanta-pod: #edf5fc;
+  --vanta-edge: rgb(255 255 255 / 80%);
+  --vanta-vent: rgb(10 38 60 / 10%);
 }
 
 .cad-runtime {
   background:
-    radial-gradient(100% 110% at 50% -30%, rgb(0 159 227 / 22%), transparent 56%),
-    radial-gradient(70% 80% at 102% 110%, rgb(255 138 0 / 16%), transparent 60%),
-    repeating-linear-gradient(
-      135deg,
-      transparent 0 5px,
-      var(--carbon-a) 5px 6px,
-      transparent 6px 12px
+    radial-gradient(120% 90% at 8% 0%, rgb(0 159 227 / 22%), transparent 54%),
+    radial-gradient(
+      90% 80% at 100% 104%,
+      rgb(255 138 30 / 18%),
+      transparent 58%
     ),
-    linear-gradient(170deg, #f8fbfe 0%, #dce6f0 52%, #c3d0dd 100%);
+    repeating-linear-gradient(
+      115deg,
+      transparent 0 6px,
+      rgb(10 38 60 / 3.5%) 6px 7px,
+      transparent 7px 14px
+    ),
+    linear-gradient(166deg, #f8fbfe 0%, #dce7f1 56%, #bdccdb 100%);
+}
+
+.cad-runtime::before {
+  background: linear-gradient(
+    102deg,
+    transparent 42%,
+    rgb(0 159 227 / 12%) 49%,
+    transparent 58%
+  );
+  opacity: 0.3;
 }
 
 .cad-runtime::after {
-  background:
-    radial-gradient(120% 100% at 50% 0%, transparent 44%, rgb(16 35 52 / 16%) 100%),
-    repeating-linear-gradient(
-      0deg,
-      transparent 0 2px,
-      rgb(10 30 50 / 2.5%) 2px 3px,
-      transparent 3px 7px
+  background-image:
+    radial-gradient(circle, rgb(10 38 60 / 9%) 0 1px, transparent 1.2px),
+    radial-gradient(
+      120% 100% at 50% 0%,
+      transparent 52%,
+      rgb(38 70 98 / 18%) 100%
     );
+  opacity: 0.26;
+}
+
+.cad-visualizer {
   opacity: 0.42;
+  filter: saturate(1.15) contrast(1.05);
+  mix-blend-mode: multiply;
+}
+
+[data-name="shell"] {
+  border: 1px solid rgb(255 255 255 / 78%);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 88%), transparent 18%),
+    linear-gradient(
+      164deg,
+      color-mix(in srgb, var(--vanta-chassis-1) 76%, transparent),
+      color-mix(in srgb, var(--vanta-chassis-2) 86%, transparent) 66%,
+      color-mix(in srgb, #aebfd0 90%, transparent)
+    );
+  clip-path: none;
+  box-shadow:
+    0 0 0 1px rgb(10 38 60 / 10%) inset,
+    0 20px 48px rgb(37 62 86 / 28%);
+}
+
+[data-name="shell"]::before {
+  left: 22px;
+  width: 28%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.65;
+}
+
+[data-name="shell"]::after {
+  opacity: 0.7;
 }
 
 .cad-titlebar {
+  border-bottom: 1px solid rgb(10 38 60 / 12%);
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 90%), transparent 58%),
-    linear-gradient(180deg, rgb(229 239 248 / 90%), transparent);
+    linear-gradient(180deg, rgb(255 255 255 / 96%), transparent 58%),
+    linear-gradient(180deg, rgb(238 247 253 / 92%), rgb(210 225 239 / 92%));
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 90%) inset,
+    0 8px 20px rgb(38 70 98 / 12%);
 }
 
-[data-name="deck"] {
+.cad-titlebar::before {
+  background: var(--accent);
+  box-shadow: 0 0 7px rgb(0 159 227 / 55%);
+}
+
+.cad-titlebar::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 72%, transparent),
+    transparent
+  );
+  opacity: 0.5;
+}
+
+.cad-brand-mark {
+  filter: drop-shadow(0 0 6px rgb(0 159 227 / 42%));
+}
+
+.cad-brand-name {
+  color: #0a1723;
+  text-shadow: 0 0 12px rgb(0 159 227 / 26%);
+}
+
+.cad-provider {
+  border-color: rgb(0 143 209 / 45%);
+  background: rgb(255 255 255 / 64%);
+  color: var(--accent);
+}
+
+.cad-title-button:hover,
+.cad-device:hover {
+  border-color: rgb(0 143 209 / 32%);
+  background: rgb(0 143 209 / 10%);
+  color: #071521;
+}
+
+[data-name="cockpit"]::before {
+  background: linear-gradient(
+    135deg,
+    transparent 48%,
+    rgb(10 38 60 / 18%) 49% 51%,
+    transparent 52%
+  );
+}
+
+[data-name="cockpit"]::after {
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 90%), transparent 44%),
-    linear-gradient(180deg, rgb(244 249 253 / 94%), rgb(223 232 241 / 94%));
+    linear-gradient(90deg, transparent 58%, rgb(0 159 227 / 7%)),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 47px,
+      rgb(10 38 60 / 5%) 47px 48px
+    );
+  opacity: 0.65;
+}
+
+[data-name="core"]::before {
+  color: #5c7184;
+}
+
+[data-name="core"]::after {
+  opacity: 0.42;
+}
+
+[data-name="core-stage"]::before {
+  background: conic-gradient(
+    from 8deg,
+    transparent 0 48%,
+    rgb(0 159 227 / 88%) 58%,
+    transparent 66% 100%
+  );
+  filter: drop-shadow(0 0 8px rgb(0 159 227 / 40%));
+}
+
+[data-name="core-stage"]::after {
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgb(255 138 30 / 52%) 0 1deg,
+    transparent 1deg 10deg
+  );
+  opacity: 0.36;
+}
+
+[data-name="reactor"]::before {
+  background: radial-gradient(circle, rgb(0 159 227 / 28%), transparent 66%);
+  opacity: 0.5;
+}
+
+[data-name="reactor"]::after {
+  inset: -7px;
+  border: 1px solid rgb(0 143 209 / 32%);
+  border-radius: 50%;
+  clip-path: none;
 }
 
 .cad-cover {
-  background: #e7eef6;
-  box-shadow:
-    0 16px 34px rgb(40 63 84 / 28%),
-    0 0 0 1px rgb(255 255 255 / 70%) inset,
-    0 0 26px color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 50%;
+  background: conic-gradient(
+    from 210deg,
+    #ffffff,
+    #7cc8ea 22%,
+    #ffb25f 46%,
+    #ffffff 64%,
+    #6bb9dd 86%,
+    #ffffff
+  );
+  clip-path: none;
+  filter: drop-shadow(0 16px 26px rgb(40 70 96 / 34%))
+    drop-shadow(0 0 12px rgb(0 159 227 / 18%));
 }
 
 .cad-cover-inner {
+  inset: 3px;
+  border-radius: 50%;
   background:
-    radial-gradient(
-      80% 70% at 24% 12%,
-      color-mix(in srgb, var(--accent) 16%, transparent),
-      transparent 58%
-    ),
-    linear-gradient(150deg, #ffffff, #e5edf5 58%, #cdd9e5);
+    radial-gradient(80% 70% at 25% 12%, rgb(0 159 227 / 18%), transparent 58%),
+    linear-gradient(148deg, #ffffff, #e3eef7 58%, #c6d6e4);
+  clip-path: none;
 }
 
-.cad-play {
+.cad-cover::after {
+  opacity: 0.7;
+}
+
+.cad-cover:hover {
+  filter: drop-shadow(0 20px 30px rgb(40 70 96 / 40%))
+    drop-shadow(0 0 18px rgb(0 159 227 / 30%));
+}
+
+[data-name="control-pod"] {
+  border: 1px solid rgb(255 255 255 / 82%);
+  border-radius: 21px;
   background:
-    radial-gradient(70% 70% at 34% 22%, rgb(255 255 255 / 92%), transparent 48%),
-    linear-gradient(160deg, #ffffff, #d7e4f0);
-  color: #07131d;
+    linear-gradient(180deg, rgb(255 255 255 / 92%), transparent 46%),
+    linear-gradient(180deg, #f6fbff, #d3e2ef);
+  clip-path: none;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 92%) inset,
+    0 -10px 20px rgb(40 70 96 / 8%) inset,
+    0 14px 26px rgb(40 70 96 / 20%);
+}
+
+[data-name="control-pod"]::before {
+  left: 16px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  box-shadow: 0 0 8px rgb(0 159 227 / 48%);
+}
+
+[data-name="control-pod"]::after {
+  background: linear-gradient(
+    112deg,
+    transparent 36%,
+    rgb(255 255 255 / 70%) 49%,
+    transparent 62%
+  );
+}
+
+[data-name="display"] {
+  border: 1px solid rgb(255 255 255 / 88%);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle, rgb(10 38 60 / 7%) 0 1px, transparent 1.2px) 0 0 /
+      7px 7px,
+    linear-gradient(180deg, rgb(255 255 255 / 90%), transparent 38%),
+    linear-gradient(146deg, rgb(255 255 255 / 76%), rgb(222 234 245 / 76%));
+  clip-path: none;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 94%) inset,
+    0 0 26px rgb(0 159 227 / 6%) inset,
+    0 10px 22px rgb(40 70 96 / 9%);
+}
+
+[data-name="display"]::before {
+  color: #687d90;
+}
+
+[data-name="display"]::after {
+  opacity: 0.4;
+}
+
+[data-name="utilities"] {
+  border-top-color: rgb(10 38 60 / 14%);
+}
+
+[data-name="utilities"]::before {
+  color: #687d90;
+}
+
+.cad-track-status {
+  color: color-mix(in srgb, var(--accent) 64%, #4f6478);
+}
+
+.cad-status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgb(0 159 227 / 52%);
 }
 
 .cad-track-title {
+  color: #071521;
   text-shadow:
-    0 1px 0 rgb(255 255 255 / 70%),
-    0 0 22px color-mix(in srgb, var(--accent) 18%, transparent);
+    0 1px 0 rgb(255 255 255 / 82%),
+    0 0 22px rgb(0 159 227 / 14%);
+}
+
+.cad-track-artists {
+  color: #314a60;
+}
+
+.cad-track-album {
+  color: #5f7488;
+}
+
+.cad-progress input[type="range"]::-webkit-slider-runnable-track {
+  border-radius: 2px;
+  box-shadow: 0 0 9px rgb(0 159 227 / 18%);
+}
+
+.cad-progress input[type="range"]::-webkit-slider-thumb {
+  width: 9px;
+  height: 9px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  clip-path: none;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 2px rgb(255 255 255 / 78%),
+    0 0 9px rgb(0 159 227 / 55%);
+}
+
+.cad-progress::after {
+  background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
+  opacity: 0.35;
+}
+
+.cad-progress-time {
+  color: #62778a;
+}
+
+.cad-shuffle-button,
+.cad-repeat-button,
+.cad-device-picker {
+  border: 1px solid rgb(10 38 60 / 13%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 54%);
+  clip-path: none;
+  color: #4f6478;
+}
+
+.cad-shuffle-button:hover:not(:disabled),
+.cad-repeat-button:hover:not(:disabled),
+.cad-shuffle-button.is-active,
+.cad-repeat-button.is-active,
+.cad-device-picker:hover {
+  border-color: rgb(0 143 209 / 38%);
+  background: rgb(0 143 209 / 10%);
+  color: var(--accent);
+}
+
+.cad-volume {
+  color: #4f6478;
+}
+
+.cad-volume-button:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.cad-volume input[type="range"]::-webkit-slider-runnable-track {
+  border-radius: 2px;
+}
+
+.cad-volume input[type="range"]::-webkit-slider-thumb {
+  width: 8px;
+  height: 8px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  clip-path: none;
+  background: var(--accent);
+}
+
+.cad-play {
+  border-color: rgb(0 143 209 / 62%);
+  background:
+    radial-gradient(
+      70% 70% at 34% 22%,
+      rgb(255 255 255 / 22%),
+      transparent 48%
+    ),
+    radial-gradient(circle at 50% 50%, #0d3c56, #06141f);
+  color: #ffffff;
+  box-shadow:
+    0 0 0 3px rgb(0 159 227 / 10%),
+    0 0 18px rgb(0 159 227 / 26%),
+    0 1px 0 rgb(255 255 255 / 22%) inset;
+}
+
+.cad-play:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 4px rgb(0 159 227 / 12%),
+    0 0 28px rgb(0 159 227 / 38%),
+    0 1px 0 rgb(255 255 255 / 28%) inset;
+}
+
+.cad-queue {
+  border-top: 1px solid rgb(10 38 60 / 18%);
+  background:
+    linear-gradient(180deg, rgb(0 159 227 / 7%), transparent 26%),
+    rgb(240 247 253 / 96%);
+  box-shadow: 0 -18px 36px rgb(40 70 96 / 12%) inset;
+}
+
+.cad-queue-head {
+  border-bottom: 1px solid rgb(10 38 60 / 12%);
+}
+
+.cad-queue-head::before {
+  background: linear-gradient(90deg, var(--accent), transparent);
+  box-shadow: 0 0 7px rgb(0 159 227 / 42%);
+}
+
+.cad-queue-title {
+  color: var(--accent);
+  text-shadow: 0 0 8px rgb(0 159 227 / 24%);
+}
+
+.cad-queue-count {
+  color: #4f6478;
+}
+
+.cad-queue-note {
+  color: #687d90;
+}
+
+.cad-queue-row {
+  border-top: 1px solid rgb(10 38 60 / 8%);
+}
+
+.cad-queue-row:hover {
+  background: rgb(0 159 227 / 8%);
+}
+
+.cad-queue-row.is-current {
+  background:
+    linear-gradient(90deg, rgb(0 159 227 / 14%), transparent 82%),
+    rgb(255 255 255 / 46%);
+  box-shadow: 0 0 20px rgb(0 159 227 / 8%) inset;
+}
+
+.cad-queue-row.is-current::before {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 7px rgb(0 159 227 / 48%);
+}
+
+.cad-queue-art {
+  border-radius: 4px;
+  clip-path: none;
+  box-shadow: 0 2px 7px rgb(40 70 96 / 22%);
+}
+
+.cad-queue-row .cad-queue-title {
+  color: #0a1723;
+}
+
+.cad-queue-artist {
+  color: #4f6478;
+}
+
+.cad-queue-row.is-current .cad-queue-artist {
+  color: color-mix(in srgb, var(--accent) 64%, #4f6478);
+}
+
+.cad-queue-time {
+  color: #687d90;
+}
+
+.cad-queue-empty {
+  color: #687d90;
 }

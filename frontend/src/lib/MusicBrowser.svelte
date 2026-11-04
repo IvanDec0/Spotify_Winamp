@@ -629,6 +629,7 @@
   }
 
   .library-head {
+    --wails-draggable: drag;
     position: relative;
     display: flex;
     min-height: 34px;
@@ -640,6 +641,7 @@
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 26%, transparent), transparent),
       color-mix(in srgb, var(--bg) 82%, transparent);
+    cursor: grab;
   }
 
   .library-head::after {
@@ -695,9 +697,17 @@
   }
 
   .head-actions {
+    --wails-draggable: no-drag;
     display: flex;
     align-items: center;
     gap: 4px;
+    cursor: default;
+  }
+
+  .head-button,
+  .close {
+    --wails-draggable: no-drag;
+    cursor: pointer;
   }
 
   .searchbar {

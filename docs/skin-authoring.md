@@ -223,7 +223,7 @@ Then use **Install .zip…** in the skin library. Installation does not activate
 
 Test checklist:
 
-- The layout renders at its 420×220 logical size with the queue closed (scaled by the current UI scale).
+- The layout renders at its declared logical size with the queue closed: width 420 and height 220–460 (scaled by the current UI scale).
 - Expanding and collapsing the queue works; the window returns to the base size.
 - Every theme is selectable and changes the palette.
 - Every declared visualizer mode renders.

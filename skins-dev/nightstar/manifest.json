@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "nightstar",
+  "name": "Nightstar",
+  "version": "1.0.0",
+  "description": "A shaped four-blade star console with a transparent chrome chassis and an original wraith sigil.",
+  "author": "Cadence",
+  "license": "CC BY-SA 4.0",
+  "entry": {
+    "layout": "layout.json",
+    "styles": "styles.css"
+  },
+  "capabilities": [
+    "player.read",
+    "player.control",
+    "devices.read",
+    "devices.control"
+  ],
+  "themes": ["crimson", "ion", "toxin"],
+  "defaultTheme": "crimson",
+  "visualizer": {
+    "modes": ["grid"],
+    "default": "grid",
+    "intensity": 0.5
+  },
+  "window": {
+    "width": 420,
+    "height": 420,
+    "minWidth": 380,
+    "minHeight": 340,
+    "queueHeight": 460,
+    "resizable": true
+  }
+}

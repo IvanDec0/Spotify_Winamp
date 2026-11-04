@@ -158,10 +158,12 @@
   }
 
   .settings-head {
+    --wails-draggable: drag;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     padding-bottom: 6px;
+    cursor: grab;
   }
 
   .settings-title {
@@ -171,9 +173,11 @@
   }
 
   .settings-actions {
+    --wails-draggable: no-drag;
     display: flex;
     align-items: center;
     gap: 4px;
+    cursor: default;
   }
 
   .skins-link {

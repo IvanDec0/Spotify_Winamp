@@ -1,15 +1,65 @@
 :host {
-  --bg: #050506;
-  --surface: #0b0d11;
-  --surface-2: #15191f;
-  --text: #f4f6f8;
-  --muted: #9aa2ad;
-  --faint: #626b77;
-  --accent: #ff3b48;
-  --accent-2: #ff9d45;
-  --line: rgb(255 255 255 / 10%);
-  --line-strong: rgb(255 255 255 / 20%);
-  --panel: rgb(9 11 15 / 88%);
-  --carbon-a: rgb(255 255 255 / 3.5%);
-  --carbon-b: rgb(0 0 0 / 34%);
+  --bg: #030406;
+  --surface: #080b10;
+  --surface-2: #11161e;
+  --surface-3: #1a212b;
+  --text: #f4f7fb;
+  --muted: #93a0b1;
+  --faint: #5e6a7a;
+  --accent: #ff3245;
+  --accent-2: #ff9f43;
+  --line: rgb(255 255 255 / 9%);
+  --line-strong: rgb(255 255 255 / 18%);
+  --panel: rgb(6 8 12 / 92%);
+  --danger: #ff6b8a;
+  --vanta-chassis-1: #18202a;
+  --vanta-chassis-2: #04060a;
+  --vanta-display: rgb(9 12 17 / 84%);
+  --vanta-pod: #0b0e14;
+  --vanta-edge: rgb(255 255 255 / 14%);
+  --vanta-vent: rgb(255 255 255 / 8%);
+}
+
+.cad-runtime {
+  background:
+    radial-gradient(
+      120% 90% at 8% 0%,
+      color-mix(in srgb, var(--accent) 26%, transparent),
+      transparent 54%
+    ),
+    radial-gradient(
+      90% 80% at 100% 104%,
+      color-mix(in srgb, var(--accent-2) 18%, transparent),
+      transparent 58%
+    ),
+    repeating-linear-gradient(
+      115deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--text) 2.4%, transparent) 6px 7px,
+      transparent 7px 14px
+    ),
+    linear-gradient(166deg, #0b1017 0%, #030406 56%, #010102 100%);
+}
+
+[data-name="shell"] {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--text) 5%, transparent),
+      transparent 14%
+    ),
+    linear-gradient(
+      164deg,
+      color-mix(in srgb, var(--vanta-chassis-1) 72%, transparent),
+      color-mix(in srgb, var(--vanta-chassis-2) 82%, transparent) 62%,
+      color-mix(in srgb, #010203 90%, transparent)
+    );
+}
+
+[data-name="control-pod"] {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+
+[data-name="display"] {
+  border-color: color-mix(in srgb, var(--accent) 17%, var(--line));
 }

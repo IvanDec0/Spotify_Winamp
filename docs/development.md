@@ -80,7 +80,7 @@ Use `task test` and `task check` for the supported workflow.
 
 ## Wayland and Sway
 
-Cadence is frameless and relies on its custom titlebar for dragging. Tiling compositors ignore the requested window size, so add a floating rule for the application ID (840×440 is the 200%-scaled base window):
+Cadence is frameless and relies on its custom titlebar for dragging. Tiling compositors ignore the requested window size, so add a floating rule for the application ID (840×440 is the 200%-scaled base for the default skins; Nightstar uses 840×840):
 
 ```text
 for_window [app_id="io.github.ivandec0.cadence"] floating enable
@@ -91,18 +91,18 @@ The app sets `WebviewGpuPolicyOnDemand` for WebKitGTK. If rendering is broken on
 
 ### Native window resizing
 
-Wails v3 beta.34 maps `Window.SetSize` to `gtk_window_set_default_size` on GTK4, which does not resize an already mapped window. The queue expansion therefore calls `internal/platform.WindowService`, a small cgo GTK4 helper that sets both a size request and the default size on the GTK main thread. The helper receives physical pixels: the logical 420×220 design is multiplied by the 2× UI scale. If a later Wails release provides a real resize operation, remove the helper and the generated platform binding.
+Wails v3 beta.34 maps `Window.SetSize` to `gtk_window_set_default_size` on GTK4, which does not resize an already mapped window. The queue expansion therefore calls `internal/platform.WindowService`, a small cgo GTK4 helper that sets both a size request and the default size on the GTK main thread. The helper receives physical pixels: the active skin's logical height is multiplied by the current UI scale (the default skins are 420×220 at 200%; Nightstar is 420×420). The same platform package installs a GTK4 CSS provider that makes the native window background transparent, because Wails' GTK4 `setTransparent` is a no-op. If a later Wails release provides real resize and transparency operations, remove the helper and the generated platform binding.
 
 ### UI scale
 
-The webview keeps the original compact 420×220 logical layout and rescales it to the native window. The default is 200%, with a supported range of 125%–300%. Resizing the window changes the zoom so the current logical view fits; opening the Library or queue also fits the window to the screen work area.
+The webview keeps the active skin's logical layout and rescales it to the native window. The default is 200%, with a supported range of 125%–300%. Resizing the window changes the zoom so the current logical view fits; opening the Library or queue also fits the window to the screen work area.
 
 The scale is coordinated in two places:
 
 - `uiScale`, `minUiScale` and `maxUiScale` in [`main.go`](../main.go) configure the initial Wails window, minimum/maximum native size and initial zoom.
 - [`frontend/src/lib/layout.ts`](../frontend/src/lib/layout.ts) contains the same range and the fit calculation used by `App.svelte` when the window is resized.
 
-Skins keep authoring against the 420×220 logical space.
+Skins author against a 420-wide logical canvas. The height is 220 by default and can be 220–460; the active height becomes the window's base height.
 
 ## Skin development
 

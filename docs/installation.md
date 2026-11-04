@@ -73,7 +73,7 @@ install -Dm644 cadence.png ~/.local/share/icons/hicolor/512x512/apps/cadence.png
 
 ## Skins included in the release
 
-The AppImage and tarball include the development skins **Lumina** (glossy chrome with four themes), **Vanta** (carbon/LED with Darkstar, Bionic and Reactor themes) and **Afterglow** as a second layout example. They are discovered from the bundled `skins/` directory and appear in the skin library, where you can activate them and switch themes. To install additional skins, use **Install .zip…** or **Install folder…**.
+The AppImage and tarball include the development skins **Lumina** (glossy chrome with four themes), **Vanta** (asymmetric cockpit console with Darkstar, Bionic and Reactor themes), **Nightstar** (a shaped, transparent four-blade star console with Crimson, Ion and Toxin themes) and **Afterglow** as a second layout example. They are discovered from the bundled `skins/` directory and appear in the skin library, where you can activate them and switch themes. To install additional skins, use **Install .zip…** or **Install folder…**.
 
 ## Search and radio
 

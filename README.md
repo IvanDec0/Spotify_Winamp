@@ -22,12 +22,12 @@ Cadence is a desktop **Spotify player** with a compact single window, an expanda
 - **The library lives inside Cadence.** Playlists, saved albums, followed artists and Liked Songs are browsed and started from the Library panel.
 - **Discover new music.** Search the Spotify catalog for tracks, albums, artists and playlists, then play them or start a radio from any result.
 - **Spotify radio, locally.** Start a radio station from a track, album, artist or playlist and keep it playing through the local engine.
-- **Skins are declarative.** The built-in Clarity skin is native; third-party skins are JSON layouts, CSS and local assets with no JavaScript.
+- **Skins are declarative.** The built-in Clarity skin is native; third-party skins are JSON layouts, CSS and local assets with no JavaScript. Skins can also create shaped, transparent windows and use declarative boxes, text, local images and custom action buttons.
 - **The demo player remains available.** Run `cadence --demo` to use the app without Spotify or network access.
 
 Spotify playback requires a **Premium** account. The app uses the user's own account with an unofficial client engine; see the disclaimer below. The frontend never receives playback credentials.
 
-The app uses a single compact window with a 420×220 logical design space. The UI automatically rescales between 125% and 300% as the window is resized (200% by default), so text stays legible without losing the compact skin layout. The default skin, **Clarity**, is an original design inspired by the minimal, elegant, animated cPro Pure lineage from the 2010–2015 Winamp modern-skin era. It contains no copied skin assets.
+The app uses a single compact window. The default skins use a 420×220 logical design space; declarative skins may declare a taller canvas up to 420×460. The UI automatically rescales between 125% and 300% as the window is resized (200% by default), so text stays legible without losing the compact skin layout. The default skin, **Clarity**, is an original design inspired by the minimal, elegant, animated cPro Pure lineage from the 2010–2015 Winamp modern-skin era. It contains no copied skin assets. The bundled **Nightstar** skin uses a 420×420 square canvas and a transparent shaped window.
 
 ## What it is not
 
@@ -154,7 +154,7 @@ task build     # bin/cadence
 task package   # AppImage, tar.gz and SHA-256 checksums in bin/
 ```
 
-`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. The engine build applies the small search/radio patch in [`build/patches/`](build/patches/) and is documented in [`docs/development.md`](docs/development.md). It also includes the Lumina, Vanta and Afterglow skins. The AppImage and tarball are named `cadence-0.1.0-linux-x86_64.*`. See [`docs/installation.md`](docs/installation.md).
+`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. The engine build applies the small search/radio patch in [`build/patches/`](build/patches/) and is documented in [`docs/development.md`](docs/development.md). It also includes the Lumina, Vanta, Nightstar and Afterglow skins. The AppImage and tarball are named `cadence-0.1.0-linux-x86_64.*`. See [`docs/installation.md`](docs/installation.md).
 
 The engine binary is not committed. `task audio:build` downloads the pinned source, applies the search/radio patch and builds it with the local CGO libraries. Cadence also discovers `go-librespot` from `CADENCE_GO_LIBRESPOT`, `PATH` or next to the Cadence binary.
 
@@ -190,11 +190,25 @@ The included **Lumina** development skin is an original, glossy media-player des
 
 ![Lumina Carbon and Ember](docs/screenshots/lumina-carbon.png)
 
-**Vanta** is the darker, more aggressive counterpart: carbon-fibre surfaces, an animated reactor ring, segmented LED progress, scanning light, beveled corners and three themes: Darkstar, Bionic and Reactor. It is also original CSS artwork.
+**Vanta** is a full cockpit redesign rather than a palette swap. The album art becomes a reactor core on the left, the transport is mounted in a blade-shaped pod, the track readout lives in an angular telemetry display with a rotating scan scope, and the queue opens as a slide-out data bay. The themes change the geometry too: **Darkstar** uses chamfered carbon panels and an octagonal core, **Bionic** uses a glossy circular core and rounded glass panels, and **Reactor** uses a hexagonal core and a slanted blade pod. It is also original CSS artwork.
 
 ![Vanta Darkstar](docs/screenshots/vanta-darkstar.png)
 
 ![Vanta Bionic](docs/screenshots/vanta-bionic.png)
+
+![Vanta Reactor](docs/screenshots/vanta-reactor.png)
+
+**Nightstar** is a separate skin built around a four-blade star chassis, the shape language of mid-2000s sci-fi Windows Media Player skins. The native window is transparent, so only the chrome star is visible over the desktop. A compact chrome-framed console holds the album art and sigil, track readout, LED progress, transport and vertical side rails; the four arms end in circular metal pads. It has three themes: **Crimson**, **Ion** and **Toxin**.
+
+The original Alienware Darkstar was a black, red and chrome four-point shuriken with a central emblem and tactile arm controls. Nightstar is an original interpretation of that silhouette, not a copy: the star, sigil, chrome panels and emblems are original CSS and PNG artwork. The screenshots use a space backdrop to show the transparent window; in the app, the desktop shows through around the star.
+
+![Nightstar Crimson](docs/screenshots/nightstar-crimson.png)
+
+![Nightstar Ion](docs/screenshots/nightstar-ion.png)
+
+![Nightstar Toxin](docs/screenshots/nightstar-toxin.png)
+
+Nightstar also exercises the new skin primitives (`box`, `text`, `image`, `button`) and the shaped-window support documented in [`docs/skin-format.md`](docs/skin-format.md).
 
 Development skins live in [`skins-dev/`](skins-dev/) and are discovered automatically when Cadence runs from the repository root. The included **Afterglow** skin demonstrates a different layout, theme files and the Shadow DOM runtime.
 
@@ -208,14 +222,15 @@ See [`docs/skin-format.md`](docs/skin-format.md) and [`docs/skin-authoring.md`](
 
 ### Wayland and tiling compositors
 
-Cadence requests an 840×440 physical window (420×220 logical at 200% scale), but tiling compositors such as Sway and i3 decide the final geometry. Add a floating window rule for the app:
+Cadence requests the active skin's logical size at the current UI scale; tiling compositors such as Sway and i3 decide the final geometry. Add a floating window rule for the app:
 
 ```text
 for_window [app_id="io.github.ivandec0.cadence"] floating enable
-for_window [app_id="io.github.ivandec0.cadence"] resize set 840 440
 ```
 
-The Library panel and the queue expand the same window vertically; at the default 200% scale they are 920 px tall, and the height follows the current UI scale. The custom titlebar provides the drag region; window controls are marked as non-draggable.
+Most skins use an 840×440 physical window (420×220 logical at 200%). Nightstar uses 840×840 (420×420 logical). The Library and Skin Manager expand the same window vertically; at 200% they are 920 px tall, and the height follows the current UI scale. The titlebar provides the drag region; window controls are marked as non-draggable.
+
+Shaped windows need a compositing environment with an alpha channel. Sway and the common Wayland compositors support it. If a compositor forces an opaque window background, the star's silhouette will be surrounded by that background instead of the desktop.
 
 ## Repository layout
 
@@ -231,8 +246,8 @@ The Library panel and the queue expand the same window vertically; at the defaul
 │   ├── skins/                       # Skin validation, installation and runtime support
 │   ├── settings/                    # Persisted configuration
 │   ├── artcache/                    # Album-art proxying and caching
-│   └── platform/                    # GTK4 window sizing helper
-├── skins-dev/                       # Development skins: Afterglow, Lumina and Vanta
+│   └── platform/                    # GTK4 window sizing and transparency helpers
+├── skins-dev/                       # Development skins: Afterglow, Lumina, Vanta and Nightstar
 ├── documentacion-cliente-musical-skins.md
 ├── plan/
 │   └── nombre_plan.md

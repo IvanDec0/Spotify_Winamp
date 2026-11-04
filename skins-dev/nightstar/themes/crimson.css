@@ -1,0 +1,24 @@
+:host {
+  --bg: #05070a;
+  --surface: #0a0e13;
+  --surface-2: #141b23;
+  --surface-3: #1c2631;
+  --text: #f4f7fb;
+  --muted: #97a5b5;
+  --faint: #5e6c7d;
+  --accent: #ff2d3f;
+  --accent-2: #ff9a3c;
+  --line: rgb(255 255 255 / 9%);
+  --line-strong: rgb(255 255 255 / 18%);
+  --panel: rgb(7 10 14 / 94%);
+  --danger: #ff6b8a;
+  --metal-hi: #f1f5f9;
+  --metal-mid: #84919e;
+  --metal-low: #2a323c;
+  --metal-dark: #070a0e;
+  --blade-hi: #f4f8fc;
+  --blade-mid: #788592;
+  --blade-dark: #080c11;
+  --plate-hi: #141a21;
+  --plate-low: #030507;
+}

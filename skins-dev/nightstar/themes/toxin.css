@@ -1,0 +1,52 @@
+:host {
+  --bg: #030704;
+  --surface: #07110a;
+  --surface-2: #0c1f12;
+  --surface-3: #14331c;
+  --text: #f0ffe9;
+  --muted: #91b99d;
+  --faint: #5e7d67;
+  --accent: #a4ff3d;
+  --accent-2: #2bffb0;
+  --line: rgb(210 255 225 / 10%);
+  --line-strong: rgb(210 255 225 / 20%);
+  --panel: rgb(4 12 7 / 94%);
+  --danger: #ff6b8a;
+  --metal-hi: #f4ffe9;
+  --metal-mid: #84a38c;
+  --metal-low: #263a2c;
+  --metal-dark: #050b07;
+  --blade-hi: #f6ffe9;
+  --blade-mid: #7f9f87;
+  --blade-dark: #071009;
+  --plate-hi: #0a1a10;
+  --plate-low: #010503;
+  --core-clip: polygon(
+    30px 0,
+    calc(100% - 30px) 0,
+    100% 30px,
+    100% calc(100% - 30px),
+    calc(100% - 30px) 100%,
+    30px 100%,
+    0 calc(100% - 30px),
+    0 30px
+  );
+}
+
+[data-name="core"] {
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+[data-name="shell"] {
+  filter: drop-shadow(0 24px 50px rgb(0 0 0 / 74%))
+    drop-shadow(0 0 24px rgb(164 255 61 / 18%));
+}
+
+[data-name^="arm-"]:not([data-name^="arm-label"]) {
+  border-color: rgb(200 255 160 / 72%);
+}
+
+[data-name="core-sigil"] {
+  opacity: 0.52;
+}

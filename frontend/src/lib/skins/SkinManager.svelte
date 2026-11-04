@@ -158,22 +158,24 @@
         </div>
       </div>
 
-      <div class="setting-row">
-        <span class="setting-label">Visualizer</span>
-        <div class="chips" role="group" aria-label="Visualizer mode">
-          {#each modeOptions as mode (mode)}
-            <button
-              class="chip"
-              class:is-active={activeMode === mode}
-              type="button"
-              aria-pressed={activeMode === mode}
-              onclick={() => chooseMode(mode)}
-            >
-              {modeLabel(mode)}
-            </button>
-          {/each}
+      {#if !declarative || skins.hasVisualizer}
+        <div class="setting-row">
+          <span class="setting-label">Visualizer</span>
+          <div class="chips" role="group" aria-label="Visualizer mode">
+            {#each modeOptions as mode (mode)}
+              <button
+                class="chip"
+                class:is-active={activeMode === mode}
+                type="button"
+                aria-pressed={activeMode === mode}
+                onclick={() => chooseMode(mode)}
+              >
+                {modeLabel(mode)}
+              </button>
+            {/each}
+          </div>
         </div>
-      </div>
+      {/if}
 
       <div class="setting-row">
         <span class="setting-label">Motion</span>
@@ -312,6 +314,7 @@
   }
 
   .manager-head {
+    --wails-draggable: drag;
     display: flex;
     height: 34px;
     flex: 0 0 34px;
@@ -320,6 +323,7 @@
     padding: 0 10px 0 13px;
     border-bottom: 1px solid var(--line);
     background: color-mix(in srgb, var(--bg) 80%, transparent);
+    cursor: grab;
   }
 
   .manager-title {
@@ -344,9 +348,17 @@
   }
 
   .head-actions {
+    --wails-draggable: no-drag;
     display: flex;
     align-items: center;
     gap: 4px;
+    cursor: default;
+  }
+
+  .spotify-link,
+  .close {
+    --wails-draggable: no-drag;
+    cursor: pointer;
   }
 
   .spotify-link {

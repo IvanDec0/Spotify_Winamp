@@ -132,16 +132,22 @@
           "const": 420
         },
         "height": {
-          "const": 220
+          "type": "integer",
+          "minimum": 220,
+          "maximum": 460
         },
         "minWidth": {
           "const": 380
         },
         "minHeight": {
-          "const": 200
+          "type": "integer",
+          "minimum": 200,
+          "maximum": 460
         },
         "queueHeight": {
-          "const": 460
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 760
         },
         "resizable": {
           "type": "boolean"

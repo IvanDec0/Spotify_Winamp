@@ -37,6 +37,7 @@
   let scaleSyncTimer: ReturnType<typeof setTimeout> | null = null;
   let syncingScale = false;
   let lastVolume = 65;
+  let lastSkinWindow = "";
 
   let queueOpen = $derived(skins.queueOpen);
   let declarative = $derived(skins.isDeclarative);
@@ -52,6 +53,13 @@
     visualizerModes.find((mode) => mode.id === preferences.visualizer)?.label ?? "Spectrum",
   );
   let displayError = $derived(player.error || skins.error);
+  let overlayThemeStyle = $derived(
+    skins.isDeclarative
+      ? Object.entries(skins.palette)
+          .map(([name, value]) => `${name}:${value}`)
+          .join(";")
+      : "",
+  );
 
   function currentLogicalHeight(): number {
     return musicOpen ? EXPANDED_HEIGHT : queueOpen ? expandedHeight : baseHeight;
@@ -122,7 +130,7 @@
     try {
       await Window.SetMinSize(
         Math.round(WINDOW_WIDTH * MIN_UI_SCALE),
-        Math.round(WINDOW_HEIGHT * MIN_UI_SCALE),
+        Math.round(baseHeight * MIN_UI_SCALE),
       );
       await WindowService.SetSize(baseNativeWidth, baseNativeHeight);
     } catch {
@@ -330,6 +338,23 @@
 
   $effect(() => {
     if (skins.loading) return;
+    const id = skins.runtime?.id ?? "clarity";
+    const height = baseHeight;
+    const windowKey = `${id}:${height}`;
+    if (windowKey === lastSkinWindow) return;
+    lastSkinWindow = windowKey;
+    const scale = Math.max(
+      DEFAULT_UI_SCALE,
+      untrack(() => uiScale),
+    );
+    baseNativeWidth = Math.round(WINDOW_WIDTH * scale);
+    baseNativeHeight = Math.round(height * scale);
+    if (musicOpen || skinManagerOpen || queueOpen) return;
+    void restoreBaseWindow();
+  });
+
+  $effect(() => {
+    if (skins.loading) return;
     const expanded = musicOpen || skinManagerOpen;
     const height = expanded ? EXPANDED_HEIGHT : queueOpen ? expandedHeight : baseHeight;
     if (!expanded && !queueOpen) {
@@ -469,6 +494,7 @@
       class="clarity overlay-layer"
       class:reduce-motion={preferences.reducedMotion}
       data-theme={preferences.theme}
+      style={overlayThemeStyle}
     >
       <div class="popover-layer">
         <button
@@ -497,6 +523,7 @@
       class="clarity overlay-layer"
       class:reduce-motion={preferences.reducedMotion}
       data-theme={preferences.theme}
+      style={overlayThemeStyle}
     >
       <SkinManager onOpenMusic={openMusic} onClose={closeSkinManager} />
     </div>
@@ -507,6 +534,7 @@
       class="clarity overlay-layer"
       class:reduce-motion={preferences.reducedMotion}
       data-theme={preferences.theme}
+      style={overlayThemeStyle}
     >
       <MusicBrowser onClose={closeMusic} />
     </div>
@@ -517,6 +545,7 @@
       class="clarity toast-layer"
       class:reduce-motion={preferences.reducedMotion}
       data-theme={preferences.theme}
+      style={overlayThemeStyle}
     >
       <div class="toast" role="alert">
         <span class="toast-icon" aria-hidden="true">

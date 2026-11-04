@@ -40,6 +40,14 @@
       return null;
     }
     if (
+      node.type === "box" ||
+      node.type === "text" ||
+      node.type === "image" ||
+      node.type === "button"
+    ) {
+      return null;
+    }
+    if (
       node.type !== "stack" &&
       node.type !== "row" &&
       node.type !== "column" &&
@@ -57,10 +65,29 @@
   function syncColors(): void {
     if (!host) return;
     const style = getComputedStyle(host);
-    skins.setColors(
-      style.getPropertyValue("--accent").trim(),
-      style.getPropertyValue("--accent-2").trim(),
-    );
+    const names = [
+      "--bg",
+      "--surface",
+      "--surface-2",
+      "--surface-3",
+      "--text",
+      "--muted",
+      "--faint",
+      "--line",
+      "--line-strong",
+      "--panel",
+      "--accent",
+      "--accent-2",
+      "--danger",
+    ];
+    const palette: Record<string, string> = {};
+    for (const name of names) {
+      const value = style.getPropertyValue(name).trim();
+      if (value && !/[;{}]/.test(value)) {
+        palette[name] = value;
+      }
+    }
+    skins.setPalette(palette);
   }
 
   function scheduleColorSync(): void {

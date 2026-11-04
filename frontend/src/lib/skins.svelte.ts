@@ -99,6 +99,7 @@ class SkinsStore {
   queueOpen = $state(false);
   visualizer = $state("spectrum");
   colors = $state({ accent: "#5ef0ff", secondary: "#7d8cff" });
+  palette = $state<Record<string, string>>({});
 
   #handlers: SkinHandlers | null = null;
   #unsubscribe: (() => void) | null = null;
@@ -133,6 +134,10 @@ class SkinsStore {
 
   get hasQueue(): boolean {
     return layoutHasComponent(this.runtime?.layout ?? null, "queue");
+  }
+
+  get hasVisualizer(): boolean {
+    return layoutHasComponent(this.runtime?.layout ?? null, "visualizer");
   }
 
   get visualizerOptions(): string[] {
@@ -334,10 +339,11 @@ class SkinsStore {
     }
   }
 
-  setColors(accent: string, secondary: string): void {
+  setPalette(palette: Record<string, string>): void {
+    this.palette = palette;
     this.colors = {
-      accent: accent || "#5ef0ff",
-      secondary: secondary || "#7d8cff",
+      accent: palette["--accent"] || "#5ef0ff",
+      secondary: palette["--accent-2"] || "#7d8cff",
     };
   }
 

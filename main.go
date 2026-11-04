@@ -164,21 +164,30 @@ func main() {
 		},
 	})
 
-	// One frameless window. The logical Clarity layout is 420x220; the queue
-	// and Library expand it vertically while the webview zoom keeps text
-	// readable.
+	// Declarative skins may use a taller logical canvas (for example the
+	// square Nightstar chassis). The frontend keeps the window in sync when the
+	// active skin changes, but starting at the right height avoids a visible
+	// squash during the first paint.
+	initialHeight := logicalHeight
+	if runtime, err := skinManager.ActiveRuntime(); err == nil && !runtime.Builtin && runtime.BaseHeight > 0 {
+		initialHeight = runtime.BaseHeight
+	}
+
+	// One frameless window. The queue and Library expand it vertically while
+	// the webview zoom keeps text readable.
 	cadence.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             "main",
 		Title:            appName,
-		Width:            int(logicalWidth * uiScale),
-		Height:           int(logicalHeight * uiScale),
-		MinWidth:         int(logicalWidth * minUiScale),
-		MinHeight:        int(logicalHeight * minUiScale),
-		MaxWidth:         int(logicalWidth * maxUiScale),
-		MaxHeight:        int(expandedLogicalHeight * maxUiScale),
+		Width:            int(float64(logicalWidth) * uiScale),
+		Height:           int(float64(initialHeight) * uiScale),
+		MinWidth:         int(float64(logicalWidth) * minUiScale),
+		MinHeight:        int(float64(initialHeight) * minUiScale),
+		MaxWidth:         int(float64(logicalWidth) * maxUiScale),
+		MaxHeight:        int(float64(max(expandedLogicalHeight, initialHeight)) * maxUiScale),
 		Zoom:             uiScale,
 		Frameless:        true,
-		BackgroundColour: application.NewRGB(9, 11, 15),
+		BackgroundType:   application.BackgroundTypeTransparent,
+		BackgroundColour: application.NewRGBA(0, 0, 0, 0),
 		URL:              "/",
 		Linux: application.LinuxWindow{
 			WebviewGpuPolicy: application.WebviewGpuPolicyOnDemand,
