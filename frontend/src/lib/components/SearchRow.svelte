@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SearchHit } from "../../../bindings/cadence/internal/golibrespot";
+  import type { SearchHit } from "../../shared/api/types";
   import Icon from "./Icon.svelte";
   import MediaCover from "./MediaCover.svelte";
 

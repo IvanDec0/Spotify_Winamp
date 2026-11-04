@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Status } from "../../../../bindings/cadence/internal/player/models";
+  import { Status } from "../../../shared/api/types";
   import { player } from "../../player.svelte";
 
   interface Props {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Status, type PlayerState } from "../../../bindings/cadence/internal/player/models";
+  import { Status, type PlayerState } from "../../shared/api/types";
   import type { VisualizerMode } from "../preferences.svelte";
   import CoverArt from "./CoverArt.svelte";
   import Icon from "./Icon.svelte";

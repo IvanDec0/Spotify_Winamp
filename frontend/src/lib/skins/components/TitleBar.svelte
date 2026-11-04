@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Window } from "@wailsio/runtime";
+  import { appWindow } from "../../../shared/api";
   import Icon from "../../components/Icon.svelte";
   import { player } from "../../player.svelte";
   import { skins } from "../../skins.svelte";
@@ -28,11 +28,11 @@
   let deviceLabel = $derived(player.state.device.name || "No device");
 
   function minimise(): void {
-    void Window.Minimise().catch(() => {});
+    void appWindow.minimise().catch(() => {});
   }
 
   function closeWindow(): void {
-    void Window.Close().catch(() => {});
+    void appWindow.close().catch(() => {});
   }
 </script>
 

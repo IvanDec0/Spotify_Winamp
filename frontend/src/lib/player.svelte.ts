@@ -1,12 +1,11 @@
-import { Events } from "@wailsio/runtime";
-import { Service as PlayerService } from "../../bindings/cadence/internal/player";
+import { onPlayerState, player as playerApi, toApiError } from "../shared/api";
 import {
   RepeatMode,
   Status,
   type PlayerState,
   type QueueItem,
   type Track,
-} from "../../bindings/cadence/internal/player/models";
+} from "../shared/api/types";
 
 const fallbackTrack: Track = {
   id: "loading",
@@ -59,10 +58,6 @@ function normalizeState(state: PlayerState): PlayerState {
   };
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 class PlayerStore {
   state = $state<PlayerState>(fallbackState);
   ready = $state(false);
@@ -77,14 +72,14 @@ class PlayerStore {
     if (this.ready || this.#starting) return;
     this.#starting = true;
     try {
-      this.apply(await PlayerService.GetState());
-      this.#unsubscribe = Events.On("player:state", (event) => {
-        this.apply(event.data as PlayerState);
+      this.apply(await playerApi.getState());
+      this.#unsubscribe = onPlayerState((state) => {
+        this.apply(state);
       });
       this.ready = true;
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.#starting = false;
     }
@@ -101,36 +96,36 @@ class PlayerStore {
   }
 
   async play(): Promise<void> {
-    await this.#action(() => PlayerService.Play());
+    await this.#action(() => playerApi.play());
   }
 
   async pause(): Promise<void> {
-    await this.#action(() => PlayerService.Pause());
+    await this.#action(() => playerApi.pause());
   }
 
   async toggle(): Promise<void> {
-    await this.#action(() => PlayerService.TogglePlay());
+    await this.#action(() => playerApi.togglePlay());
   }
 
   async next(): Promise<void> {
-    await this.#action(() => PlayerService.Next());
+    await this.#action(() => playerApi.next());
   }
 
   async previous(): Promise<void> {
-    await this.#action(() => PlayerService.Previous());
+    await this.#action(() => playerApi.previous());
   }
 
   async seek(positionMs: number): Promise<void> {
-    await this.#action(() => PlayerService.Seek(Math.round(positionMs)));
+    await this.#action(() => playerApi.seek(positionMs));
   }
 
   async setVolume(volume: number): Promise<void> {
-    await this.#action(() => PlayerService.SetVolume(Math.round(volume)));
+    await this.#action(() => playerApi.setVolume(volume));
   }
 
   async toggleShuffle(): Promise<void> {
     const next = !this.state.shuffle;
-    await this.#action(() => PlayerService.SetShuffle(next));
+    await this.#action(() => playerApi.setShuffle(next));
   }
 
   async cycleRepeat(): Promise<void> {
@@ -140,11 +135,11 @@ class PlayerStore {
         : this.state.repeat === RepeatMode.RepeatContext
           ? RepeatMode.RepeatTrack
           : RepeatMode.RepeatOff;
-    await this.#action(() => PlayerService.SetRepeat(next));
+    await this.#action(() => playerApi.setRepeat(next));
   }
 
   async transfer(deviceId: string): Promise<void> {
-    await this.#action(() => PlayerService.Transfer(deviceId));
+    await this.#action(() => playerApi.transfer(deviceId));
   }
 
   async #action(action: () => Promise<PlayerState>): Promise<void> {
@@ -154,7 +149,7 @@ class PlayerStore {
       this.apply(await action());
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.#pending -= 1;
       this.busy = this.#pending > 0;

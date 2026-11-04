@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
-  import { Screens, Window } from "@wailsio/runtime";
-  import { WindowService } from "../bindings/cadence/internal/platform";
+  import { appWindow, screens } from "./shared/api";
   import DevicePopover from "./lib/components/DevicePopover.svelte";
   import Icon from "./lib/components/Icon.svelte";
   import Player from "./lib/components/Player.svelte";
@@ -70,7 +69,7 @@
     syncingScale = true;
     const logicalHeight = currentLogicalHeight();
     try {
-      const size = await Window.Size();
+      const size = await appWindow.size();
       // The window mode may have changed while Size() was resolving.
       if (currentLogicalHeight() !== logicalHeight) return;
       const next = roundedUiScale(fitUiScale(size.width, size.height, logicalHeight));
@@ -79,9 +78,9 @@
         baseNativeHeight = size.height;
       }
       uiScale = next;
-      const current = await Window.GetZoom();
+      const current = await appWindow.getZoom();
       if (Math.abs(current - next) > 0.01) {
-        await Window.SetZoom(next);
+        await appWindow.setZoom(next);
       }
     } catch {
       // Keep the last known scale if the native window is not ready.
@@ -104,7 +103,7 @@
     let nativeHeight = Math.round(height * nextScale);
 
     try {
-      const screen = await Screens.GetCurrent();
+      const screen = await screens.getCurrent();
       const workArea =
         screen?.PhysicalWorkArea?.Height > 0 ? screen.PhysicalWorkArea : screen?.WorkArea;
       if (workArea && workArea.Height > 0) {
@@ -116,11 +115,11 @@
         }
       }
 
-      await Window.SetMinSize(
+      await appWindow.setMinSize(
         Math.round(WINDOW_WIDTH * MIN_UI_SCALE),
         Math.round(height * MIN_UI_SCALE),
       );
-      await WindowService.SetSize(width, nativeHeight);
+      await appWindow.setSize(width, nativeHeight);
     } catch {
       // Ignore transient resize failures while starting or closing.
     }
@@ -128,11 +127,11 @@
 
   async function restoreBaseWindow(): Promise<void> {
     try {
-      await Window.SetMinSize(
+      await appWindow.setMinSize(
         Math.round(WINDOW_WIDTH * MIN_UI_SCALE),
         Math.round(baseHeight * MIN_UI_SCALE),
       );
-      await WindowService.SetSize(baseNativeWidth, baseNativeHeight);
+      await appWindow.setSize(baseNativeWidth, baseNativeHeight);
     } catch {
       // Ignore transient resize failures while starting or closing.
     }
@@ -217,11 +216,11 @@
   }
 
   function minimise(): void {
-    void Window.Minimise().catch(() => {});
+    void appWindow.minimise().catch(() => {});
   }
 
   function closeWindow(): void {
-    void Window.Close().catch(() => {});
+    void appWindow.close().catch(() => {});
   }
 
   function toggleMute(): void {

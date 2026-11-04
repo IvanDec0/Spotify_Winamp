@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { RepeatMode } from "../../../../bindings/cadence/internal/player/models";
+  import { RepeatMode } from "../../../shared/api/types";
   import Icon from "../../components/Icon.svelte";
   import { player } from "../../player.svelte";
 

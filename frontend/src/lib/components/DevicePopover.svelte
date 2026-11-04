@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Device } from "../../../bindings/cadence/internal/player/models";
+  import type { Device } from "../../shared/api/types";
   import Icon from "./Icon.svelte";
 
   interface Props {

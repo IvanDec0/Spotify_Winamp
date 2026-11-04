@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/svelte";
 import { describe, expect, it } from "vitest";
-import type { QueueItem } from "../../../bindings/cadence/internal/player/models";
+import type { QueueItem } from "../../shared/api/types";
 import Queue from "./Queue.svelte";
 
 const items: QueueItem[] = [

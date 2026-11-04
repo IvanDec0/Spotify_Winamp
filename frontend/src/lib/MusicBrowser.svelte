@@ -3,7 +3,7 @@
   import LibrarySkeleton from "./components/LibrarySkeleton.svelte";
   import MediaCover from "./components/MediaCover.svelte";
   import SearchRow from "./components/SearchRow.svelte";
-  import type { SearchHit } from "../../bindings/cadence/internal/golibrespot";
+  import type { SearchHit } from "../shared/api/types";
   import { player } from "./player.svelte";
   import { music } from "./music.svelte";
   import { formatTime } from "./format";

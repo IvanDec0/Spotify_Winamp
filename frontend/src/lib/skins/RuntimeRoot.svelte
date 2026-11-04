@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Window } from "@wailsio/runtime";
-  import type { LayoutNode, SkinRuntime } from "../../../bindings/cadence/internal/skins";
+  import { appWindow } from "../../shared/api";
+  import type { LayoutNode, SkinRuntime } from "../../shared/api/types";
   import { player } from "../player.svelte";
   import { skins } from "../skins.svelte";
   import { componentRegistry } from "./registry";
@@ -62,10 +62,10 @@
         skins.cycleTheme();
         break;
       case "minimise":
-        void Window.Minimise().catch(() => {});
+        void appWindow.minimise().catch(() => {});
         break;
       case "close":
-        void Window.Close().catch(() => {});
+        void appWindow.close().catch(() => {});
         break;
     }
   }

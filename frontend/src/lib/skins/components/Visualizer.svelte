@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Status } from "../../../../bindings/cadence/internal/player/models";
+  import { Status } from "../../../shared/api/types";
   import { player } from "../../player.svelte";
   import { preferences } from "../../preferences.svelte";
   import { skins } from "../../skins.svelte";

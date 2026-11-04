@@ -1,10 +1,6 @@
 import { render, screen } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  RepeatMode,
-  Status,
-  type PlayerState,
-} from "../../../bindings/cadence/internal/player/models";
+import { RepeatMode, Status, type PlayerState } from "../../shared/api/types";
 import Player from "./Player.svelte";
 
 function state(overrides: Partial<PlayerState> = {}): PlayerState {

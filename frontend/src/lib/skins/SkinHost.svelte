@@ -1,7 +1,7 @@
 <script lang="ts">
   import { mount, onMount, unmount } from "svelte";
-  import { System } from "@wailsio/runtime";
-  import type { LayoutNode, SkinRuntime } from "../../../bindings/cadence/internal/skins";
+  import { system } from "../../shared/api";
+  import type { LayoutNode, SkinRuntime } from "../../shared/api/types";
   import { preferences } from "../preferences.svelte";
   import { skins } from "../skins.svelte";
   import RuntimeRoot from "./RuntimeRoot.svelte";
@@ -197,7 +197,7 @@
     dragCandidate = false;
     // Wails' drag detection cannot see styles inside a Shadow DOM, so the
     // composed titlebar path drives the same native drag command explicitly.
-    System.invoke("wails:drag");
+    system.invoke("wails:drag");
   }
 
   function handleMouseUp(): void {

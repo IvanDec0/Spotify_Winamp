@@ -1,15 +1,12 @@
-import { Events } from "@wailsio/runtime";
-import {
-  Service as AudioService,
-  type AlbumPage,
-  type ArtistPage,
-  type AudioState,
-  type LibraryContext,
-  type PlaylistPage,
-  type SearchHit,
-} from "../../bindings/cadence/internal/golibrespot";
-
-const AUDIO_EVENT = "audio:state";
+import { audio as audioApi, onAudioState, toApiError } from "../shared/api";
+import type {
+  AlbumPage,
+  ArtistPage,
+  AudioState,
+  LibraryContext,
+  PlaylistPage,
+  SearchHit,
+} from "../shared/api/types";
 
 export type SearchResultsView = {
   tracks: SearchHit[];
@@ -17,11 +14,6 @@ export type SearchResultsView = {
   artists: SearchHit[];
   playlists: SearchHit[];
 };
-
-function errorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return typeof error === "string" ? error : "The audio engine operation failed.";
-}
 
 function normalizeAudio(state: AudioState): AudioState {
   return {
@@ -78,10 +70,6 @@ class MusicStore {
   #contextTimer: ReturnType<typeof setTimeout> | null = null;
   #contextURI = "";
 
-  #onAudio = (event: { data: unknown }): void => {
-    this.audio = normalizeAudio(event.data as AudioState);
-  };
-
   get authenticated(): boolean {
     return this.audio.authenticated;
   }
@@ -93,7 +81,9 @@ class MusicStore {
   async start(): Promise<void> {
     if (this.#started) return;
     this.#started = true;
-    this.#unsubscribe = Events.On(AUDIO_EVENT, this.#onAudio);
+    this.#unsubscribe = onAudioState((state) => {
+      this.audio = normalizeAudio(state);
+    });
     await this.refresh();
     this.#pollTimer = setInterval(() => {
       void this.refresh();
@@ -116,32 +106,32 @@ class MusicStore {
 
   async refresh(): Promise<void> {
     try {
-      this.audio = normalizeAudio(await AudioService.GetState());
+      this.audio = normalizeAudio(await audioApi.getState());
       this.loading = false;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
       this.loading = false;
     }
   }
 
   async openPairing(): Promise<void> {
     try {
-      await AudioService.OpenPairing();
+      await audioApi.openPairing();
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     }
   }
 
   async resetSession(): Promise<void> {
     this.busy = true;
     try {
-      this.audio = normalizeAudio(await AudioService.ResetSession());
+      this.audio = normalizeAudio(await audioApi.resetSession());
       this.clearLibrary();
       this.error = null;
       this.notice = "Pairing reset. Use the new code to connect Spotify.";
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.busy = false;
     }
@@ -150,10 +140,10 @@ class MusicStore {
   async restart(): Promise<void> {
     this.busy = true;
     try {
-      this.audio = normalizeAudio(await AudioService.Restart());
+      this.audio = normalizeAudio(await audioApi.restart());
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.busy = false;
     }
@@ -161,21 +151,21 @@ class MusicStore {
 
   async loadPlaylists(): Promise<void> {
     await this.#loadLibrary(async () => {
-      const page = await AudioService.Playlists(0, 100);
+      const page = await audioApi.playlists(0, 100);
       this.playlists = page.items ?? [];
     });
   }
 
   async loadAlbums(): Promise<void> {
     await this.#loadLibrary(async () => {
-      const page = await AudioService.Albums(0, 100);
+      const page = await audioApi.albums(0, 100);
       this.albums = page.items ?? [];
     });
   }
 
   async loadArtists(): Promise<void> {
     await this.#loadLibrary(async () => {
-      const page = await AudioService.Artists(0, 100);
+      const page = await audioApi.artists(0, 100);
       this.artists = page.items ?? [];
     });
   }
@@ -186,7 +176,7 @@ class MusicStore {
       await action();
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.busy = false;
     }
@@ -200,7 +190,7 @@ class MusicStore {
     this.#contextURI = uri;
     this.contextLoading = true;
     try {
-      const context = await AudioService.ContextTracks(uri);
+      const context = await audioApi.contextTracks(uri);
       if (this.#contextURI !== uri) return;
       this.context = {
         ...context,
@@ -214,7 +204,7 @@ class MusicStore {
         }, 1000);
       }
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.contextLoading = false;
     }
@@ -247,7 +237,7 @@ class MusicStore {
     this.searching = true;
     this.searchError = null;
     try {
-      const results = await AudioService.Search(trimmed, 20);
+      const results = await audioApi.search(trimmed, 20);
       this.searchResults = {
         tracks: results.tracks?.hits ?? [],
         albums: results.albums?.hits ?? [],
@@ -255,7 +245,7 @@ class MusicStore {
         playlists: results.playlists?.hits ?? [],
       };
     } catch (error) {
-      this.searchError = errorMessage(error);
+      this.searchError = toApiError(error).message;
       this.searchResults = null;
     } finally {
       this.searching = false;
@@ -273,11 +263,11 @@ class MusicStore {
     if (!uri) return;
     this.busy = true;
     try {
-      await AudioService.StartRadio(uri);
+      await audioApi.startRadio(uri);
       this.notice = "Radio started.";
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.busy = false;
     }
@@ -286,10 +276,10 @@ class MusicStore {
   async playContext(uri: string, skipToURI = ""): Promise<void> {
     this.busy = true;
     try {
-      await AudioService.PlayContext(uri, skipToURI);
+      await audioApi.playContext(uri, skipToURI);
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.busy = false;
     }
@@ -298,10 +288,10 @@ class MusicStore {
   async playTrack(uri: string): Promise<void> {
     this.busy = true;
     try {
-      await AudioService.PlayTrack(uri);
+      await audioApi.playTrack(uri);
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.busy = false;
     }
@@ -310,11 +300,11 @@ class MusicStore {
   async addToQueue(uri: string): Promise<void> {
     this.busy = true;
     try {
-      await AudioService.AddToQueue(uri);
+      await audioApi.addToQueue(uri);
       this.notice = "Added to the play queue.";
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.busy = false;
     }

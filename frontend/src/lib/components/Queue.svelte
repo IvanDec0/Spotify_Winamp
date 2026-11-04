@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { QueueItem } from "../../../bindings/cadence/internal/player/models";
+  import type { QueueItem } from "../../shared/api/types";
   import { formatTime } from "../format";
   import CoverArt from "./CoverArt.svelte";
 

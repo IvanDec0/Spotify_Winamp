@@ -1,25 +1,13 @@
-import { Events } from "@wailsio/runtime";
-import {
-  Service as SkinService,
-  type InstallResult,
-  type LayoutNode,
-  type SkinCatalog,
-  type SkinRuntime,
-} from "../../bindings/cadence/internal/skins";
+import { onSkinsChanged, skins as skinsApi, toApiError } from "../shared/api";
+import type { InstallResult, LayoutNode, SkinCatalog, SkinRuntime } from "../shared/api/types";
 
 const VISUALIZER_KEY = "cadence.skin.visualizer";
-const SKIN_EVENT = "skins:changed";
 
 export interface SkinHandlers {
   toggleQueue: () => void;
   openDevices: () => void;
   openSettings: () => void;
   openMusic: () => void;
-}
-
-function errorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return typeof error === "string" ? error : "The skin operation failed.";
 }
 
 function normalizeCatalog(catalog: SkinCatalog): SkinCatalog {
@@ -106,19 +94,6 @@ class SkinsStore {
   #started = false;
   #runtimeRequest = 0;
   #failedRuntime = "";
-  #onChanged = (event: { data: unknown }): void => {
-    const catalog = normalizeCatalog(event.data as SkinCatalog);
-    const previousActive = this.catalog?.activeId;
-    const previousVersion = this.catalog?.skins?.find(
-      (skin) => skin.id === previousActive,
-    )?.version;
-    const nextVersion = catalog.skins?.find((skin) => skin.id === catalog.activeId)?.version;
-    const activeChanged = previousActive !== catalog.activeId;
-    this.catalog = catalog;
-    if (activeChanged || previousVersion !== nextVersion) {
-      void this.#reloadRuntime();
-    }
-  };
 
   get activeSkin() {
     return this.catalog?.skins?.find((skin) => skin.id === this.catalog?.activeId) ?? null;
@@ -169,7 +144,19 @@ class SkinsStore {
   async start(): Promise<void> {
     if (this.#started) return;
     this.#started = true;
-    this.#unsubscribe = Events.On(SKIN_EVENT, this.#onChanged);
+    this.#unsubscribe = onSkinsChanged((next) => {
+      const catalog = normalizeCatalog(next);
+      const previousActive = this.catalog?.activeId;
+      const previousVersion = this.catalog?.skins?.find(
+        (skin) => skin.id === previousActive,
+      )?.version;
+      const nextVersion = catalog.skins?.find((skin) => skin.id === catalog.activeId)?.version;
+      const activeChanged = previousActive !== catalog.activeId;
+      this.catalog = catalog;
+      if (activeChanged || previousVersion !== nextVersion) {
+        void this.#reloadRuntime();
+      }
+    });
     await this.refresh();
   }
 
@@ -182,15 +169,12 @@ class SkinsStore {
   async refresh(): Promise<void> {
     this.loading = true;
     try {
-      const [catalog, runtime] = await Promise.all([
-        SkinService.GetCatalog(),
-        SkinService.GetRuntime(),
-      ]);
+      const [catalog, runtime] = await Promise.all([skinsApi.getCatalog(), skinsApi.getRuntime()]);
       this.catalog = normalizeCatalog(catalog);
       this.#applyRuntime(normalizeRuntime(runtime));
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.loading = false;
     }
@@ -199,13 +183,13 @@ class SkinsStore {
   async #reloadRuntime(): Promise<void> {
     const request = ++this.#runtimeRequest;
     try {
-      const runtime = normalizeRuntime(await SkinService.GetRuntime());
+      const runtime = normalizeRuntime(await skinsApi.getRuntime());
       if (request === this.#runtimeRequest) {
         this.#applyRuntime(runtime);
       }
     } catch (error) {
       if (request === this.#runtimeRequest) {
-        this.error = errorMessage(error);
+        this.error = toApiError(error).message;
       }
     }
   }
@@ -241,21 +225,21 @@ class SkinsStore {
 
   async activate(id: string): Promise<void> {
     try {
-      const catalog = await SkinService.Activate(id);
+      const catalog = await skinsApi.activate(id);
       this.catalog = normalizeCatalog(catalog);
       await this.#reloadRuntime();
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     }
   }
 
   async setTheme(theme: string): Promise<void> {
     try {
-      this.catalog = normalizeCatalog(await SkinService.SetTheme(theme));
+      this.catalog = normalizeCatalog(await skinsApi.setTheme(theme));
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     }
   }
 
@@ -268,41 +252,41 @@ class SkinsStore {
 
   async setThirdPartyDisabled(disabled: boolean): Promise<void> {
     try {
-      this.catalog = normalizeCatalog(await SkinService.SetThirdPartyDisabled(disabled));
+      this.catalog = normalizeCatalog(await skinsApi.setThirdPartyDisabled(disabled));
       await this.#reloadRuntime();
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     }
   }
 
   async reset(): Promise<void> {
     try {
-      this.catalog = normalizeCatalog(await SkinService.Reset());
+      this.catalog = normalizeCatalog(await skinsApi.reset());
       await this.#reloadRuntime();
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     }
   }
 
   async uninstall(id: string): Promise<void> {
     try {
-      this.catalog = normalizeCatalog(await SkinService.Uninstall(id));
+      this.catalog = normalizeCatalog(await skinsApi.uninstall(id));
       await this.#reloadRuntime();
       this.notice = "Skin removed.";
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     }
   }
 
   async installZip(): Promise<void> {
-    await this.#install(() => SkinService.InstallZipDialog());
+    await this.#install(() => skinsApi.installZipDialog());
   }
 
   async installDirectory(): Promise<void> {
-    await this.#install(() => SkinService.InstallDirectoryDialog());
+    await this.#install(() => skinsApi.installDirectoryDialog());
   }
 
   async #install(action: () => Promise<InstallResult>): Promise<void> {
@@ -316,14 +300,14 @@ class SkinsStore {
       this.notice = `${result.skin.name} ${result.skin.version} installed. Activate it when ready.`;
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     }
   }
 
   reportRuntimeReady(id: string, theme: string): void {
     if (!id || this.runtime?.builtin) return;
-    void SkinService.ReportRuntimeReady(id, theme).catch((error: unknown) => {
-      this.error = errorMessage(error);
+    void skinsApi.reportRuntimeReady(id, theme).catch((error: unknown) => {
+      this.error = toApiError(error).message;
     });
   }
 
@@ -331,11 +315,11 @@ class SkinsStore {
     if (this.#failedRuntime === id) return;
     this.#failedRuntime = id;
     try {
-      this.catalog = normalizeCatalog(await SkinService.ReportRuntimeFailure(id, reason));
+      this.catalog = normalizeCatalog(await skinsApi.reportRuntimeFailure(id, reason));
       await this.#reloadRuntime();
       this.error = "The active skin could not be rendered. Cadence restored a safe skin.";
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     }
   }
 

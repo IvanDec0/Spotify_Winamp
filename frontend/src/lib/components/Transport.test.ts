@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/svelte";
 import { describe, expect, it, vi } from "vitest";
-import { RepeatMode } from "../../../bindings/cadence/internal/player/models";
+import { RepeatMode } from "../../shared/api/types";
 import Transport from "./Transport.svelte";
 
 const defaults = {

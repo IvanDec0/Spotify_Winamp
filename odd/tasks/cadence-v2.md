@@ -303,13 +303,13 @@ and `git diff --check` all exited 0. Smoke first line:
 
 ### T2.1 — Typed API boundary
 
-- [ ] `src/shared/api`: `client.ts` (`ApiError`, `toApiError`, `call`),
+- [x] `src/shared/api`: `client.ts` (`ApiError`, `toApiError`, `call`),
       `player.ts`, `audio.ts`, `skins.ts`, `window.ts`, `events.ts`, `types.ts`,
       `index.ts`. Only this folder may import `bindings/**` and
       `@wailsio/runtime`.
-- [ ] Migrate the player, music and skins stores, App.svelte, the skin runtime
+- [x] Migrate the player, music and skins stores, App.svelte, the skin runtime
       components and component type imports to the wrapper.
-- [ ] Keep the generated Wails bindings untouched and the existing test mocks
+- [x] Keep the generated Wails bindings untouched and the existing test mocks
       working. Add tests for error normalization, event subscription and the
       window wrapper.
 - Commit: `refactor(frontend): route bindings through a typed api boundary`
@@ -373,3 +373,4 @@ and `git diff --check` all exited 0. Smoke first line:
 | 2026-11-04 | T1.4 | `2b7a982` | Pin and engine options documented; both patches documented; Phase 1 verification green; live Spotify checks pending user |
 | 2026-11-04 | Engine version fix | `f2efa8e` | Injected `-X ...version` and `-buildvcs=false`; rebuilt binary now logs the real pin `0.10.6-20261104085532-16b65bb4cd2b` |
 | 2026-11-04 | Review corrections 2 | `59dc4d4` | `device_is_group` default off and group-icon-only docs; generated-config notice; version injection `${VERSION#v}` with `-buildvcs=false`; version cache cleared on start/stop with throttled `State` retry; stricter config/version tests; GPL notice updated |
+| 2026-11-04 | T2.1 | `refactor(frontend)` | Typed `shared/api` boundary with ApiError normalization, player/audio/skins/window/event facades and client/event/window tests; all binding imports migrated |

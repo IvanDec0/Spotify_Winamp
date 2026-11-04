@@ -1,6 +1,6 @@
 import { render, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SkinRuntime } from "../../../bindings/cadence/internal/skins";
+import type { SkinRuntime } from "../../shared/api/types";
 import SkinHost from "./SkinHost.svelte";
 
 const mocks = vi.hoisted(() => {
