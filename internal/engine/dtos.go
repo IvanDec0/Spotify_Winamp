@@ -149,25 +149,6 @@ type ContextTracks struct {
 	Items  []ContextTrack `json:"items"`
 }
 
-// ContextTrackInfo is the compact track metadata returned to the frontend.
-type ContextTrackInfo struct {
-	URI        string   `json:"uri"`
-	Title      string   `json:"title"`
-	Artists    []string `json:"artists"`
-	Album      string   `json:"album"`
-	Cover      string   `json:"cover"`
-	DurationMS int      `json:"durationMs"`
-}
-
-// LibraryContext is the frontend-facing context listing.
-type LibraryContext struct {
-	URI    string             `json:"uri"`
-	Ready  bool               `json:"ready"`
-	Length int                `json:"length"`
-	Cached int                `json:"cached"`
-	Items  []ContextTrackInfo `json:"items"`
-}
-
 // SearchArtist is an artist reference inside a search hit.
 type SearchArtist struct {
 	Name string `json:"name"`

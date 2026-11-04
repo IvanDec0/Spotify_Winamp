@@ -1,4 +1,4 @@
-package player
+package playback
 
 // Status is the playback state reported by a provider.
 type Status string

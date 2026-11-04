@@ -464,12 +464,12 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 
 ### T3.2 — Catalog and playback split
 
-- [ ] `internal/catalog`: library, search, context and search models plus the
+- [x] `internal/catalog`: library, search, context and search models plus the
       audio service logic currently in `golibrespot.Service` (no Wails imports).
       `OpenPairing` browser launching stays out of the domain.
-- [ ] `internal/playback`: provider interface, player state, demo provider and
+- [x] `internal/playback`: provider interface, player state, demo provider and
       the engine-backed provider currently in `golibrespot/provider.go`.
-- [ ] Update `main.go` and the temporary adapters. Move the tests with the code.
+- [x] Update `main.go` and the temporary adapters. Move the tests with the code.
 - Commit: `refactor(core): split catalog and playback from the Wails adapters`
 
 ### T3.3 — Wails adapters, bindings and frontend
@@ -506,8 +506,8 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 
 | Task | Commit |
 |---|---|
-| T3.1 | this commit |
-| T3.2 | pending |
+| T3.1 | `61d3ba1` |
+| T3.2 | this commit |
 | T3.3 | pending |
 | T3.4 | pending |
 
@@ -535,4 +535,5 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 | 2026-11-04 | Phase 2 corrections | `4a28390` | Rounded seek/volume, non-blocking i18n startup, latest-wins locale switches, dialog focus/escape hardening, fractional virtual rows, Button attribute forwarding, single live region, lazy `es` barrel fix, extra i18n tests and docs |
 
 | 2026-11-04 | Phase 2 final fixes | `fix(frontend): skip non-tabbable dialog elements and stale locale errors` | Excluded `tabindex="-1"` from the dialog trap; ignored stale locale loader rejections; 124 tests green |
-| 2026-11-04 | T3.1 | this commit | `engine` owns supervisor/rest/DTOs, `artwork` replaces `artcache`; old adapter imports the new packages; Go tests, vet and gofmt green |
+| 2026-11-04 | T3.1 | `61d3ba1` | `engine` owns supervisor/rest/DTOs, `artwork` replaces `artcache`; old adapter imports the new packages; Go tests, vet and gofmt green |
+| 2026-11-04 | T3.2 | this commit | `catalog` owns engine-backed library/search/context orchestration; `playback` owns provider, state, demo and engine provider; temporary adapters delegate; Go tests, vet and gofmt green |

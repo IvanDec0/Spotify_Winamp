@@ -1,4 +1,4 @@
-package golibrespot
+package playback
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 
 	"cadence/internal/artwork"
 	"cadence/internal/engine"
-	"cadence/internal/player"
 )
 
 func TestProviderMapsStatusAndContextQueue(t *testing.T) {
@@ -36,19 +35,19 @@ func TestProviderMapsStatusAndContextQueue(t *testing.T) {
 	}))
 	defer server.Close()
 	runtime := engine.NewSupervisor(engine.Options{Client: engine.NewClient(server.URL, server.Client())})
-	provider := NewProvider(runtime, artwork.New(server.Client()))
+	provider := NewEngineProvider(runtime, artwork.New(server.Client()))
 
 	state, err := provider.State(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state.Provider != "spotify" || state.Status != player.StatusPlaying || state.Track.Title != "Song" {
+	if state.Provider != "spotify" || state.Status != StatusPlaying || state.Track.Title != "Song" {
 		t.Fatalf("state = %#v", state)
 	}
 	if !strings.HasPrefix(state.Track.Cover, "/art/") || state.Volume != 20 {
 		t.Fatalf("cover/volume = %#v", state)
 	}
-	if state.Repeat != player.RepeatContext || !state.Shuffle {
+	if state.Repeat != RepeatContext || !state.Shuffle {
 		t.Fatalf("controls = %#v", state)
 	}
 	if len(state.Queue) != 2 || !state.Queue[0].IsCurrent || !state.Queue[1].IsNext {
@@ -65,7 +64,7 @@ func TestProviderNoSessionShowsPairingError(t *testing.T) {
 	}))
 	defer server.Close()
 	runtime := engine.NewSupervisor(engine.Options{Client: engine.NewClient(server.URL, server.Client())})
-	provider := NewProvider(runtime, nil)
+	provider := NewEngineProvider(runtime, nil)
 	state, err := provider.State(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +83,7 @@ func TestProviderActions(t *testing.T) {
 	}))
 	defer server.Close()
 	runtime := engine.NewSupervisor(engine.Options{Client: engine.NewClient(server.URL, server.Client())})
-	provider := NewProvider(runtime, nil)
+	provider := NewEngineProvider(runtime, nil)
 	ctx := context.Background()
 	if err := provider.Pause(ctx); err != nil {
 		t.Fatal(err)
@@ -95,7 +94,7 @@ func TestProviderActions(t *testing.T) {
 	if err := provider.SetVolume(ctx, 40); err != nil {
 		t.Fatal(err)
 	}
-	if err := provider.SetRepeat(ctx, player.RepeatTrack); err != nil {
+	if err := provider.SetRepeat(ctx, RepeatTrack); err != nil {
 		t.Fatal(err)
 	}
 	joined := strings.Join(paths, "\n")
@@ -113,7 +112,7 @@ func TestProviderTransferLocalDevice(t *testing.T) {
 	}))
 	defer server.Close()
 	runtime := engine.NewSupervisor(engine.Options{Client: engine.NewClient(server.URL, server.Client())})
-	provider := NewProvider(runtime, nil)
+	provider := NewEngineProvider(runtime, nil)
 	if err := provider.Transfer(context.Background(), "dev"); err != nil {
 		t.Fatal(err)
 	}

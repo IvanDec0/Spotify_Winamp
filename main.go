@@ -15,10 +15,12 @@ import (
 	"time"
 
 	"cadence/internal/artwork"
+	"cadence/internal/catalog"
 	"cadence/internal/diagnostics"
 	"cadence/internal/engine"
 	"cadence/internal/golibrespot"
 	"cadence/internal/platform"
+	"cadence/internal/playback"
 	"cadence/internal/player"
 	"cadence/internal/settings"
 	"cadence/internal/skins"
@@ -119,7 +121,7 @@ func main() {
 		log.Fatalf("initialise skins: %v", err)
 	}
 
-	demoProvider := player.NewDemoProvider()
+	demoProvider := playback.NewDemoProvider()
 	artCache := artwork.New(nil)
 
 	var recorder *diagnostics.Recorder
@@ -145,19 +147,24 @@ func main() {
 		DeviceIsGroup: false,
 		HTTPClient:    engineHTTPClient,
 	})
-	var provider player.Provider = demoProvider
+	var provider playback.Provider = demoProvider
 	if !*demoMode {
-		provider = golibrespot.NewProvider(audioRuntime, artCache)
+		provider = playback.NewEngineProvider(audioRuntime, artCache)
 	}
 	playerService := player.NewService(provider)
 	artCache.SetRecorder(recorder)
 	playerService.SetRecorder(recorder)
 	windowService := platform.NewWindowService()
 	skinService := skins.NewService(skinManager)
+	catalogService := catalog.NewService(catalog.Options{
+		Supervisor: audioRuntime,
+		Art:        artCache,
+		Enabled:    !*demoMode,
+	})
 	audioService := golibrespot.NewService(golibrespot.ServiceOptions{
-		Runtime: audioRuntime,
-		Art:     artCache,
-		Enabled: !*demoMode,
+		Catalog:    catalogService,
+		Supervisor: audioRuntime,
+		Enabled:    !*demoMode,
 	})
 
 	if recorder != nil {

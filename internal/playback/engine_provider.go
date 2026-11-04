@@ -1,4 +1,4 @@
-package golibrespot
+package playback
 
 import (
 	"context"
@@ -9,15 +9,14 @@ import (
 
 	"cadence/internal/artwork"
 	"cadence/internal/engine"
-	"cadence/internal/player"
 )
 
 const providerName = "spotify"
 
 const contextRefreshInterval = 5 * time.Second
 
-// Provider maps the local go-librespot status to the player UI.
-type Provider struct {
+// EngineProvider maps the local go-librespot status to the player UI.
+type EngineProvider struct {
 	runtime *engine.Supervisor
 	art     *artwork.Cache
 
@@ -28,11 +27,11 @@ type Provider struct {
 	contextFailedAt time.Time
 }
 
-func NewProvider(runtime *engine.Supervisor, art *artwork.Cache) *Provider {
-	return &Provider{runtime: runtime, art: art}
+func NewEngineProvider(runtime *engine.Supervisor, art *artwork.Cache) *EngineProvider {
+	return &EngineProvider{runtime: runtime, art: art}
 }
 
-func (p *Provider) State(ctx context.Context) (player.PlayerState, error) {
+func (p *EngineProvider) State(ctx context.Context) (PlayerState, error) {
 	client := p.runtime.Client()
 	if client == nil {
 		return unavailableState("The local audio engine is starting."), nil
@@ -47,16 +46,16 @@ func (p *Provider) State(ctx context.Context) (player.PlayerState, error) {
 		return state, nil
 	}
 
-	state := player.PlayerState{
+	state := PlayerState{
 		Provider: providerName,
-		Status:   player.StatusStopped,
-		Devices:  []player.Device{},
-		Queue:    []player.QueueItem{},
+		Status:   StatusStopped,
+		Devices:  []Device{},
+		Queue:    []QueueItem{},
 	}
 	if !status.Stopped && !status.Paused {
-		state.Status = player.StatusPlaying
+		state.Status = StatusPlaying
 	} else if status.Paused {
-		state.Status = player.StatusPaused
+		state.Status = StatusPaused
 	}
 	if status.Track != nil {
 		state.Track = p.mapTrack(status.Track)
@@ -74,18 +73,18 @@ func (p *Provider) State(ctx context.Context) (player.PlayerState, error) {
 	state.Shuffle = status.ShuffleContext
 	switch {
 	case status.RepeatTrack:
-		state.Repeat = player.RepeatTrack
+		state.Repeat = RepeatTrack
 	case status.RepeatContext:
-		state.Repeat = player.RepeatContext
+		state.Repeat = RepeatContext
 	default:
-		state.Repeat = player.RepeatOff
+		state.Repeat = RepeatOff
 	}
 	volume := int(status.Volume)
 	if status.VolumeSteps > 0 {
 		volume = int(float64(status.Volume) * 100 / float64(status.VolumeSteps))
 	}
 	state.Volume = clamp(volume, 0, 100)
-	device := player.Device{
+	device := Device{
 		ID:            status.DeviceID,
 		Name:          status.DeviceName,
 		Type:          strings.ToLower(status.DeviceType),
@@ -93,13 +92,13 @@ func (p *Provider) State(ctx context.Context) (player.PlayerState, error) {
 		VolumePercent: state.Volume,
 	}
 	state.Device = device
-	state.Devices = []player.Device{device}
+	state.Devices = []Device{device}
 	state.Queue = p.queueFor(ctx, client, status)
 	state.Revision = 1
 	return state, nil
 }
 
-func (p *Provider) Play(ctx context.Context) error {
+func (p *EngineProvider) Play(ctx context.Context) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
@@ -107,7 +106,7 @@ func (p *Provider) Play(ctx context.Context) error {
 	return client.Resume(ctx)
 }
 
-func (p *Provider) Pause(ctx context.Context) error {
+func (p *EngineProvider) Pause(ctx context.Context) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
@@ -115,7 +114,7 @@ func (p *Provider) Pause(ctx context.Context) error {
 	return client.Pause(ctx)
 }
 
-func (p *Provider) Toggle(ctx context.Context) error {
+func (p *EngineProvider) Toggle(ctx context.Context) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
@@ -123,7 +122,7 @@ func (p *Provider) Toggle(ctx context.Context) error {
 	return client.PlayPause(ctx)
 }
 
-func (p *Provider) Next(ctx context.Context) error {
+func (p *EngineProvider) Next(ctx context.Context) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
@@ -131,7 +130,7 @@ func (p *Provider) Next(ctx context.Context) error {
 	return client.Next(ctx)
 }
 
-func (p *Provider) Previous(ctx context.Context) error {
+func (p *EngineProvider) Previous(ctx context.Context) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
@@ -139,7 +138,7 @@ func (p *Provider) Previous(ctx context.Context) error {
 	return client.Previous(ctx)
 }
 
-func (p *Provider) Seek(ctx context.Context, positionMS int) error {
+func (p *EngineProvider) Seek(ctx context.Context, positionMS int) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
@@ -147,7 +146,7 @@ func (p *Provider) Seek(ctx context.Context, positionMS int) error {
 	return client.Seek(ctx, int64(positionMS))
 }
 
-func (p *Provider) SetVolume(ctx context.Context, volume int) error {
+func (p *EngineProvider) SetVolume(ctx context.Context, volume int) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
@@ -155,7 +154,7 @@ func (p *Provider) SetVolume(ctx context.Context, volume int) error {
 	return client.SetVolume(ctx, clamp(volume, 0, 100))
 }
 
-func (p *Provider) SetShuffle(ctx context.Context, enabled bool) error {
+func (p *EngineProvider) SetShuffle(ctx context.Context, enabled bool) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
@@ -163,23 +162,23 @@ func (p *Provider) SetShuffle(ctx context.Context, enabled bool) error {
 	return client.SetShuffle(ctx, enabled)
 }
 
-func (p *Provider) SetRepeat(ctx context.Context, mode player.RepeatMode) error {
+func (p *EngineProvider) SetRepeat(ctx context.Context, mode RepeatMode) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
 	}
 	switch mode {
-	case player.RepeatTrack:
+	case RepeatTrack:
 		if err := client.SetRepeatTrack(ctx, true); err != nil {
 			return err
 		}
 		return client.SetRepeatContext(ctx, false)
-	case player.RepeatContext:
+	case RepeatContext:
 		if err := client.SetRepeatTrack(ctx, false); err != nil {
 			return err
 		}
 		return client.SetRepeatContext(ctx, true)
-	case player.RepeatOff:
+	case RepeatOff:
 		if err := client.SetRepeatTrack(ctx, false); err != nil {
 			return err
 		}
@@ -189,7 +188,7 @@ func (p *Provider) SetRepeat(ctx context.Context, mode player.RepeatMode) error 
 	}
 }
 
-func (p *Provider) Transfer(ctx context.Context, deviceID string) error {
+func (p *EngineProvider) Transfer(ctx context.Context, deviceID string) error {
 	client := p.runtime.Client()
 	if client == nil {
 		return fmt.Errorf("the local audio engine is not running")
@@ -207,7 +206,7 @@ func (p *Provider) Transfer(ctx context.Context, deviceID string) error {
 	return fmt.Errorf("Cadence plays through the local audio output")
 }
 
-func (p *Provider) queueFor(ctx context.Context, client *engine.Client, status *engine.Status) []player.QueueItem {
+func (p *EngineProvider) queueFor(ctx context.Context, client *engine.Client, status *engine.Status) []QueueItem {
 	currentURI := ""
 	if status.Track != nil {
 		currentURI = status.Track.URI
@@ -220,18 +219,18 @@ func (p *Provider) queueFor(ctx context.Context, client *engine.Client, status *
 			}
 		}
 	}
-	queue := make([]player.QueueItem, 0, 2)
+	queue := make([]QueueItem, 0, 2)
 	if status.Track != nil {
-		queue = append(queue, player.QueueItem{Track: p.mapTrack(status.Track), Index: 0, IsCurrent: true})
+		queue = append(queue, QueueItem{Track: p.mapTrack(status.Track), Index: 0, IsCurrent: true})
 	}
 	if status.NextTrack != nil {
-		queue = append(queue, player.QueueItem{Track: p.mapTrack(status.NextTrack), Index: len(queue), IsNext: true})
+		queue = append(queue, QueueItem{Track: p.mapTrack(status.NextTrack), Index: len(queue), IsNext: true})
 	}
 	return queue
 }
 
-func (p *Provider) queueFromContext(tracks engine.ContextTracks, currentURI string) []player.QueueItem {
-	items := make([]player.QueueItem, 0, len(tracks.Items))
+func (p *EngineProvider) queueFromContext(tracks engine.ContextTracks, currentURI string) []QueueItem {
+	items := make([]QueueItem, 0, len(tracks.Items))
 	start := -1
 	for index, item := range tracks.Items {
 		if item.URI == currentURI {
@@ -249,7 +248,7 @@ func (p *Provider) queueFromContext(tracks engine.ContextTracks, currentURI stri
 		if track.Name == "" && item.URI != currentURI {
 			continue
 		}
-		queueItem := player.QueueItem{
+		queueItem := QueueItem{
 			Track: p.mapTrack(&track),
 			Index: len(items),
 		}
@@ -267,7 +266,7 @@ func (p *Provider) queueFromContext(tracks engine.ContextTracks, currentURI stri
 	return items
 }
 
-func (p *Provider) context(ctx context.Context, client *engine.Client, uri string) engine.ContextTracks {
+func (p *EngineProvider) context(ctx context.Context, client *engine.Client, uri string) engine.ContextTracks {
 	p.mu.Lock()
 	if p.contextURI == uri && (p.contextTracks.Ready || time.Since(p.contextFetched) < contextRefreshInterval) {
 		tracks := p.contextTracks
@@ -294,9 +293,9 @@ func (p *Provider) context(ctx context.Context, client *engine.Client, uri strin
 	return tracks
 }
 
-func (p *Provider) mapTrack(track *engine.Track) player.Track {
+func (p *EngineProvider) mapTrack(track *engine.Track) Track {
 	if track == nil {
-		return player.Track{Artists: []string{}}
+		return Track{Artists: []string{}}
 	}
 	cover := ""
 	if track.AlbumCoverURL != nil && p.art != nil {
@@ -304,7 +303,7 @@ func (p *Provider) mapTrack(track *engine.Track) player.Track {
 			cover = "/art/" + key
 		}
 	}
-	return player.Track{
+	return Track{
 		ID:         track.URI,
 		Title:      track.Name,
 		Artists:    append([]string(nil), track.ArtistNames...),
@@ -315,27 +314,17 @@ func (p *Provider) mapTrack(track *engine.Track) player.Track {
 	}
 }
 
-func unavailableState(message string) player.PlayerState {
-	return player.PlayerState{
+func unavailableState(message string) PlayerState {
+	return PlayerState{
 		Provider: providerName,
-		Status:   player.StatusStopped,
-		Track:    player.Track{Artists: []string{}},
-		Devices:  []player.Device{},
-		Queue:    []player.QueueItem{},
-		Error: &player.PlayerError{
+		Status:   StatusStopped,
+		Track:    Track{Artists: []string{}},
+		Devices:  []Device{},
+		Queue:    []QueueItem{},
+		Error: &PlayerError{
 			Code:    "audio_unavailable",
 			Message: message,
 		},
 		Revision: 1,
 	}
-}
-
-func clamp(value, minimum, maximum int) int {
-	if value < minimum {
-		return minimum
-	}
-	if value > maximum {
-		return maximum
-	}
-	return value
 }
