@@ -72,13 +72,13 @@ endpoints. Audio output uses the configured PulseAudio device (`default` in v1).
 
 ## Engine version and options
 
-Cadence writes these options into
-`$XDG_CONFIG_HOME/cadence/audio/config.yml`:
+Cadence generates `$XDG_CONFIG_HOME/cadence/audio/config.yml` on every start;
+manual edits to that file are overwritten.
 
 | Option | Value and purpose |
 |---|---|
-| `device_is_group` | `true`. Advertises Cadence as a speaker group so Spotify Jam can include it. |
-| `accesspoint_ports` | Not written by default. `prefer_firewall_friendly_ports: true` prefers 443/80; on networks that intercept 443, set `accesspoint_ports: [80, 443]` to override that heuristic. |
+| `device_is_group` | `false` by default. When enabled, Spotify can show a group icon for Cadence; it does not enable Spotify Jam. Jam participation uses the engine's Connect/Jam mode independently, and live Jam behavior is unverified. |
+| `accesspoint_ports` | Engine option not exposed by Cadence yet. It is not written to the generated file; `prefer_firewall_friendly_ports: true` is active instead. |
 | `server.image_size` | Cover-art source variant: `default`, `small`, `large` or `xlarge`. Cadence currently writes `default`; Phase 4 selects the variant after local resizing exists. |
 
 The engine writes its running version as its first log line

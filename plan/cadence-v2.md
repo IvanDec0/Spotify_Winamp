@@ -9,12 +9,13 @@
 
 ## 1. Executive summary
 
-1. **The app already tracks go-librespot `master`.** The pinned build is
-   `v0.10.6-0.20261102145552-522adcae8d65` (2026-11-02), only three commits behind
+1. **The app already tracks go-librespot `master`.** At plan time the pinned build
+   was `v0.10.6-0.20261102145552-522adcae8d65` (2026-11-02), only three commits behind
    today's `master` (`16b65bb4`) and *newer* than the latest tagged release
-   (`v0.10.5`, 2026-10-16). Podcast episodes and Jam participation are already in
-   this build. The upgrade is a small, safe delta — not the source of the missing
-   features.
+   (`v0.10.5`, 2026-10-16). Phase 1 has since moved the pin to `master@16b65bb4`
+   (`v0.10.6-0.20261104085532-16b65bb4cd2b`). Podcast episodes and Jam participation
+   are already in this build. The upgrade is a small, safe delta — not the source of
+   the missing features.
 2. **The real performance bug is the polling design, not the engine.** Cadence polls
    the engine ~3 times per second and re-sends up to 50 queue items on every tick,
    while the engine already exposes a WebSocket event stream (`GET /events`) that the
@@ -76,7 +77,7 @@ Confirmed against the vendored source and upstream `master`:
 | `server.image_size` | ✅ available | `default`/`small`/`large`/`xlarge` |
 | On-disk audio cache | ✅ available (off) | `cache.enabled`, `cache.size_limit` default `1GB` |
 | MPRIS / media keys | ✅ available (off) | `mpris_enabled` default `false` |
-| `device_is_group` | ✅ on `master` only | added 2026-10-28, not in the current pin |
+| `device_is_group` | ✅ on `master` only | added 2026-10-28; available after the Phase 1 pin; changes the advertised group icon only |
 | Web API passthrough | ❌ removed upstream | dropped in `v0.9.1` (`remove dead Web API passthrough`) |
 
 **Decision:** the plan does not promise features the engine cannot expose. Podcast
@@ -277,7 +278,7 @@ Acceptance gates for the performance phase:
 | Save album / follow artist | ⚠️ needs `library-collection` patch | Generic collection write |
 | Playlist add/remove | ✅ | Track context menu |
 | Queue view/edit | ⚠️ add only over REST | Add to queue + show queue; reorder needs dealer commands (out of scope) |
-| Jam participation | ✅ | `device_is_group: true`; explain "join from Spotify" in settings |
+| Jam participation | ✅ | Engine Connect/Jam mode (`set_options`); `device_is_group` only advertises a speaker-group icon and does not enable Jam. |
 | Local party mode | ❌ not built | Optional v2.1; local HTTP page + guest queue |
 
 ### 6.2 Browse surface (decision D1)
@@ -345,7 +346,8 @@ with its behavior; every PR states start, end, dependencies and rollback.
 
 ### Phase 1 — Engine upgrade and configuration (~150 lines)
 
-- Pin `master@16b65bb4`; add `device_is_group`, keep `accesspoint_ports` documented.
+- Pin `master@16b65bb4`; add the `device_is_group` group-icon option (default
+  off), keep `accesspoint_ports` documented.
 - Choose the engine `server.image_size` variant from measured pixel dimensions (the
   enum is `default`/`small`/`large`/`xlarge`) and use it as the source for local
   variants; keep `metadata.max_tracks` bounded.

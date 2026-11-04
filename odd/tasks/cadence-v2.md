@@ -170,7 +170,8 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 - [x] `writeConfig`: emit `device_is_group`, `server.image_size`, and a comment
       documenting `accesspoint_ports` as the override for networks that intercept
       443.
-- [x] `main.go`: enable `DeviceIsGroup` so Spotify Jam can include Cadence.
+- [x] `main.go`: keep `DeviceIsGroup` off by default (group icon only; Jam uses
+      the engine's Connect mode independently).
 - [x] Tests for the generated config and the image-size validation.
 - Commit: `feat(engine): advertise as a group and expose image size config`
 
@@ -237,20 +238,40 @@ patching file ap/proxy.go
 go-librespot patches apply cleanly to v0.10.6-0.20261104085532-16b65bb4cd2b; skipping build (--check)
 ```
 
-`task audio:build` produced `bin/go-librespot` and exited 0. A smoke start first
-logged `running go-librespot fb41f3cf` — Cadence's VCS revision, because the
-copied engine source lives inside this repository, so Go stamped it with Cadence's
-`vcs.revision` instead of the go-librespot pin. The build now injects the real pin
-with `-ldflags -X github.com/devgianlu/go-librespot.version=${VERSION}` and
+`task audio:build` produced `bin/go-librespot` and exited 0. Before the version
+fix, a smoke start logged `running go-librespot fb41f3cf` — Cadence's VCS
+revision, because the copied engine source lives inside this repository, so Go
+stamped it with Cadence's `vcs.revision` instead of the go-librespot pin. The
+build now injects the real pin with
+`-ldflags "-X github.com/devgianlu/go-librespot.version=${VERSION#v}"` and
 `-buildvcs=false`. Verified first line on the rebuilt binary:
 
 ```text
-time="2026-11-04T10:47:15-03:00" level=info msg="running go-librespot 0.10.6-0.20261104085532-16b65bb4cd2b"
+time="2026-11-04T11:10:20-03:00" level=info msg="running go-librespot 0.10.6-0.20261104085532-16b65bb4cd2b"
 ```
 
 **Pending user verification:** live pairing, playback, library browsing and
 Spotify Jam participation require the user's Spotify account and audio device.
 They are not claimed as verified here.
+
+### Phase 1 review corrections — 2026-11-04
+
+- `device_is_group` is **off by default** and only advertises a speaker-group icon;
+  it does not enable Jam. Jam participation uses the engine's Connect/Jam mode
+  independently, and live behavior remains unverified.
+- `config.yml` is generated on every start; the generated-file comment says so and
+  no longer invites `accesspoint_ports` edits. `prefer_firewall_friendly_ports: true`
+  stays active; `accesspoint_ports` is not exposed by Cadence yet.
+- Engine version injection strips the leading `v` (`${VERSION#v}`) and
+  `-buildvcs=false` prevents Cadence's revision from leaking into
+  `SpotifyLikeClientVersion()`. The first log line is the go-librespot pin.
+- `Version()` is empty while stopped, cached after parsing, and `State` retries a
+  failed parse at most every 2 s. Start/Stop clear the cached version.
+
+Verification for this round: `go test`, `go test -race ./internal/golibrespot/...`,
+`go vet`, `gofmt -l`, `./scripts/build-go-librespot.sh --check`, `task audio:build`
+and `git diff --check` all exited 0. Smoke first line:
+`msg="running go-librespot 0.10.6-20261104085532-16b65bb4cd2b"`.
 
 ### Commit map — Phase 1
 
@@ -273,7 +294,8 @@ They are not claimed as verified here.
 | 2026-11-04 | T0.5 | `14644ca` | All verification commands green |
 | 2026-11-04 | Review corrections | `1e02e7f` | Atomic artwork recorder, `missing` counter, successful-write-only `served`, emission-only event accounting, corrected baseline provenance, transport edge cases, strict patch fuzz; all checks green |
 | 2026-11-04 | T1.1 | `2b10f55` | Pin updated to `16b65bb4`; both patches apply unchanged with `--fuzz=0`; `task audio:build` exit 0 |
-| 2026-11-04 | T1.2 | `05adf37` | `device_is_group: true`, validated `server.image_size`, `accesspoint_ports` override documented, config tests added |
+| 2026-11-04 | T1.2 | `05adf37` | `device_is_group` config (default off), validated `server.image_size`, `accesspoint_ports` note removed in correction round, config tests added |
 | 2026-11-04 | T1.3 | `fb41f3c` | Log parsing for `running go-librespot`, `Runtime.Version()`, `AudioState.EngineVersion`, `engine_version` in `/debug/stats`, tests |
 | 2026-11-04 | T1.4 | `2b7a982` | Pin and engine options documented; both patches documented; Phase 1 verification green; live Spotify checks pending user |
 | 2026-11-04 | Engine version fix | `fix(build): report the go-librespot pin instead of Cadence's revision` | Injected `-X ...version` and `-buildvcs=false`; rebuilt binary now logs the real pin `0.10.6-20261104085532-16b65bb4cd2b` |
+| 2026-11-04 | Review corrections 2 | `fix(engine): correct device-group semantics and version reporting` | `device_is_group` default off and group-icon-only docs; generated-config notice; version injection `${VERSION#v}` with `-buildvcs=false`; version cache cleared on start/stop with throttled `State` retry; stricter config/version tests; GPL notice updated |
