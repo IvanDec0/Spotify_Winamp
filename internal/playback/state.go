@@ -57,7 +57,9 @@ type QueueItem struct {
 	IsNext    bool  `json:"isNext"`
 }
 
-// PlayerState is the complete, token-free state sent to the frontend.
+// PlayerState is the complete, token-free state sent to the frontend. The
+// streamed payload never carries the queue; callers fetch it with
+// Provider.Queue when the queue panel opens.
 type PlayerState struct {
 	Provider   string       `json:"provider"`
 	Status     Status       `json:"status"`
@@ -73,5 +75,10 @@ type PlayerState struct {
 	CanSeek    bool         `json:"canSeek"`
 	CanControl bool         `json:"canControl"`
 	Error      *PlayerError `json:"error,omitempty"`
-	Revision   uint64       `json:"revision"`
+	// Revision increases monotonically on every state change so the frontend
+	// can drop out-of-order payloads.
+	Revision uint64 `json:"revision"`
+	// CapturedAt is the Unix millisecond timestamp of the snapshot. The
+	// frontend interpolates the playback position from it instead of polling.
+	CapturedAt int64 `json:"capturedAt"`
 }

@@ -26,7 +26,9 @@ export interface PlayerError {
 }
 
 /**
- * PlayerState is the complete, token-free state sent to the frontend.
+ * PlayerState is the complete, token-free state sent to the frontend. The
+ * streamed payload never carries the queue; callers fetch it with
+ * Provider.Queue when the queue panel opens.
  */
 export interface PlayerState {
     "provider": string;
@@ -43,7 +45,18 @@ export interface PlayerState {
     "canSeek": boolean;
     "canControl": boolean;
     "error"?: PlayerError | null;
+
+    /**
+     * Revision increases monotonically on every state change so the frontend
+     * can drop out-of-order payloads.
+     */
     "revision": number;
+
+    /**
+     * CapturedAt is the Unix millisecond timestamp of the snapshot. The
+     * frontend interpolates the playback position from it instead of polling.
+     */
+    "capturedAt": number;
 }
 
 /**

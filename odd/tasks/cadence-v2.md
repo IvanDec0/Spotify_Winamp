@@ -573,22 +573,22 @@ change, no event while paused and unchanged, idle CPU <2%.
 
 ### T4.1 — Event-driven state transport
 
-- [ ] `internal/engine/events.go`: `/events` WebSocket client using
+- [x] `internal/engine/events.go`: `/events` WebSocket client using
       `github.com/coder/websocket`, typed event envelope, bounded reads.
-- [ ] `internal/playback`: `Streamer` interface and `EngineProvider.Stream`:
+- [x] `internal/playback`: `Streamer` interface and `EngineProvider.Stream`:
       initial `/status` snapshot, debounced refresh on engine events, 15 s
       reconciliation, monotonic `Revision`, `CapturedAt`, and emit only when the
       state changes. No queue in the streamed state.
-- [ ] `Provider.Queue(ctx)`: move the queue building out of `State`; implement it
+- [x] `Provider.Queue(ctx)`: move the queue building out of `State`; implement it
       for the engine and demo providers. `wailsapi/player.GetQueue` uses it.
-- [ ] `wailsapi/player`: replace the 500 ms ticker with `Stream` for providers
+- [x] `wailsapi/player`: replace the 500 ms ticker with `Stream` for providers
       that implement it (demo keeps a fallback ticker). Emit on revision change;
       keep actions and recorder behavior.
-- [ ] Frontend: remove the 2 s audio poll; poll only while unauthenticated (5 s).
+- [x] Frontend: remove the 2 s audio poll; poll only while unauthenticated (5 s).
       Add `player.queue` + `loadQueue`, use it in the main and skin Queue
       components, add a `positionMs` getter from `capturedAt` for the seek
       shortcuts, and drop stale states by revision.
-- [ ] Tests: engine event parsing, provider stream refresh/reconnect, queue
+- [x] Tests: engine event parsing, provider stream refresh/reconnect, queue
       separation, adapter no-duplicate emit, frontend store/queue/position.
 - Commit: `feat(state): drive player state from the engine event stream`
 
@@ -628,6 +628,15 @@ change, no event while paused and unchanged, idle CPU <2%.
 - Queue is fetched on demand and no longer inflates every state.
 - Idle UI work stops when paused or hidden.
 
+### Commit map — Phase 4
+
+| Task | Commit |
+|---|---|
+| T4.1 | `feat(state): drive player state from the engine event stream` |
+
+The commit hashes are recorded in T4.4 together with the after-baseline, so the
+task commit stays self-contained.
+
 ## Progress log
 
 | Date | Task | Commit | Result |
@@ -657,5 +666,5 @@ change, no event while paused and unchanged, idle CPU <2%.
 | 2026-11-04 | T3.4 | `d8887e4` | ADR-0001 accepted with the final layout and `internal/platform` exception; `docs/architecture.md` linked from README and docs index; verification table recorded; all Go, engine, binding and frontend checks green |
 | 2026-11-04 | T3.4 review correction 1 | `b16a453` | Added `internal/catalog/service_test.go` (`catalog_test`) against a fake engine: demo-disabled state, library pages/artwork rewriting, context mapping, all search groups, playback/queue/radio bodies, 500 propagation and missing-client error; `go test -cover ./internal/catalog/` = 80.4% |
 | 2026-11-04 | T3.4 review correction 2 | `85de8a9` | README repository tree, plan header and docs index aligned with the Phase 3 split; ADR-0001 constructors/logging claims corrected; architecture Wails boundary includes `main.go`; performance-baseline paths point at the new packages without changing measurements |
-
 | 2026-11-04 | Phase 3 close | `docs(odd): close Phase 3` | Split complete at 85de8a9; 80.4% catalog coverage; bindings and frontend green; live smoke test and runtime baseline pending |
+| 2026-11-04 | T4.1 | `feat(state)` | `/events` WebSocket client, `Streamer` + revisioned `EngineProvider.Stream` (100 ms coalesce, 15 s reconcile, change-only emit), on-demand `Provider.Queue`, streaming player adapter with fallback ticker, frontend queue/position/revision stores and authenticated-only audio polling; Go race and frontend checks green |

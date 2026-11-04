@@ -50,8 +50,15 @@ func TestProviderMapsStatusAndContextQueue(t *testing.T) {
 	if state.Repeat != RepeatContext || !state.Shuffle {
 		t.Fatalf("controls = %#v", state)
 	}
-	if len(state.Queue) != 2 || !state.Queue[0].IsCurrent || !state.Queue[1].IsNext {
-		t.Fatalf("queue = %#v", state.Queue)
+	if len(state.Queue) != 0 {
+		t.Fatalf("streamed State() queue = %#v, want empty", state.Queue)
+	}
+	queue, err := provider.Queue(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(queue) != 2 || !queue[0].IsCurrent || !queue[1].IsNext {
+		t.Fatalf("queue = %#v", queue)
 	}
 	if state.Device.Name != "Cadence" || len(state.Devices) != 1 {
 		t.Fatalf("device = %#v", state.Device)

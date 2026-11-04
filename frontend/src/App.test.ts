@@ -88,9 +88,12 @@ const mocks = vi.hoisted(() => {
 
   const player = {
     state,
+    queue: [],
+    positionMs: 38_000,
     error: null as string | null,
     start: vi.fn(() => Promise.resolve()),
     stop: vi.fn(),
+    loadQueue: vi.fn(() => Promise.resolve()),
     toggle: vi.fn(() => Promise.resolve()),
     play: vi.fn(() => Promise.resolve()),
     pause: vi.fn(() => Promise.resolve()),

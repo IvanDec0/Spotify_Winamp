@@ -47,6 +47,10 @@ const initialState: AudioState = {
   audioBackend: "",
 };
 
+// The audio engine pushes state changes; polling is only needed while the
+// user still has to pair the device.
+const pairingPollInterval = 5000;
+
 class MusicStore {
   audio = $state<AudioState>(initialState);
   loading = $state(true);
@@ -83,21 +87,16 @@ class MusicStore {
     this.#started = true;
     this.#unsubscribe = onAudioState((state) => {
       this.audio = normalizeAudio(state);
+      this.#syncPoll();
     });
     await this.refresh();
-    this.#pollTimer = setInterval(() => {
-      void this.refresh();
-    }, 2000);
   }
 
   stop(): void {
     this.#unsubscribe?.();
     this.#unsubscribe = null;
     this.#started = false;
-    if (this.#pollTimer) {
-      clearInterval(this.#pollTimer);
-      this.#pollTimer = null;
-    }
+    this.#stopPoll();
     if (this.#contextTimer) {
       clearTimeout(this.#contextTimer);
       this.#contextTimer = null;
@@ -108,10 +107,30 @@ class MusicStore {
     try {
       this.audio = normalizeAudio(await audioApi.getState());
       this.loading = false;
+      this.#syncPoll();
     } catch (error) {
       this.error = toApiError(error).message;
       this.loading = false;
+      this.#syncPoll();
     }
+  }
+
+  #syncPoll(): void {
+    if (!this.#started) return;
+    if (this.audio.authenticated) {
+      this.#stopPoll();
+      return;
+    }
+    if (this.#pollTimer) return;
+    this.#pollTimer = setInterval(() => {
+      void this.refresh();
+    }, pairingPollInterval);
+  }
+
+  #stopPoll(): void {
+    if (!this.#pollTimer) return;
+    clearInterval(this.#pollTimer);
+    this.#pollTimer = null;
   }
 
   async openPairing(): Promise<void> {
@@ -127,6 +146,7 @@ class MusicStore {
     this.busy = true;
     try {
       this.audio = normalizeAudio(await audioApi.resetSession());
+      this.#syncPoll();
       this.clearLibrary();
       this.error = null;
       this.notice = "Pairing reset. Use the new code to connect Spotify.";
@@ -141,6 +161,7 @@ class MusicStore {
     this.busy = true;
     try {
       this.audio = normalizeAudio(await audioApi.restart());
+      this.#syncPoll();
       this.error = null;
     } catch (error) {
       this.error = toApiError(error).message;

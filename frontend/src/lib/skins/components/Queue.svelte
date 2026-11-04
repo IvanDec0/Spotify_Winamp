@@ -1,5 +1,6 @@
 <script lang="ts">
   import { player } from "../../player.svelte";
+  import { skins } from "../../skins.svelte";
   import { formatTime } from "../../format";
 
   interface Props {
@@ -11,10 +12,16 @@
 
   let { maxItems = 20, showHeader = true, showArt = true, showTime = true }: Props = $props();
 
-  let items = $derived((player.state.queue ?? []).slice(0, Math.max(1, maxItems)));
+  let items = $derived(player.queue.slice(0, Math.max(1, maxItems)));
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
   let queueNote = $derived(player.state.provider === "demo" ? "Demo queue" : "Local queue");
   let failedCovers = $state<string[]>([]);
+
+  $effect(() => {
+    if (!skins.queueOpen) return;
+    if (!player.state.track.uri) return;
+    void player.loadQueue();
+  });
 
   function markCoverFailed(cover: string): void {
     failedCovers = [...failedCovers, cover];

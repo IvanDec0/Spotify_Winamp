@@ -39,6 +39,7 @@ const fallbackState: PlayerState = {
   canSeek: false,
   canControl: false,
   revision: 0,
+  capturedAt: 0,
 };
 
 function normalizeTrack(track: Track): Track {
@@ -60,13 +61,29 @@ function normalizeState(state: PlayerState): PlayerState {
 
 class PlayerStore {
   state = $state<PlayerState>(fallbackState);
+  queue = $state<QueueItem[]>([]);
   ready = $state(false);
   busy = $state(false);
+  queueLoading = $state(false);
   error = $state<string | null>(null);
 
   #unsubscribe: (() => void) | null = null;
   #starting = false;
   #pending = 0;
+  #queueRequest: Promise<void> | null = null;
+
+  /**
+   * Interpolated playback position. The engine only sends progress on state
+   * changes, so the frontend advances it from the capture timestamp.
+   */
+  get positionMs(): number {
+    const { status, progressMs, capturedAt, durationMs } = this.state;
+    let position = progressMs;
+    if (status === Status.StatusPlaying && capturedAt > 0) {
+      position += Math.max(0, Date.now() - capturedAt);
+    }
+    return durationMs > 0 ? Math.min(position, durationMs) : position;
+  }
 
   async start(): Promise<void> {
     if (this.ready || this.#starting) return;
@@ -142,6 +159,29 @@ class PlayerStore {
     await this.#action(() => playerApi.transfer(deviceId));
   }
 
+  /**
+   * Loads the playback queue on demand. Concurrent callers share one request
+   * so opening the queue twice does not hit the engine twice.
+   */
+  loadQueue(): Promise<void> {
+    if (this.#queueRequest) return this.#queueRequest;
+    this.queueLoading = true;
+    this.#queueRequest = this.#fetchQueue().finally(() => {
+      this.#queueRequest = null;
+      this.queueLoading = false;
+    });
+    return this.#queueRequest;
+  }
+
+  async #fetchQueue(): Promise<void> {
+    try {
+      this.queue = normalizeQueue(await playerApi.getQueue());
+      this.error = null;
+    } catch (error) {
+      this.error = toApiError(error).message;
+    }
+  }
+
   async #action(action: () => Promise<PlayerState>): Promise<void> {
     this.#pending += 1;
     this.busy = true;
@@ -157,6 +197,9 @@ class PlayerStore {
   }
 
   apply(state: PlayerState): void {
+    // States arrive from the action response and the engine stream; a slower
+    // response must not overwrite a newer snapshot.
+    if (state.revision > 0 && state.revision < this.state.revision) return;
     this.state = normalizeState(state);
   }
 }

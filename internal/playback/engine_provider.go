@@ -2,9 +2,12 @@ package playback
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cadence/internal/artwork"
@@ -14,6 +17,13 @@ import (
 const providerName = "spotify"
 
 const contextRefreshInterval = 5 * time.Second
+
+// streamRefreshInterval coalesces engine events into at most 10 refreshes per
+// second; streamReconcileInterval repairs events missed during a reconnect.
+var (
+	streamRefreshInterval   = 100 * time.Millisecond
+	streamReconcileInterval = 15 * time.Second
+)
 
 // EngineProvider maps the local go-librespot status to the player UI.
 type EngineProvider struct {
@@ -25,6 +35,11 @@ type EngineProvider struct {
 	contextTracks   engine.ContextTracks
 	contextFetched  time.Time
 	contextFailedAt time.Time
+
+	streamMu  sync.Mutex
+	revision  uint64
+	lastState PlayerState
+	hasState  bool
 }
 
 func NewEngineProvider(runtime *engine.Supervisor, art *artwork.Cache) *EngineProvider {
@@ -32,12 +47,128 @@ func NewEngineProvider(runtime *engine.Supervisor, art *artwork.Cache) *EnginePr
 }
 
 func (p *EngineProvider) State(ctx context.Context) (PlayerState, error) {
+	state, err := p.fetch(ctx)
+	if err != nil {
+		return PlayerState{}, err
+	}
+	return p.publish(state, nil), nil
+}
+
+// Queue fetches the playback queue on demand. It is separate from State so
+// idle state traffic never pays for context enumeration.
+func (p *EngineProvider) Queue(ctx context.Context) ([]QueueItem, error) {
+	client := p.runtime.Client()
+	if client == nil {
+		return nil, fmt.Errorf("the local audio engine is not running")
+	}
+	status, err := client.Status(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if status == nil {
+		return []QueueItem{}, nil
+	}
+	return p.queueFor(ctx, client, status), nil
+}
+
+// Stream publishes the initial state, then refreshes only when the engine
+// sends an event and reconciles every 15 seconds. It returns when ctx is
+// cancelled or the event stream fails; callers reconnect with backoff.
+func (p *EngineProvider) Stream(ctx context.Context, emit func(PlayerState)) error {
+	client := p.runtime.Client()
+	if client == nil {
+		return errors.New("the local audio engine is not running")
+	}
+	if _, err := p.refresh(ctx, emit); err != nil {
+		return err
+	}
+
+	watchCtx, stopWatch := context.WithCancel(ctx)
+	defer stopWatch()
+	eventsDone := make(chan error, 1)
+	var dirty atomic.Bool
+	go func() {
+		eventsDone <- client.WatchEvents(watchCtx, func(engine.Event) {
+			dirty.Store(true)
+		})
+	}()
+
+	refreshTicker := time.NewTicker(streamRefreshInterval)
+	defer refreshTicker.Stop()
+	reconcileTicker := time.NewTicker(streamReconcileInterval)
+	defer reconcileTicker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-eventsDone:
+			if err == nil {
+				err = errors.New("the go-librespot event stream closed")
+			}
+			return err
+		case <-refreshTicker.C:
+			if !dirty.Swap(false) {
+				continue
+			}
+			if _, err := p.refresh(ctx, emit); err != nil {
+				return err
+			}
+		case <-reconcileTicker.C:
+			if _, err := p.refresh(ctx, emit); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (p *EngineProvider) refresh(ctx context.Context, emit func(PlayerState)) (PlayerState, error) {
+	state, err := p.fetch(ctx)
+	if err != nil {
+		return PlayerState{}, err
+	}
+	return p.publish(state, emit), nil
+}
+
+// publish stamps a new revision when the state changed and calls emit only
+// then. Unchanged states keep the previous revision and capture timestamp.
+func (p *EngineProvider) publish(state PlayerState, emit func(PlayerState)) PlayerState {
+	p.streamMu.Lock()
+	if p.hasState && sameStreamedState(p.lastState, state) {
+		state.Revision = p.revision
+		state.CapturedAt = p.lastState.CapturedAt
+		p.streamMu.Unlock()
+		return state
+	}
+	p.revision++
+	state.Revision = p.revision
+	state.CapturedAt = time.Now().UnixMilli()
+	p.lastState = state
+	p.hasState = true
+	p.streamMu.Unlock()
+	if emit != nil {
+		emit(state)
+	}
+	return state
+}
+
+// sameStreamedState compares two states without their transport metadata.
+func sameStreamedState(left, right PlayerState) bool {
+	left.Revision, right.Revision = 0, 0
+	left.CapturedAt, right.CapturedAt = 0, 0
+	return reflect.DeepEqual(left, right)
+}
+
+func (p *EngineProvider) fetch(ctx context.Context) (PlayerState, error) {
 	client := p.runtime.Client()
 	if client == nil {
 		return unavailableState("The local audio engine is starting."), nil
 	}
 	status, err := client.Status(ctx)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return PlayerState{}, ctxErr
+		}
 		return unavailableState("Cannot reach the local audio engine: " + err.Error()), nil
 	}
 	if status == nil {
@@ -93,8 +224,6 @@ func (p *EngineProvider) State(ctx context.Context) (PlayerState, error) {
 	}
 	state.Device = device
 	state.Devices = []Device{device}
-	state.Queue = p.queueFor(ctx, client, status)
-	state.Revision = 1
 	return state, nil
 }
 
@@ -325,6 +454,5 @@ func unavailableState(message string) PlayerState {
 			Code:    "audio_unavailable",
 			Message: message,
 		},
-		Revision: 1,
 	}
 }

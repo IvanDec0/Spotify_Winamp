@@ -198,6 +198,7 @@
       queueClosing = false;
       if (!queueOpen) skins.queueOpen = true;
       closePopovers();
+      void player.loadQueue();
       return;
     }
 
@@ -286,7 +287,7 @@
         if (event.shiftKey) {
           void player.previous();
         } else if (player.state.canSeek) {
-          void player.seek(player.state.progressMs - 5_000);
+          void player.seek(player.positionMs - 5_000);
         }
         break;
       case "ArrowRight":
@@ -294,7 +295,7 @@
         if (event.shiftKey) {
           void player.next();
         } else if (player.state.canSeek) {
-          void player.seek(player.state.progressMs + 5_000);
+          void player.seek(player.positionMs + 5_000);
         }
         break;
       case "ArrowUp":
@@ -369,6 +370,12 @@
     if (declarative && !skins.hasQueue && skins.queueOpen) {
       skins.queueOpen = false;
     }
+  });
+
+  $effect(() => {
+    if (!queueOpen) return;
+    if (!player.state.track.uri) return;
+    void player.loadQueue();
   });
 
   onMount(() => {
@@ -446,7 +453,7 @@
 
         {#if queueOpen}
           <div class="queue-slot" class:is-closing={queueClosing}>
-            <Queue items={player.state.queue ?? []} provider={player.state.provider} />
+            <Queue items={player.queue} provider={player.state.provider} />
           </div>
         {/if}
 

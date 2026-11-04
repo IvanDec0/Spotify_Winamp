@@ -64,6 +64,17 @@ func (p *DemoProvider) State(ctx context.Context) (PlayerState, error) {
 	return p.stateLocked(), nil
 }
 
+// Queue returns a copy of the demo queue.
+func (p *DemoProvider) Queue(ctx context.Context) ([]QueueItem, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.queueLocked(), nil
+}
+
 func (p *DemoProvider) Play(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
