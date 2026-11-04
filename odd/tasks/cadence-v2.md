@@ -448,16 +448,19 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 
 ### T3.1 — Engine and artwork extraction
 
-- [ ] `internal/engine`: supervisor (process/config/version), typed REST client,
+- [x] `internal/engine`: supervisor (process/config/version), typed REST client,
       raw engine DTOs (`Root`, `Track`, `Status`, `Pairing`, `AudioState`,
       `ContextTrack(s)`).
-- [ ] `internal/artwork`: rename `internal/artcache` and keep the cache behavior
+- [x] `internal/artwork`: rename `internal/artcache` and keep the cache behavior
       and diagnostics counters identical.
-- [ ] Update the engine-backed provider, the audio service and `main.go` to use
+- [x] Update the engine-backed provider, the audio service and `main.go` to use
       the new packages. Keep temporary Wails adapters in the old packages so the
       application still compiles.
-- [ ] Move the engine tests with the code.
+- [x] Move the engine tests with the code.
 - Commit: `refactor(engine): extract the supervisor, transport and artwork cache`
+- Note: `engine.Options.Client` is an explicit test seam for providers that do
+  not start the sidecar; production leaves it nil, so `Start` still creates the
+  client.
 
 ### T3.2 — Catalog and playback split
 
@@ -499,6 +502,15 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 - `internal/golibrespot`, the old `internal/player` adapter and
   `internal/artcache` are gone.
 
+### Commit map — Phase 3
+
+| Task | Commit |
+|---|---|
+| T3.1 | this commit |
+| T3.2 | pending |
+| T3.3 | pending |
+| T3.4 | pending |
+
 ## Progress log
 
 | Date | Task | Commit | Result |
@@ -523,3 +535,4 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 | 2026-11-04 | Phase 2 corrections | `4a28390` | Rounded seek/volume, non-blocking i18n startup, latest-wins locale switches, dialog focus/escape hardening, fractional virtual rows, Button attribute forwarding, single live region, lazy `es` barrel fix, extra i18n tests and docs |
 
 | 2026-11-04 | Phase 2 final fixes | `fix(frontend): skip non-tabbable dialog elements and stale locale errors` | Excluded `tabindex="-1"` from the dialog trap; ignored stale locale loader rejections; 124 tests green |
+| 2026-11-04 | T3.1 | this commit | `engine` owns supervisor/rest/DTOs, `artwork` replaces `artcache`; old adapter imports the new packages; Go tests, vet and gofmt green |

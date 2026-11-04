@@ -1,4 +1,4 @@
-package golibrespot
+package engine
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	engineName    = "go-librespot"
+	Name          = "go-librespot"
 	defaultDevice = "Cadence"
 )
 
@@ -26,8 +26,8 @@ var engineVersionPattern = regexp.MustCompile(`running go-librespot ([^\s"]+)"`)
 
 const engineVersionRetryInterval = 2 * time.Second
 
-// RuntimeOptions configures the managed go-librespot process.
-type RuntimeOptions struct {
+// Options configures the managed go-librespot process.
+type Options struct {
 	BinaryPath   string
 	ConfigDir    string
 	LogPath      string
@@ -40,10 +40,13 @@ type RuntimeOptions struct {
 	ImageSize     string
 	HTTPClient    *http.Client
 	Emit          func(AudioState)
+	// Client overrides the loopback API client. It is used by tests that do
+	// not start the sidecar; when nil, Start creates one.
+	Client *Client
 }
 
-// Runtime owns the go-librespot sidecar and its loopback API client.
-type Runtime struct {
+// Supervisor owns the go-librespot sidecar and its loopback API client.
+type Supervisor struct {
 	mu sync.Mutex
 
 	binaryPath     string
@@ -69,7 +72,7 @@ type Runtime struct {
 	done      chan struct{}
 }
 
-func NewRuntime(options RuntimeOptions) *Runtime {
+func NewSupervisor(options Options) *Supervisor {
 	binary := findBinary(options.BinaryPath)
 	deviceName := strings.TrimSpace(options.DeviceName)
 	if deviceName == "" {
@@ -87,7 +90,7 @@ func NewRuntime(options RuntimeOptions) *Runtime {
 	if bitrate != 96 && bitrate != 160 && bitrate != 320 {
 		bitrate = 320
 	}
-	return &Runtime{
+	return &Supervisor{
 		binaryPath:    binary,
 		configDir:     options.ConfigDir,
 		logPath:       options.LogPath,
@@ -99,6 +102,7 @@ func NewRuntime(options RuntimeOptions) *Runtime {
 		imageSize:     normalizeImageSize(options.ImageSize),
 		httpClient:    options.HTTPClient,
 		emit:          options.Emit,
+		client:        options.Client,
 		available:     binary != "",
 	}
 }
@@ -140,31 +144,31 @@ func findBinary(explicit string) string {
 	return ""
 }
 
-func (r *Runtime) Available() bool {
+func (r *Supervisor) Available() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.available
 }
 
-func (r *Runtime) SetEmitter(emit func(AudioState)) {
+func (r *Supervisor) SetEmitter(emit func(AudioState)) {
 	r.mu.Lock()
 	r.emit = emit
 	r.mu.Unlock()
 }
 
-func (r *Runtime) Client() *Client {
+func (r *Supervisor) Client() *Client {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.client
 }
 
-func (r *Runtime) BinaryPath() string {
+func (r *Supervisor) BinaryPath() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.binaryPath
 }
 
-func (r *Runtime) ConfigDir() string {
+func (r *Supervisor) ConfigDir() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.configDir
@@ -173,7 +177,7 @@ func (r *Runtime) ConfigDir() string {
 // Version returns the running engine version parsed from its log. It returns
 // an empty string when the engine is not running, and retries while the cached
 // value is empty. It never returns an error.
-func (r *Runtime) Version() string {
+func (r *Supervisor) Version() string {
 	r.mu.Lock()
 	if !r.running {
 		r.mu.Unlock()
@@ -187,7 +191,7 @@ func (r *Runtime) Version() string {
 	return r.loadEngineVersion()
 }
 
-func (r *Runtime) loadEngineVersion() string {
+func (r *Supervisor) loadEngineVersion() string {
 	r.mu.Lock()
 	logPath := r.logPath
 	running := r.running
@@ -229,7 +233,7 @@ func readEngineVersion(logPath string) string {
 }
 
 // Start launches the engine. It is safe to call again after a failed start.
-func (r *Runtime) Start(ctx context.Context) error {
+func (r *Supervisor) Start(ctx context.Context) error {
 	r.mu.Lock()
 	if r.running {
 		r.mu.Unlock()
@@ -348,7 +352,7 @@ func (r *Runtime) Start(ctx context.Context) error {
 	return errors.New(r.lastError)
 }
 
-func (r *Runtime) waitForExit(cmd *exec.Cmd, done chan struct{}) {
+func (r *Supervisor) waitForExit(cmd *exec.Cmd, done chan struct{}) {
 	err := cmd.Wait()
 	r.mu.Lock()
 	if r.cmd == cmd {
@@ -370,7 +374,7 @@ func (r *Runtime) waitForExit(cmd *exec.Cmd, done chan struct{}) {
 }
 
 // Stop terminates the sidecar.
-func (r *Runtime) Stop(ctx context.Context) error {
+func (r *Supervisor) Stop(ctx context.Context) error {
 	r.mu.Lock()
 	if !r.running || r.cmd == nil || r.cmd.Process == nil {
 		r.running = false
@@ -406,7 +410,7 @@ func (r *Runtime) Stop(ctx context.Context) error {
 }
 
 // Restart stops and starts the engine without clearing its credentials.
-func (r *Runtime) Restart(ctx context.Context) error {
+func (r *Supervisor) Restart(ctx context.Context) error {
 	if err := r.Stop(ctx); err != nil {
 		return err
 	}
@@ -415,7 +419,7 @@ func (r *Runtime) Restart(ctx context.Context) error {
 
 // ResetSession stops the engine, removes its credentials and starts pairing
 // again.
-func (r *Runtime) ResetSession(ctx context.Context) error {
+func (r *Supervisor) ResetSession(ctx context.Context) error {
 	if err := r.Stop(ctx); err != nil {
 		return err
 	}
@@ -430,7 +434,7 @@ func (r *Runtime) ResetSession(ctx context.Context) error {
 }
 
 // State queries the engine and returns token-free pairing information.
-func (r *Runtime) State(ctx context.Context) AudioState {
+func (r *Supervisor) State(ctx context.Context) AudioState {
 	r.mu.Lock()
 	available := r.available
 	running := r.running
@@ -451,7 +455,7 @@ func (r *Runtime) State(ctx context.Context) AudioState {
 	state := AudioState{
 		Available:       available,
 		Running:         running,
-		Engine:          engineName,
+		Engine:          Name,
 		EngineVersion:   engineVersion,
 		DeviceName:      r.deviceName,
 		AudioBackend:    r.audioBackend,
@@ -489,7 +493,7 @@ func (r *Runtime) State(ctx context.Context) AudioState {
 	return state
 }
 
-func (r *Runtime) writeConfig(port int, configDir string) error {
+func (r *Supervisor) writeConfig(port int, configDir string) error {
 	config := fmt.Sprintf(`# This file is generated by Cadence on every start; manual changes are overwritten.
 log_level: info
 device_name: %q
@@ -527,7 +531,7 @@ func freePort() (int, error) {
 	return port, nil
 }
 
-func (r *Runtime) notify() {
+func (r *Supervisor) notify() {
 	r.mu.Lock()
 	emit := r.emit
 	available := r.available
@@ -541,7 +545,7 @@ func (r *Runtime) notify() {
 		return
 	}
 	state := AudioState{
-		Available: available, Running: running, Engine: engineName, EngineVersion: engineVersion,
+		Available: available, Running: running, Engine: Name, EngineVersion: engineVersion,
 		DeviceName: r.deviceName, AudioBackend: r.audioBackend, Error: lastError,
 		BinaryPath: r.binaryPath, ConfigDirectory: configDir,
 	}

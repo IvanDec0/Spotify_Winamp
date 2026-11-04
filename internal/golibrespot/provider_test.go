@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"cadence/internal/artcache"
+	"cadence/internal/artwork"
+	"cadence/internal/engine"
 	"cadence/internal/player"
 )
 
@@ -34,8 +35,8 @@ func TestProviderMapsStatusAndContextQueue(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	runtime := &Runtime{client: NewClient(server.URL, server.Client()), available: true, running: true}
-	provider := NewProvider(runtime, artcache.New(server.Client()))
+	runtime := engine.NewSupervisor(engine.Options{Client: engine.NewClient(server.URL, server.Client())})
+	provider := NewProvider(runtime, artwork.New(server.Client()))
 
 	state, err := provider.State(context.Background())
 	if err != nil {
@@ -63,7 +64,7 @@ func TestProviderNoSessionShowsPairingError(t *testing.T) {
 		writer.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()
-	runtime := &Runtime{client: NewClient(server.URL, server.Client()), available: true, running: true}
+	runtime := engine.NewSupervisor(engine.Options{Client: engine.NewClient(server.URL, server.Client())})
 	provider := NewProvider(runtime, nil)
 	state, err := provider.State(context.Background())
 	if err != nil {
@@ -82,7 +83,7 @@ func TestProviderActions(t *testing.T) {
 		writer.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
-	runtime := &Runtime{client: NewClient(server.URL, server.Client()), available: true, running: true}
+	runtime := engine.NewSupervisor(engine.Options{Client: engine.NewClient(server.URL, server.Client())})
 	provider := NewProvider(runtime, nil)
 	ctx := context.Background()
 	if err := provider.Pause(ctx); err != nil {
@@ -111,19 +112,12 @@ func TestProviderTransferLocalDevice(t *testing.T) {
 		_, _ = writer.Write([]byte(`{"device_id":"dev","device_name":"Cadence","stopped":true,"volume":100,"volume_steps":100}`))
 	}))
 	defer server.Close()
-	runtime := &Runtime{client: NewClient(server.URL, server.Client()), available: true, running: true}
+	runtime := engine.NewSupervisor(engine.Options{Client: engine.NewClient(server.URL, server.Client())})
 	provider := NewProvider(runtime, nil)
 	if err := provider.Transfer(context.Background(), "dev"); err != nil {
 		t.Fatal(err)
 	}
 	if err := provider.Transfer(context.Background(), "other"); err == nil {
 		t.Fatal("remote transfer error = nil")
-	}
-}
-
-func TestRuntimeFindsExplicitBinary(t *testing.T) {
-	runtime := NewRuntime(RuntimeOptions{BinaryPath: "/bin/sh"})
-	if !runtime.Available() || runtime.BinaryPath() != "/bin/sh" {
-		t.Fatalf("runtime = %#v", runtime)
 	}
 }

@@ -14,8 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"cadence/internal/artcache"
+	"cadence/internal/artwork"
 	"cadence/internal/diagnostics"
+	"cadence/internal/engine"
 	"cadence/internal/golibrespot"
 	"cadence/internal/platform"
 	"cadence/internal/player"
@@ -62,7 +63,7 @@ const (
 func init() {
 	application.RegisterEvent[player.PlayerState](player.StateEvent)
 	application.RegisterEvent[skins.SkinCatalog](skins.ChangedEvent)
-	application.RegisterEvent[golibrespot.AudioState](golibrespot.AudioEvent)
+	application.RegisterEvent[engine.AudioState](golibrespot.AudioEvent)
 }
 
 func main() {
@@ -119,7 +120,7 @@ func main() {
 	}
 
 	demoProvider := player.NewDemoProvider()
-	artCache := artcache.New(nil)
+	artCache := artwork.New(nil)
 
 	var recorder *diagnostics.Recorder
 	var engineHTTPClient *http.Client
@@ -132,7 +133,7 @@ func main() {
 		log.Println("diagnostics enabled: counters and pprof are exposed on a loopback port")
 	}
 
-	audioRuntime := golibrespot.NewRuntime(golibrespot.RuntimeOptions{
+	audioRuntime := engine.NewSupervisor(engine.Options{
 		ConfigDir:    filepath.Join(xdg.ConfigHome, "cadence", "audio"),
 		LogPath:      filepath.Join(xdg.CacheHome, "cadence", "logs", "go-librespot.log"),
 		DeviceName:   "Cadence",

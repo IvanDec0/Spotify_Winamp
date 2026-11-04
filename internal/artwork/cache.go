@@ -1,7 +1,7 @@
-// Package artcache proxies album art through Go. The frontend never receives a
+// Package artwork proxies album art through Go. The frontend never receives a
 // remote image URL, only an opaque local key. The cache is in-memory and
 // bounded so Cadence does not persist a listening history.
-package artcache
+package artwork
 
 import (
 	"context"

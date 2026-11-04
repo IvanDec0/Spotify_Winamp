@@ -1,4 +1,4 @@
-package golibrespot
+package engine
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func TestWriteConfigEngineOptions(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			runtime := NewRuntime(RuntimeOptions{DeviceIsGroup: test.group, ImageSize: test.imageSize})
+			runtime := NewSupervisor(Options{DeviceIsGroup: test.group, ImageSize: test.imageSize})
 			dir := t.TempDir()
 			if err := runtime.writeConfig(12345, dir); err != nil {
 				t.Fatalf("writeConfig: %v", err)
@@ -91,7 +91,7 @@ func yamlSection(t *testing.T, config, name string) string {
 	return section.String()
 }
 
-func TestNewRuntimeValidatesImageSize(t *testing.T) {
+func TestNewSupervisorValidatesImageSize(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
@@ -106,7 +106,7 @@ func TestNewRuntimeValidatesImageSize(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			runtime := NewRuntime(RuntimeOptions{ImageSize: test.input})
+			runtime := NewSupervisor(Options{ImageSize: test.input})
 			if runtime.imageSize != test.want {
 				t.Fatalf("imageSize = %q, want %q", runtime.imageSize, test.want)
 			}
@@ -114,14 +114,14 @@ func TestNewRuntimeValidatesImageSize(t *testing.T) {
 	}
 }
 
-func TestRuntimeParsesEngineVersionFromLog(t *testing.T) {
+func TestSupervisorParsesEngineVersionFromLog(t *testing.T) {
 	logPath := filepath.Join(t.TempDir(), "go-librespot.log")
 	line := `time="2026-11-04T08:55:32Z" level=info msg="running go-librespot 0.10.6-20261104085532-16b65bb4cd2b"` + "\n"
 	if err := os.WriteFile(logPath, []byte(line), 0o600); err != nil {
 		t.Fatalf("write log: %v", err)
 	}
 
-	runtime := &Runtime{running: true, logPath: logPath}
+	runtime := &Supervisor{running: true, logPath: logPath}
 	const want = "0.10.6-20261104085532-16b65bb4cd2b"
 	if got := runtime.Version(); got != want {
 		t.Fatalf("Version() = %q, want %q", got, want)
@@ -134,35 +134,35 @@ func TestRuntimeParsesEngineVersionFromLog(t *testing.T) {
 	}
 }
 
-func TestRuntimeVersionEmptyWhenLogMissing(t *testing.T) {
-	runtime := &Runtime{running: true, logPath: filepath.Join(t.TempDir(), "missing.log")}
+func TestSupervisorVersionEmptyWhenLogMissing(t *testing.T) {
+	runtime := &Supervisor{running: true, logPath: filepath.Join(t.TempDir(), "missing.log")}
 	if got := runtime.Version(); got != "" {
 		t.Fatalf("Version() = %q, want empty", got)
 	}
 }
 
-func TestRuntimeVersionEmptyWhenNotRunning(t *testing.T) {
-	runtime := &Runtime{engineVersion: "stale", logPath: filepath.Join(t.TempDir(), "engine.log")}
+func TestSupervisorVersionEmptyWhenNotRunning(t *testing.T) {
+	runtime := &Supervisor{engineVersion: "stale", logPath: filepath.Join(t.TempDir(), "engine.log")}
 	if got := runtime.Version(); got != "" {
 		t.Fatalf("Version() = %q, want empty while stopped", got)
 	}
 }
 
-func TestRuntimeVersionDoesNotPanic(t *testing.T) {
-	var runtime Runtime
+func TestSupervisorVersionDoesNotPanic(t *testing.T) {
+	var runtime Supervisor
 	if got := runtime.Version(); got != "" {
 		t.Fatalf("Version() = %q, want empty", got)
 	}
 }
 
-func TestRuntimeStatePopulatesEngineVersion(t *testing.T) {
+func TestSupervisorStatePopulatesEngineVersion(t *testing.T) {
 	logPath := filepath.Join(t.TempDir(), "go-librespot.log")
 	line := `time="2026-11-04T08:55:32Z" level=info msg="running go-librespot 0.10.6-20261104085532-16b65bb4cd2b"` + "\n"
 	if err := os.WriteFile(logPath, []byte(line), 0o600); err != nil {
 		t.Fatalf("write log: %v", err)
 	}
 
-	runtime := &Runtime{running: true, logPath: logPath}
+	runtime := &Supervisor{running: true, logPath: logPath}
 	state := runtime.State(context.Background())
 	const want = "0.10.6-20261104085532-16b65bb4cd2b"
 	if state.EngineVersion != want {
@@ -170,8 +170,8 @@ func TestRuntimeStatePopulatesEngineVersion(t *testing.T) {
 	}
 }
 
-func TestRuntimeStartClearsPreviousVersion(t *testing.T) {
-	runtime := NewRuntime(RuntimeOptions{BinaryPath: "/bin/true", ConfigDir: t.TempDir()})
+func TestSupervisorStartClearsPreviousVersion(t *testing.T) {
+	runtime := NewSupervisor(Options{BinaryPath: "/bin/true", ConfigDir: t.TempDir()})
 	runtime.mu.Lock()
 	runtime.engineVersion = "previous"
 	runtime.mu.Unlock()
@@ -197,8 +197,15 @@ func TestEngineVersionIgnoresTruncatedLog(t *testing.T) {
 		t.Fatalf("write log: %v", err)
 	}
 
-	runtime := &Runtime{running: true, logPath: logPath}
+	runtime := &Supervisor{running: true, logPath: logPath}
 	if got := runtime.Version(); got != "" {
 		t.Fatalf("Version() = %q, want empty for a truncated token", got)
+	}
+}
+
+func TestSupervisorFindsExplicitBinary(t *testing.T) {
+	supervisor := NewSupervisor(Options{BinaryPath: "/bin/sh"})
+	if !supervisor.Available() || supervisor.BinaryPath() != "/bin/sh" {
+		t.Fatalf("supervisor = %#v", supervisor)
 	}
 }

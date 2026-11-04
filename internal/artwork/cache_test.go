@@ -1,4 +1,4 @@
-package artcache
+package artwork
 
 import (
 	"context"

@@ -7,7 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"cadence/internal/artcache"
+	"cadence/internal/artwork"
+	"cadence/internal/engine"
 	"cadence/internal/player"
 )
 
@@ -17,17 +18,17 @@ const contextRefreshInterval = 5 * time.Second
 
 // Provider maps the local go-librespot status to the player UI.
 type Provider struct {
-	runtime *Runtime
-	art     *artcache.Cache
+	runtime *engine.Supervisor
+	art     *artwork.Cache
 
 	mu              sync.Mutex
 	contextURI      string
-	contextTracks   ContextTracks
+	contextTracks   engine.ContextTracks
 	contextFetched  time.Time
 	contextFailedAt time.Time
 }
 
-func NewProvider(runtime *Runtime, art *artcache.Cache) *Provider {
+func NewProvider(runtime *engine.Supervisor, art *artwork.Cache) *Provider {
 	return &Provider{runtime: runtime, art: art}
 }
 
@@ -206,7 +207,7 @@ func (p *Provider) Transfer(ctx context.Context, deviceID string) error {
 	return fmt.Errorf("Cadence plays through the local audio output")
 }
 
-func (p *Provider) queueFor(ctx context.Context, client *Client, status *Status) []player.QueueItem {
+func (p *Provider) queueFor(ctx context.Context, client *engine.Client, status *engine.Status) []player.QueueItem {
 	currentURI := ""
 	if status.Track != nil {
 		currentURI = status.Track.URI
@@ -229,7 +230,7 @@ func (p *Provider) queueFor(ctx context.Context, client *Client, status *Status)
 	return queue
 }
 
-func (p *Provider) queueFromContext(tracks ContextTracks, currentURI string) []player.QueueItem {
+func (p *Provider) queueFromContext(tracks engine.ContextTracks, currentURI string) []player.QueueItem {
 	items := make([]player.QueueItem, 0, len(tracks.Items))
 	start := -1
 	for index, item := range tracks.Items {
@@ -266,7 +267,7 @@ func (p *Provider) queueFromContext(tracks ContextTracks, currentURI string) []p
 	return items
 }
 
-func (p *Provider) context(ctx context.Context, client *Client, uri string) ContextTracks {
+func (p *Provider) context(ctx context.Context, client *engine.Client, uri string) engine.ContextTracks {
 	p.mu.Lock()
 	if p.contextURI == uri && (p.contextTracks.Ready || time.Since(p.contextFetched) < contextRefreshInterval) {
 		tracks := p.contextTracks
@@ -281,7 +282,7 @@ func (p *Provider) context(ctx context.Context, client *Client, uri string) Cont
 	if err != nil {
 		if time.Since(p.contextFailedAt) > contextRefreshInterval {
 			p.contextFailedAt = time.Now()
-			p.contextTracks = ContextTracks{URI: uri}
+			p.contextTracks = engine.ContextTracks{URI: uri}
 			p.contextURI = uri
 			p.contextFetched = time.Now()
 		}
@@ -293,7 +294,7 @@ func (p *Provider) context(ctx context.Context, client *Client, uri string) Cont
 	return tracks
 }
 
-func (p *Provider) mapTrack(track *Track) player.Track {
+func (p *Provider) mapTrack(track *engine.Track) player.Track {
 	if track == nil {
 		return player.Track{Artists: []string{}}
 	}
