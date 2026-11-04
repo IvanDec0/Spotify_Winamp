@@ -43,9 +43,9 @@ records that the module split will follow.
 
 ### T0.1 — Diagnostics recorder and engine transport
 
-- [ ] `internal/diagnostics` package: nil-safe `Recorder`, atomic/mutex counters,
+- [x] `internal/diagnostics` package: nil-safe `Recorder`, atomic/mutex counters,
       stable `Snapshot` JSON, `WrapTransport` round tripper for engine requests.
-- [ ] Unit tests: concurrent increments, snapshot shape, transport accounting,
+- [x] Unit tests: concurrent increments, snapshot shape, transport accounting,
       error counting, no-op with a nil recorder.
 - Commit: `feat(diagnostics): add engine and artwork metrics recorder`
 
@@ -88,3 +88,4 @@ records that the module split will follow.
 | Date | Task | Commit | Result |
 |---|---|---|---|
 | 2026-11-04 | Plan | `5cb1d2b` | Plan committed; no code changes |
+| 2026-11-04 | T0.1 | `feat(diagnostics): add engine and artwork metrics recorder` | Recorder, snapshot and transport wrapper with tests |
