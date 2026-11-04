@@ -31,6 +31,11 @@
   let height = 0;
   let raf = 0;
   let running = false;
+  let ready = $state(false);
+  let visible = $state(true);
+  let lastFrameAt = 0;
+
+  const frameInterval = 1000 / 30;
 
   let modes = $derived(skins.visualizerOptions);
   let mode = $derived(
@@ -214,13 +219,17 @@
 
   function frame(now: number): void {
     if (!running) return;
-    renderAt(now / 1000);
+    if (now - lastFrameAt >= frameInterval) {
+      lastFrameAt = now;
+      renderAt(now / 1000);
+    }
     raf = requestAnimationFrame(frame);
   }
 
   function startLoop(): void {
-    if (running || reducedMotion || !context) return;
+    if (running || !context) return;
     running = true;
+    lastFrameAt = 0;
     raf = requestAnimationFrame(frame);
   }
 
@@ -234,16 +243,17 @@
     void mode;
     void accent;
     void secondary;
-    void playing;
     void energyScale;
-    if (!context) return;
-    if (reducedMotion) {
+    void player.state.track.id;
+    const animate = playing && !reducedMotion && visible;
+    if (!ready) return;
+    if (!animate) {
       stopLoop();
-      renderAt(0);
-    } else {
-      stopLoop();
-      startLoop();
+      renderAt(reducedMotion ? 0 : performance.now() / 1000);
+      return;
     }
+    stopLoop();
+    startLoop();
   });
 
   onMount(() => {
@@ -251,7 +261,13 @@
     context = canvas.getContext("2d");
     resizeCanvas();
     renderAt(performance.now() / 1000);
-    startLoop();
+    ready = true;
+
+    const updateVisibility = (): void => {
+      visible = !document.hidden;
+    };
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
 
     let observer: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined") {
@@ -264,6 +280,8 @@
 
     return () => {
       stopLoop();
+      ready = false;
+      document.removeEventListener("visibilitychange", updateVisibility);
       observer?.disconnect();
       context = null;
     };

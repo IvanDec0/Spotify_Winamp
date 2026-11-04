@@ -605,12 +605,43 @@ change, no event while paused and unchanged, idle CPU <2%.
 
 ### T4.3 — Idle rendering and long lists
 
-- [ ] Gate the `Progress` rAF loop while paused/hidden; add interpolation to the
+- [x] Gate the `Progress` rAF loop while paused/hidden; add interpolation to the
       skin `Progress`; pause visualizers when not playing or the window is hidden.
-- [ ] Virtualize the context list if its row height is fixed; otherwise report the
+- [x] Virtualize the context list if its row height is fixed; otherwise report the
       measured row behavior and defer to Phase 6 instead of forcing it.
-- [ ] Frontend tests for the position getter and the idle gate helper.
+- [x] Frontend tests for the position getter and the idle gate helper.
+      Covered by the player position test and the Progress/skin Progress frame
+      and interval tests; visualizers keep the existing math tests.
 - Commit: `perf(ui): stop idle animation work and virtualize long lists`
+
+#### T4.3 virtualization decision
+
+Deferred to Phase 6 after inspecting the layout; the 800-row scroll gate is **not
+claimed as met**.
+
+Measured list geometry: `.track-row` resolves to **34 px** (`min-height: 34px`,
+`box-sizing: border-box`, 28 px cover + 4 px vertical padding), and
+`.track-list` adds a **2 px** flex gap, so the row pitch is **36 px**.
+
+Why virtualization was not forced:
+
+- `.library-body` is the single `overflow: auto` scroll container shared by the
+  search, pairing, context and tabbed library views. `VirtualList` owns its own
+  `overflow-y: auto` viewport, so using it here nests scroll containers. Making
+  the list fill the body requires changing `.library-body` overflow and turning
+  `.context-panel` into a height-constrained flex column for the context branch.
+- The context header (`.context-actions`) currently sits inside the shared
+  scroll container and scrolls with the rows. Keeping it outside the virtual
+  viewport would pin it — a layout/behavior change beyond this task.
+- The rows are an `<ol class="track-list">` with `<li>` children, while
+  `VirtualList` renders its window with `div` wrappers and absolute
+  positioning. Adopting it would require changing the list markup or adding a
+  wrapper-tag option to the shared primitive.
+- The 2 px flex gap would need to become a row margin (or a 36 px row box) to
+  match the virtual `itemHeight`.
+
+Phase 6 (library shell/navigation) can restructure the panel and then virtualize
+the context list without nested scrolling or sticky-header regressions.
 
 ### T4.4 — After-baseline and verification
 
@@ -635,6 +666,7 @@ change, no event while paused and unchanged, idle CPU <2%.
 | T4.1 | `feat(state): drive player state from the engine event stream` |
 | T4.1 review corrections | `fix(state): harden stream revisions, queue loading and skin progress` |
 | T4.2 | `perf(art): add size variants, single-flight and a disk cache` |
+| T4.3 | `perf(ui): stop idle animation work and virtualize long lists` |
 
 The commit hashes are recorded in T4.4 together with the after-baseline, so the
 task commit stays self-contained.
@@ -690,3 +722,4 @@ task commit stays self-contained.
 | 2026-11-04 | T4.1 | `feat(state)` | `/events` WebSocket client, `Streamer` + revisioned `EngineProvider.Stream` (100 ms coalesce, 15 s reconcile, change-only emit), on-demand `Provider.Queue`, streaming player adapter with fallback ticker, frontend queue/position/revision stores and authenticated-only audio polling; Go race and frontend checks green |
 | 2026-11-04 | T4.1 review corrections | `fix(state)` | Stopped state on engine loss, capture-ordered revisions, queue loading placeholders, interpolated skin progress, track-scoped queue reload, subscribe-before-fetch, watcher-before-fetch with reconcile dirt clearing, demo state without the queue and reconnect logging |
 | 2026-11-04 | T4.2 | `perf(art)` | `GET /art/{key}?size=` variants (64/128/240/640, JPEG q85, no upscale), per-`key@size` single-flight, 256 MiB disk LRU of resized variants with scan/write eviction, `disk_hit` diagnostics, 256-entry/64 MiB memory bounds, `coverURL`/`coverLoading` wired into the frontend covers |
+| 2026-11-04 | T4.3 | `perf(ui)` | Progress and both visualizers now start rAF loops only while playing, visible and (for visualizers) not reduced-motion; loops cancel on pause/hide with a final static frame; visualizer frame cap at 30 fps; skin progress paused-state and unmount cleanup covered by tests; context-list virtualization deferred to Phase 6 (34 px row + 2 px gap, shared scroll container) |

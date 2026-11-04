@@ -53,4 +53,42 @@ describe("skin Progress", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(slider.getAttribute("aria-valuetext")).toBe("0:01 of 3:00");
   });
+
+  it("updates the shown position when the paused state changes", async () => {
+    playerMock.state = {
+      ...createPlayerState(),
+      status: Status.StatusPaused,
+      progressMs: 1_000,
+      capturedAt: 0,
+      durationMs: 180_000,
+    };
+    render(Progress);
+    await tick();
+
+    const slider = screen.getByRole("slider", { name: "Playback position" });
+    expect(slider.getAttribute("aria-valuetext")).toBe("0:01 of 3:00");
+
+    playerMock.state = {
+      ...playerMock.state,
+      progressMs: 61_000,
+    };
+    await tick();
+    expect(slider.getAttribute("aria-valuetext")).toBe("1:01 of 3:00");
+  });
+
+  it("clears the playback interval on unmount", async () => {
+    playerMock.state = {
+      ...createPlayerState(),
+      status: Status.StatusPlaying,
+      progressMs: 1_000,
+      capturedAt: Date.now() - 1_000,
+      durationMs: 180_000,
+    };
+    const result = render(Progress);
+    await tick();
+    expect(vi.getTimerCount()).toBe(1);
+
+    result.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
