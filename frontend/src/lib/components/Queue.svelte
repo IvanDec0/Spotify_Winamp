@@ -1,20 +1,22 @@
 <script lang="ts">
   import type { QueueItem } from "../../shared/api/types";
+  import { t } from "../../shared/i18n";
   import { formatTime } from "../format";
   import CoverArt from "./CoverArt.svelte";
 
   interface Props {
     items: QueueItem[];
     provider?: string;
+    loading?: boolean;
   }
 
-  let { items, provider = "demo" }: Props = $props();
+  let { items, provider = "demo", loading = false }: Props = $props();
 
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
   let queueNote = $derived(provider === "demo" ? "Demo queue" : "Local queue");
 </script>
 
-<section class="queue" aria-label="Playback queue">
+<section class="queue" aria-label="Playback queue" aria-busy={loading}>
   <header class="queue-head">
     <div class="queue-heading">
       <span class="eyebrow">Up next</span>
@@ -24,7 +26,11 @@
   </header>
 
   {#if items.length === 0}
-    <p class="queue-empty">Nothing queued. Start a track in the Library.</p>
+    {#if loading}
+      <p class="queue-empty" role="status">{t("ui.loading")}</p>
+    {:else}
+      <p class="queue-empty">Nothing queued. Start a track in the Library.</p>
+    {/if}
   {:else}
     <ol class="queue-list">
       {#each items as item (item.index)}

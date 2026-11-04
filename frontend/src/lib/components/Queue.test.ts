@@ -53,4 +53,12 @@ describe("Queue", () => {
     render(Queue, { props: { items: [] } });
     expect(screen.getByText(/Nothing queued/)).not.toBeNull();
   });
+
+  it("shows a loading placeholder instead of a false empty state", () => {
+    render(Queue, { props: { items: [], loading: true } });
+
+    expect(screen.getByRole("status").textContent).toContain("Loading");
+    expect(screen.queryByText(/Nothing queued/)).toBeNull();
+    expect(document.querySelector(".queue")?.getAttribute("aria-busy")).toBe("true");
+  });
 });

@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { music } from "./lib/music.svelte";
 import { preferences } from "./lib/preferences.svelte";
 import { skins } from "./lib/skins.svelte";
+import { createPlayerState, playerMock } from "./lib/testing/player-mock.svelte";
 
 const mocks = vi.hoisted(() => {
   const setSize = vi.fn(() => Promise.resolve());
@@ -21,91 +23,6 @@ const mocks = vi.hoisted(() => {
   const startRadio = vi.fn(() => Promise.resolve());
   const minimise = vi.fn(() => Promise.resolve());
   const close = vi.fn(() => Promise.resolve());
-
-  const state = {
-    provider: "demo",
-    status: "playing",
-    track: {
-      id: "neon-meridian",
-      title: "Neon Meridian",
-      artists: ["Aster Vale"],
-      album: "Night Cartography",
-      cover: "meridian",
-      uri: "",
-      durationMs: 252_000,
-    },
-    progressMs: 38_000,
-    durationMs: 252_000,
-    volume: 64,
-    shuffle: false,
-    repeat: "off",
-    device: {
-      id: "studio",
-      name: "Studio monitors",
-      type: "speaker",
-      active: true,
-      volumePercent: 64,
-      restricted: false,
-    },
-    devices: [
-      {
-        id: "studio",
-        name: "Studio monitors",
-        type: "speaker",
-        active: true,
-        volumePercent: 64,
-        restricted: false,
-      },
-      {
-        id: "living-room",
-        name: "Living room",
-        type: "speaker",
-        active: false,
-        volumePercent: 38,
-        restricted: false,
-      },
-    ],
-    queue: [
-      {
-        track: {
-          id: "neon-meridian",
-          title: "Neon Meridian",
-          artists: ["Aster Vale"],
-          album: "Night Cartography",
-          cover: "meridian",
-          uri: "",
-          durationMs: 252_000,
-        },
-        index: 0,
-        isCurrent: true,
-        isNext: false,
-      },
-    ],
-    canSeek: true,
-    canControl: true,
-    revision: 3,
-  };
-
-  const player = {
-    state,
-    queue: [],
-    positionMs: 38_000,
-    error: null as string | null,
-    start: vi.fn(() => Promise.resolve()),
-    stop: vi.fn(),
-    loadQueue: vi.fn(() => Promise.resolve()),
-    toggle: vi.fn(() => Promise.resolve()),
-    play: vi.fn(() => Promise.resolve()),
-    pause: vi.fn(() => Promise.resolve()),
-    next: vi.fn(() => Promise.resolve()),
-    previous: vi.fn(() => Promise.resolve()),
-    seek: vi.fn(() => Promise.resolve()),
-    setVolume: vi.fn(() => Promise.resolve()),
-    toggleShuffle: vi.fn(() => Promise.resolve()),
-    cycleRepeat: vi.fn(() => Promise.resolve()),
-    transfer: vi.fn(() => Promise.resolve()),
-    dismissError: vi.fn(),
-  };
 
   const catalog = {
     skins: [
@@ -182,7 +99,6 @@ const mocks = vi.hoisted(() => {
     startRadio,
     minimise,
     close,
-    player,
     catalog,
     runtime,
     audio,
@@ -212,7 +128,10 @@ vi.mock("@wailsio/runtime", () => ({
   System: { invoke: vi.fn() },
 }));
 
-vi.mock("./lib/player.svelte", () => ({ player: mocks.player }));
+vi.mock("./lib/player.svelte", async () => {
+  const { playerMock: player } = await import("./lib/testing/player-mock.svelte");
+  return { player };
+});
 
 vi.mock("../bindings/cadence/internal/platform", () => ({
   WindowService: { SetSize: mocks.setSize },
@@ -259,8 +178,12 @@ import App from "./App.svelte";
 describe("App shell", () => {
   beforeEach(() => {
     mocks.setSize.mockClear();
-    mocks.player.toggle.mockClear();
-    mocks.player.transfer.mockClear();
+    playerMock.state = createPlayerState();
+    playerMock.queue = [];
+    playerMock.queueLoading = false;
+    playerMock.loadQueue.mockClear();
+    playerMock.toggle.mockClear();
+    playerMock.transfer.mockClear();
     preferences.setTheme("graphite");
     preferences.setMotion("system");
     skins.queueOpen = false;
@@ -293,6 +216,28 @@ describe("App shell", () => {
     expect(screen.queryByLabelText("Playback queue")).toBeNull();
   });
 
+  it("loads the queue on open and only again when the track URI changes", async () => {
+    render(App);
+    await tick();
+    expect(playerMock.loadQueue).not.toHaveBeenCalled();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Show queue" }));
+    await waitFor(() => expect(playerMock.loadQueue).toHaveBeenCalledTimes(1));
+
+    // Applied states with the same track must not reload the queue.
+    playerMock.state = { ...playerMock.state, volume: 70 };
+    await tick();
+    playerMock.state = { ...playerMock.state, progressMs: 40_000 };
+    await tick();
+    expect(playerMock.loadQueue).toHaveBeenCalledTimes(1);
+
+    playerMock.state = {
+      ...playerMock.state,
+      track: { ...playerMock.state.track, uri: "spotify:track:2" },
+    };
+    await waitFor(() => expect(playerMock.loadQueue).toHaveBeenCalledTimes(2));
+  });
+
   it("opens appearance settings, changes the theme and closes with Escape", async () => {
     render(App);
 
@@ -317,7 +262,7 @@ describe("App shell", () => {
     expect(screen.getByRole("dialog", { name: "Playback devices" })).not.toBeNull();
 
     await fireEvent.click(screen.getByRole("button", { name: "Living room" }));
-    expect(mocks.player.transfer).toHaveBeenCalledWith("living-room");
+    expect(playerMock.transfer).toHaveBeenCalledWith("living-room");
     expect(screen.queryByRole("dialog", { name: "Playback devices" })).toBeNull();
   });
 
@@ -325,21 +270,21 @@ describe("App shell", () => {
     render(App);
 
     await fireEvent.keyDown(window, { key: " " });
-    expect(mocks.player.toggle).toHaveBeenCalledOnce();
+    expect(playerMock.toggle).toHaveBeenCalledOnce();
 
     await fireEvent.keyDown(window, { key: "ArrowRight" });
-    expect(mocks.player.seek).toHaveBeenCalledWith(43_000);
+    expect(playerMock.seek).toHaveBeenCalledWith(43_000);
 
-    mocks.player.toggle.mockClear();
+    playerMock.toggle.mockClear();
     await fireEvent.keyDown(screen.getByRole("slider", { name: "Playback position" }), {
       key: " ",
     });
-    expect(mocks.player.toggle).not.toHaveBeenCalled();
+    expect(playerMock.toggle).not.toHaveBeenCalled();
   });
 
   it("ignores shortcuts when another handler already prevented the default", () => {
     render(App);
-    mocks.player.toggle.mockClear();
+    playerMock.toggle.mockClear();
 
     const event = new KeyboardEvent("keydown", {
       key: " ",
@@ -349,7 +294,7 @@ describe("App shell", () => {
     event.preventDefault();
     window.dispatchEvent(event);
 
-    expect(mocks.player.toggle).not.toHaveBeenCalled();
+    expect(playerMock.toggle).not.toHaveBeenCalled();
   });
 
   it("opens the skin library from appearance settings", async () => {

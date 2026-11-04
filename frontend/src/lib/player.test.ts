@@ -1,10 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  getState: vi.fn(),
-  getQueue: vi.fn(),
-  onPlayerState: vi.fn(() => () => {}),
-}));
+const mocks = vi.hoisted(() => {
+  const captured: { handler: ((state: PlayerState) => void) | null } = { handler: null };
+  const unsubscribe = vi.fn();
+  const onPlayerState = vi.fn((handler: (state: PlayerState) => void) => {
+    captured.handler = handler;
+    return unsubscribe;
+  });
+  return {
+    getState: vi.fn(),
+    getQueue: vi.fn(),
+    captured,
+    unsubscribe,
+    onPlayerState,
+  };
+});
 
 vi.mock("../shared/api", () => ({
   player: {
@@ -75,9 +85,12 @@ function queueItem(index: number): QueueItem {
 
 describe("player store", () => {
   beforeEach(() => {
+    player.stop();
     player.apply(state({ revision: 0 }));
     player.queue = [];
     mocks.getQueue.mockReset();
+    mocks.getState.mockReset();
+    mocks.onPlayerState.mockClear();
   });
 
   it("drops stale states and accepts equal or newer revisions", () => {
@@ -169,5 +182,22 @@ describe("player store", () => {
     await player.loadQueue();
     expect(player.queue).toHaveLength(1);
     expect(player.error).toBeNull();
+  });
+
+  it("subscribes before fetching and keeps the subscription after a failure", async () => {
+    mocks.getState.mockRejectedValueOnce(new Error("offline"));
+
+    await player.start();
+    expect(mocks.onPlayerState).toHaveBeenCalledTimes(1);
+    expect(player.ready).toBe(false);
+    expect(player.error).toBe("offline");
+
+    mocks.captured.handler?.(state({ revision: 9, volume: 77 }));
+    expect(player.state.volume).toBe(77);
+
+    mocks.getState.mockResolvedValueOnce(state({ revision: 10 }));
+    await player.start();
+    expect(mocks.onPlayerState).toHaveBeenCalledTimes(1);
+    expect(player.ready).toBe(true);
   });
 });

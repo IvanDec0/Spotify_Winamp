@@ -168,27 +168,37 @@ func TestDemoProviderShuffleRepeatAndTransfer(t *testing.T) {
 func TestDemoProviderQueueIsOrderedAndCopied(t *testing.T) {
 	provider, _ := newTestProvider(t)
 	state := mustState(t, provider)
-
-	if len(state.Queue) != len(provider.tracks) {
-		t.Fatalf("queue length = %d, want %d", len(state.Queue), len(provider.tracks))
+	if len(state.Queue) != 0 {
+		t.Fatalf("state queue = %#v, want empty", state.Queue)
 	}
-	if !state.Queue[0].IsCurrent {
+
+	queue, err := provider.Queue(context.Background())
+	if err != nil {
+		t.Fatalf("Queue() error = %v", err)
+	}
+	if len(queue) != len(provider.tracks) {
+		t.Fatalf("queue length = %d, want %d", len(queue), len(provider.tracks))
+	}
+	if !queue[0].IsCurrent {
 		t.Fatal("first queue item should be current")
 	}
-	if !state.Queue[1].IsNext {
+	if !queue[1].IsNext {
 		t.Fatal("second queue item should be next")
 	}
-	if state.Queue[0].Track.ID != state.Track.ID {
-		t.Fatalf("queue current = %q, track = %q", state.Queue[0].Track.ID, state.Track.ID)
+	if queue[0].Track.ID != state.Track.ID {
+		t.Fatalf("queue current = %q, track = %q", queue[0].Track.ID, state.Track.ID)
 	}
 
-	state.Queue[0].Track.Artists[0] = "Mutated"
+	queue[0].Track.Artists[0] = "Mutated"
 	state.Devices[0].Name = "Mutated"
-	next := mustState(t, provider)
-	if next.Queue[0].Track.Artists[0] == "Mutated" {
+	nextQueue, err := provider.Queue(context.Background())
+	if err != nil {
+		t.Fatalf("Queue() second error = %v", err)
+	}
+	if nextQueue[0].Track.Artists[0] == "Mutated" {
 		t.Fatal("queue artists were not copied")
 	}
-	if next.Devices[0].Name == "Mutated" {
+	if mustState(t, provider).Devices[0].Name == "Mutated" {
 		t.Fatal("devices were not copied")
 	}
 }

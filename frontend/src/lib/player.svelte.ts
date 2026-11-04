@@ -88,11 +88,15 @@ class PlayerStore {
   async start(): Promise<void> {
     if (this.ready || this.#starting) return;
     this.#starting = true;
-    try {
-      this.apply(await playerApi.getState());
+    // Subscribe before the first fetch: a transient RPC failure must not leave
+    // the store blind to streamed state changes.
+    if (!this.#unsubscribe) {
       this.#unsubscribe = onPlayerState((state) => {
         this.apply(state);
       });
+    }
+    try {
+      this.apply(await playerApi.getState());
       this.ready = true;
       this.error = null;
     } catch (error) {

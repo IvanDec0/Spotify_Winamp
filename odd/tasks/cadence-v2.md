@@ -633,9 +633,28 @@ change, no event while paused and unchanged, idle CPU <2%.
 | Task | Commit |
 |---|---|
 | T4.1 | `feat(state): drive player state from the engine event stream` |
+| T4.1 review corrections | `fix(state): harden stream revisions, queue loading and skin progress` |
 
 The commit hashes are recorded in T4.4 together with the after-baseline, so the
 task commit stays self-contained.
+
+### T4.1 review corrections — 2026-11-04
+
+- Engine loss publishes a stopped `audio_unavailable` snapshot before `Stream`
+  returns, so the frontend stops interpolating the last position.
+- Fetches carry a capture sequence; a slow fetch can no longer stamp a newer
+  revision with an older snapshot.
+- Queue panels show a loading placeholder instead of a false empty state, and
+  reload only when the tracked track URI changes rather than on every applied
+  state.
+- The skin progress control interpolates from `player.positionMs` with a 250 ms
+  tick that stops while paused, dragging or hidden.
+- `player.start()` subscribes before the first fetch, so a failed initial RPC
+  still receives streamed states.
+- The event watcher starts before the initial status fetch; a reconcile clears
+  the dirty flag so one event cannot cause two `/status` requests.
+- The demo state no longer embeds the queue; `Queue()` remains the on-demand
+  path. Reconnect attempts are logged with the error and backoff.
 
 ## Progress log
 
@@ -668,3 +687,4 @@ task commit stays self-contained.
 | 2026-11-04 | T3.4 review correction 2 | `85de8a9` | README repository tree, plan header and docs index aligned with the Phase 3 split; ADR-0001 constructors/logging claims corrected; architecture Wails boundary includes `main.go`; performance-baseline paths point at the new packages without changing measurements |
 | 2026-11-04 | Phase 3 close | `docs(odd): close Phase 3` | Split complete at 85de8a9; 80.4% catalog coverage; bindings and frontend green; live smoke test and runtime baseline pending |
 | 2026-11-04 | T4.1 | `feat(state)` | `/events` WebSocket client, `Streamer` + revisioned `EngineProvider.Stream` (100 ms coalesce, 15 s reconcile, change-only emit), on-demand `Provider.Queue`, streaming player adapter with fallback ticker, frontend queue/position/revision stores and authenticated-only audio polling; Go race and frontend checks green |
+| 2026-11-04 | T4.1 review corrections | `fix(state)` | Stopped state on engine loss, capture-ordered revisions, queue loading placeholders, interpolated skin progress, track-scoped queue reload, subscribe-before-fetch, watcher-before-fetch with reconcile dirt clearing, demo state without the queue and reconnect logging |

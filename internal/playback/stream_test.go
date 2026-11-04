@@ -154,11 +154,106 @@ func TestEngineProviderStreamPublishesOnlyChanges(t *testing.T) {
 	}
 }
 
-func TestEngineProviderStreamRequiresClient(t *testing.T) {
+func TestEngineProviderStreamEmitsUnavailableWithoutClient(t *testing.T) {
 	provider := NewEngineProvider(engine.NewSupervisor(engine.Options{}), nil)
-	err := provider.Stream(context.Background(), func(PlayerState) {})
+	var states []PlayerState
+	err := provider.Stream(context.Background(), func(state PlayerState) {
+		states = append(states, state)
+	})
 	if err == nil {
 		t.Fatal("Stream() error = nil, want an unavailable engine error")
+	}
+	if len(states) != 1 {
+		t.Fatalf("emitted states = %d, want exactly 1", len(states))
+	}
+	state := states[0]
+	if state.Status == StatusPlaying {
+		t.Fatalf("status = %q, want a stopped state", state.Status)
+	}
+	if state.Error == nil || state.Error.Code != "audio_unavailable" {
+		t.Fatalf("error = %#v, want audio_unavailable", state.Error)
+	}
+	if state.Error.Message != "The local audio engine is not running." {
+		t.Fatalf("error message = %q", state.Error.Message)
+	}
+}
+
+func TestEngineProviderIgnoresOutOfOrderFetches(t *testing.T) {
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	var calls atomic.Int64
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/status" {
+			http.NotFound(writer, request)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		if calls.Add(1) == 1 {
+			close(firstStarted)
+			<-releaseFirst
+			_, _ = writer.Write([]byte(`{
+				"username":"user","device_id":"dev","device_name":"Cadence","device_type":"COMPUTER",
+				"stopped":false,"paused":false,"volume":20,"volume_steps":100,
+				"track":{"uri":"spotify:track:1","name":"Old","duration":1000,"position":100,"artist_names":["Artist"],"album_name":"Album"}
+			}`))
+			return
+		}
+		_, _ = writer.Write([]byte(`{
+			"username":"user","device_id":"dev","device_name":"Cadence","device_type":"COMPUTER",
+			"stopped":false,"paused":true,"volume":40,"volume_steps":100,
+			"track":{"uri":"spotify:track:1","name":"New","duration":1000,"position":100,"artist_names":["Artist"],"album_name":"Album"}
+		}`))
+	}))
+	defer server.Close()
+
+	runtime := engine.NewSupervisor(engine.Options{Client: engine.NewClient(server.URL, server.Client())})
+	provider := NewEngineProvider(runtime, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	states := make(chan PlayerState, 4)
+	errs := make(chan error, 2)
+	var stale PlayerState
+	go func() {
+		state, err := provider.refresh(ctx, func(state PlayerState) {
+			states <- state
+		})
+		stale = state
+		errs <- err
+	}()
+
+	select {
+	case <-firstStarted:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the first status request did not start")
+	}
+
+	newer, err := provider.refresh(ctx, func(state PlayerState) {
+		states <- state
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newer.Volume != 40 || newer.Revision != 1 {
+		t.Fatalf("newer state = %#v", newer)
+	}
+	emitted := waitForState(t, states)
+	if emitted.Volume != 40 || emitted.Revision != 1 {
+		t.Fatalf("emitted state = %#v", emitted)
+	}
+
+	close(releaseFirst)
+	if err := <-errs; err != nil {
+		t.Fatal(err)
+	}
+	if stale.Volume != 40 || stale.Revision != 1 {
+		t.Fatalf("stale fetch returned %#v, want the newer snapshot", stale)
+	}
+	select {
+	case extra := <-states:
+		t.Fatalf("stale fetch emitted %#v", extra)
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 

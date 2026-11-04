@@ -36,10 +36,12 @@ type EngineProvider struct {
 	contextFetched  time.Time
 	contextFailedAt time.Time
 
-	streamMu  sync.Mutex
-	revision  uint64
-	lastState PlayerState
-	hasState  bool
+	streamMu   sync.Mutex
+	revision   uint64
+	lastState  PlayerState
+	hasState   bool
+	appliedSeq uint64
+	fetchSeq   atomic.Uint64
 }
 
 func NewEngineProvider(runtime *engine.Supervisor, art *artwork.Cache) *EngineProvider {
@@ -47,11 +49,11 @@ func NewEngineProvider(runtime *engine.Supervisor, art *artwork.Cache) *EnginePr
 }
 
 func (p *EngineProvider) State(ctx context.Context) (PlayerState, error) {
-	state, err := p.fetch(ctx)
+	state, seq, err := p.fetch(ctx)
 	if err != nil {
 		return PlayerState{}, err
 	}
-	return p.publish(state, nil), nil
+	return p.publish(state, seq, nil), nil
 }
 
 // Queue fetches the playback queue on demand. It is separate from State so
@@ -77,12 +79,14 @@ func (p *EngineProvider) Queue(ctx context.Context) ([]QueueItem, error) {
 func (p *EngineProvider) Stream(ctx context.Context, emit func(PlayerState)) error {
 	client := p.runtime.Client()
 	if client == nil {
+		// Publish the stopped state before returning so a crashed engine does
+		// not leave the frontend interpolating the last known position.
+		p.publish(unavailableState("The local audio engine is not running."), p.fetchSeq.Add(1), emit)
 		return errors.New("the local audio engine is not running")
 	}
-	if _, err := p.refresh(ctx, emit); err != nil {
-		return err
-	}
 
+	// Watch before the initial fetch: events that land while it is in flight
+	// set the dirty flag and are refreshed on the next coalescing tick.
 	watchCtx, stopWatch := context.WithCancel(ctx)
 	defer stopWatch()
 	eventsDone := make(chan error, 1)
@@ -92,6 +96,10 @@ func (p *EngineProvider) Stream(ctx context.Context, emit func(PlayerState)) err
 			dirty.Store(true)
 		})
 	}()
+
+	if _, err := p.refresh(ctx, emit); err != nil {
+		return err
+	}
 
 	refreshTicker := time.NewTicker(streamRefreshInterval)
 	defer refreshTicker.Stop()
@@ -118,22 +126,33 @@ func (p *EngineProvider) Stream(ctx context.Context, emit func(PlayerState)) err
 			if _, err := p.refresh(ctx, emit); err != nil {
 				return err
 			}
+			// The reconcile snapshot already covers events that landed while
+			// it was in flight, so do not refresh again on the next tick.
+			dirty.Store(false)
 		}
 	}
 }
 
 func (p *EngineProvider) refresh(ctx context.Context, emit func(PlayerState)) (PlayerState, error) {
-	state, err := p.fetch(ctx)
+	state, seq, err := p.fetch(ctx)
 	if err != nil {
 		return PlayerState{}, err
 	}
-	return p.publish(state, emit), nil
+	return p.publish(state, seq, emit), nil
 }
 
 // publish stamps a new revision when the state changed and calls emit only
-// then. Unchanged states keep the previous revision and capture timestamp.
-func (p *EngineProvider) publish(state PlayerState, emit func(PlayerState)) PlayerState {
+// then. Fetches carry a start sequence: a slow response that arrives after a
+// newer capture was applied is discarded instead of reviving stale state.
+// Unchanged states keep the previous revision and capture timestamp.
+func (p *EngineProvider) publish(state PlayerState, seq uint64, emit func(PlayerState)) PlayerState {
 	p.streamMu.Lock()
+	if seq < p.appliedSeq {
+		latest := p.lastState
+		p.streamMu.Unlock()
+		return latest
+	}
+	p.appliedSeq = seq
 	if p.hasState && sameStreamedState(p.lastState, state) {
 		state.Revision = p.revision
 		state.CapturedAt = p.lastState.CapturedAt
@@ -159,22 +178,23 @@ func sameStreamedState(left, right PlayerState) bool {
 	return reflect.DeepEqual(left, right)
 }
 
-func (p *EngineProvider) fetch(ctx context.Context) (PlayerState, error) {
+func (p *EngineProvider) fetch(ctx context.Context) (PlayerState, uint64, error) {
+	seq := p.fetchSeq.Add(1)
 	client := p.runtime.Client()
 	if client == nil {
-		return unavailableState("The local audio engine is starting."), nil
+		return unavailableState("The local audio engine is starting."), seq, nil
 	}
 	status, err := client.Status(ctx)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return PlayerState{}, ctxErr
+			return PlayerState{}, seq, ctxErr
 		}
-		return unavailableState("Cannot reach the local audio engine: " + err.Error()), nil
+		return unavailableState("Cannot reach the local audio engine: " + err.Error()), seq, nil
 	}
 	if status == nil {
 		state := unavailableState("Pair Cadence with Spotify to start playing music.")
 		state.Error.Code = "not_authenticated"
-		return state, nil
+		return state, seq, nil
 	}
 
 	state := PlayerState{
@@ -224,7 +244,7 @@ func (p *EngineProvider) fetch(ctx context.Context) (PlayerState, error) {
 	}
 	state.Device = device
 	state.Devices = []Device{device}
-	return state, nil
+	return state, seq, nil
 }
 
 func (p *EngineProvider) Play(ctx context.Context) error {

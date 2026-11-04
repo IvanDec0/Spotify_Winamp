@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"reflect"
 	"sync"
 	"time"
@@ -207,13 +208,17 @@ func (s *Service) runStream(ctx context.Context, provider Provider, done chan st
 	backoff := initialStreamBackoff
 	for {
 		started := time.Now()
-		_ = streamer.Stream(ctx, s.emit)
+		err := streamer.Stream(ctx, s.emit)
 		if ctx.Err() != nil {
 			return
 		}
 		if time.Since(started) >= healthyStreamRun {
 			backoff = initialStreamBackoff
 		}
+		if err == nil {
+			err = errors.New("the state stream closed")
+		}
+		log.Printf("player: state stream stopped: %v; reconnecting in %s", err, backoff)
 		timer := time.NewTimer(backoff)
 		select {
 		case <-ctx.Done():

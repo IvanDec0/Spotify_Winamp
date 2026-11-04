@@ -39,6 +39,7 @@
   let lastSkinWindow = "";
 
   let queueOpen = $derived(skins.queueOpen);
+  let queueTrackUri = $derived(player.state.track.uri);
   let declarative = $derived(skins.isDeclarative);
   let baseHeight = $derived(
     declarative ? (skins.runtime?.baseHeight ?? WINDOW_HEIGHT) : WINDOW_HEIGHT,
@@ -198,7 +199,6 @@
       queueClosing = false;
       if (!queueOpen) skins.queueOpen = true;
       closePopovers();
-      void player.loadQueue();
       return;
     }
 
@@ -374,7 +374,7 @@
 
   $effect(() => {
     if (!queueOpen) return;
-    if (!player.state.track.uri) return;
+    if (!queueTrackUri) return;
     void player.loadQueue();
   });
 
@@ -453,7 +453,11 @@
 
         {#if queueOpen}
           <div class="queue-slot" class:is-closing={queueClosing}>
-            <Queue items={player.queue} provider={player.state.provider} />
+            <Queue
+              items={player.queue}
+              provider={player.state.provider}
+              loading={player.queueLoading}
+            />
           </div>
         {/if}
 

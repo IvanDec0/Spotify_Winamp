@@ -317,7 +317,8 @@ func (p *DemoProvider) stateLocked() PlayerState {
 		Repeat:     p.repeat,
 		Device:     device,
 		Devices:    devices,
-		Queue:      p.queueLocked(),
+		// The queue is fetched on demand with Queue(); streamed states stay small.
+		Queue:      []QueueItem{},
 		CanSeek:    true,
 		CanControl: true,
 		Revision:   p.revision,
@@ -370,6 +371,7 @@ func demoTracks() []Track {
 	return []Track{
 		{
 			ID:         "neon-meridian",
+			URI:        "demo:track:neon-meridian",
 			Title:      "Neon Meridian",
 			Artists:    []string{"Aster Vale"},
 			Album:      "Night Cartography",
@@ -378,6 +380,7 @@ func demoTracks() []Track {
 		},
 		{
 			ID:         "glass-tides",
+			URI:        "demo:track:glass-tides",
 			Title:      "Glass Tides",
 			Artists:    []string{"Lumen Field"},
 			Album:      "Soft Machines",
@@ -386,6 +389,7 @@ func demoTracks() []Track {
 		},
 		{
 			ID:         "slow-orbit",
+			URI:        "demo:track:slow-orbit",
 			Title:      "Slow Orbit",
 			Artists:    []string{"Kite Assembly"},
 			Album:      "Perihelion",
@@ -394,6 +398,7 @@ func demoTracks() []Track {
 		},
 		{
 			ID:         "afterimage",
+			URI:        "demo:track:afterimage",
 			Title:      "Afterimage",
 			Artists:    []string{"Sable Coast"},
 			Album:      "Chromatic Drift",
@@ -402,6 +407,7 @@ func demoTracks() []Track {
 		},
 		{
 			ID:         "signal-bloom",
+			URI:        "demo:track:signal-bloom",
 			Title:      "Signal Bloom",
 			Artists:    []string{"Vera Static"},
 			Album:      "Quiet Voltage",
@@ -410,6 +416,7 @@ func demoTracks() []Track {
 		},
 		{
 			ID:         "night-bus",
+			URI:        "demo:track:night-bus",
 			Title:      "Night Bus",
 			Artists:    []string{"The Long Return"},
 			Album:      "City in Amber",
