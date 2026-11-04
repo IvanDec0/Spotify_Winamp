@@ -163,28 +163,44 @@ Other static properties that affect the baseline:
   `internal/engine/supervisor.go`) and are rendered without virtualization
   (`frontend/src/lib/MusicBrowser.svelte`).
 
-## Baseline table (fill on the reference machine)
+## Baseline table (reference machine)
 
 Reference machine:
 
 | Item | Value |
 |---|---|
-| Machine / CPU / RAM | (fill) |
-| OS / kernel | (fill) |
-| Cadence commit | (fill) |
+| Machine / CPU / RAM | pending |
+| OS / kernel | pending |
+| Cadence commit | `b5e326c` (Phase 3 close) |
 | Engine pin | `v0.10.6-0.20261104085532-16b65bb4cd2b` |
-| Build command and build tags | (fill) |
-| Window size / active skin | (fill) |
+| Build command and build tags | `task build` |
+| Window size / active skin | pending |
+| Captured at | 2026-11-04, idle with an authenticated session |
 
 Measurements:
 
-| Metric | How measured | Baseline (fill) | Phase 4 target |
+| Metric | How measured | Baseline | Phase 4 target |
 |---|---|---|---|
-| Idle engine request rate | `engine_total.requests` delta over 60 s | (fill) | ≤ 0.2 req/s |
-| `player:state` payload | `events["player:state"].bytes / count` | (fill) | ≤ 4 KB per change |
-| Idle CPU | mean over a 60 s `pidstat`/`top` sample | (fill) | < 2% |
-| RSS stability | RSS every 30 s for 10 minutes | (fill) | stable over 10 minutes |
-| 800-row scroll | DevTools performance / manual pass | (fill) | smooth, no dropped frames |
+| Idle engine request rate | `engine_total.requests` delta over 60 s | **2.5 req/s** (150 requests in 60 s) | ≤ 0.2 req/s |
+| Engine response bytes | `engine_total.bytes_out` delta | 396 B/request (59,400 B in 60 s) | — |
+| Engine latency | `engine_total.latency_ms_total` delta | 0.87 ms/request (130.5 ms in 60 s) | — |
+| `player:state` payload | `events["player:state"].bytes / count` | pending (not in the captured sample) | ≤ 4 KB per change |
+| Idle CPU | mean over a 60 s `pidstat`/`top` sample | pending | < 2% |
+| RSS stability | RSS every 30 s for 10 minutes | pending | stable over 10 minutes |
+| 800-row scroll | DevTools performance / manual pass | pending | smooth, no dropped frames |
+
+Captured `engine_total` samples (60 s apart):
+
+```json
+{"requests":396,"errors":1,"bytes_in":0,"bytes_out":152881,"latency_ms_total":288.42264099999994}
+{"requests":546,"errors":1,"bytes_in":0,"bytes_out":212281,"latency_ms_total":418.9707769999999}
+```
+
+The single error is unchanged between samples and is a startup error, not idle
+traffic. The measured 2.5 req/s matches the static estimate exactly: 2.0 from
+the 500 ms player ticker plus 0.5 from the 2 s frontend `GetState` poll. The
+`player:state` payload, CPU, RSS and scroll rows still need capture before the
+Phase 4 after-comparison is complete; the request-rate gate is the primary one.
 
 ## Phase 4 gates
 
