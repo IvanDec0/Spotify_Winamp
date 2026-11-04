@@ -1,4 +1,5 @@
-package golibrespot
+// Package audioapi is the Wails adapter for the catalog and engine services.
+package audioapi
 
 import (
 	"context"
@@ -16,16 +17,15 @@ import (
 // pairing state.
 const AudioEvent = "audio:state"
 
-// ServiceOptions wires the temporary Wails audio adapter.
-type ServiceOptions struct {
+// Options wires the audio service.
+type Options struct {
 	Catalog    *catalog.Service
 	Supervisor *engine.Supervisor
 	Enabled    bool
 }
 
 // Service exposes the local audio engine, pairing and library browsing to the
-// frontend. It never exposes stored playback credentials. It is a temporary
-// adapter that moves to internal/wailsapi/audio in Phase 3.
+// frontend. It never exposes stored playback credentials.
 type Service struct {
 	catalog    *catalog.Service
 	supervisor *engine.Supervisor
@@ -35,7 +35,7 @@ type Service struct {
 	app *application.App
 }
 
-func NewService(options ServiceOptions) *Service {
+func NewService(options Options) *Service {
 	return &Service{
 		catalog:    options.Catalog,
 		supervisor: options.Supervisor,
@@ -48,7 +48,7 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 	s.app = application.Get()
 	app := s.app
 	s.mu.Unlock()
-	s.supervisor.SetEmitter(func(state engine.AudioState) {
+	s.supervisor.SetEmitter(func(state AudioState) {
 		if app != nil {
 			app.Event.Emit(AudioEvent, state)
 		}
@@ -70,7 +70,7 @@ func (s *Service) ServiceShutdown() error {
 }
 
 // GetState returns the engine and pairing state.
-func (s *Service) GetState() engine.AudioState {
+func (s *Service) GetState() AudioState {
 	return s.catalog.GetState()
 }
 
@@ -92,33 +92,33 @@ func (s *Service) OpenPairing() error {
 
 // ResetSession removes the stored go-librespot credentials and starts a new
 // pairing flow.
-func (s *Service) ResetSession() (engine.AudioState, error) {
+func (s *Service) ResetSession() (AudioState, error) {
 	return s.catalog.ResetSession()
 }
 
 // Restart restarts the engine while keeping the paired credentials.
-func (s *Service) Restart() (engine.AudioState, error) {
+func (s *Service) Restart() (AudioState, error) {
 	return s.catalog.Restart()
 }
 
 // Playlists returns a page of the user's library playlists.
-func (s *Service) Playlists(offset, limit int) (engine.PlaylistPage, error) {
+func (s *Service) Playlists(offset, limit int) (PlaylistPage, error) {
 	return s.catalog.Playlists(offset, limit)
 }
 
 // Albums returns a page of the user's saved albums.
-func (s *Service) Albums(offset, limit int) (engine.AlbumPage, error) {
+func (s *Service) Albums(offset, limit int) (AlbumPage, error) {
 	return s.catalog.Albums(offset, limit)
 }
 
 // Artists returns a page of the user's followed artists.
-func (s *Service) Artists(offset, limit int) (engine.ArtistPage, error) {
+func (s *Service) Artists(offset, limit int) (ArtistPage, error) {
 	return s.catalog.Artists(offset, limit)
 }
 
 // ContextTracks lists the tracks of a playlist, album, artist, show or the
 // Liked Songs collection.
-func (s *Service) ContextTracks(uri string) (catalog.LibraryContext, error) {
+func (s *Service) ContextTracks(uri string) (LibraryContext, error) {
 	return s.catalog.ContextTracks(uri)
 }
 
@@ -139,7 +139,7 @@ func (s *Service) AddToQueue(uri string) error {
 }
 
 // Search finds tracks, albums, artists and playlists in the Spotify catalog.
-func (s *Service) Search(query string, limit int) (engine.SearchResults, error) {
+func (s *Service) Search(query string, limit int) (SearchResults, error) {
 	return s.catalog.Search(query, limit)
 }
 

@@ -18,12 +18,13 @@ import (
 	"cadence/internal/catalog"
 	"cadence/internal/diagnostics"
 	"cadence/internal/engine"
-	"cadence/internal/golibrespot"
 	"cadence/internal/platform"
 	"cadence/internal/playback"
-	"cadence/internal/player"
 	"cadence/internal/settings"
 	"cadence/internal/skins"
+	audioapi "cadence/internal/wailsapi/audio"
+	playerapi "cadence/internal/wailsapi/player"
+	skinsapi "cadence/internal/wailsapi/skins"
 
 	"github.com/adrg/xdg"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -63,9 +64,9 @@ const (
 )
 
 func init() {
-	application.RegisterEvent[player.PlayerState](player.StateEvent)
+	application.RegisterEvent[playback.PlayerState](playerapi.StateEvent)
 	application.RegisterEvent[skins.SkinCatalog](skins.ChangedEvent)
-	application.RegisterEvent[engine.AudioState](golibrespot.AudioEvent)
+	application.RegisterEvent[engine.AudioState](audioapi.AudioEvent)
 }
 
 func main() {
@@ -151,17 +152,17 @@ func main() {
 	if !*demoMode {
 		provider = playback.NewEngineProvider(audioRuntime, artCache)
 	}
-	playerService := player.NewService(provider)
+	playerService := playerapi.NewService(provider)
 	artCache.SetRecorder(recorder)
 	playerService.SetRecorder(recorder)
 	windowService := platform.NewWindowService()
-	skinService := skins.NewService(skinManager)
+	skinService := skinsapi.NewService(skinManager)
 	catalogService := catalog.NewService(catalog.Options{
 		Supervisor: audioRuntime,
 		Art:        artCache,
 		Enabled:    !*demoMode,
 	})
-	audioService := golibrespot.NewService(golibrespot.ServiceOptions{
+	audioService := audioapi.NewService(audioapi.Options{
 		Catalog:    catalogService,
 		Supervisor: audioRuntime,
 		Enabled:    !*demoMode,

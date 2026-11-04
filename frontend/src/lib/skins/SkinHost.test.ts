@@ -54,7 +54,7 @@ vi.mock("@wailsio/runtime", () => ({
 
 vi.mock("../player.svelte", () => ({ player: mocks.player }));
 
-vi.mock("../../../bindings/cadence/internal/skins", () => ({
+vi.mock("../../../bindings/cadence/internal/wailsapi/skins", () => ({
   Service: {
     ReportRuntimeReady: mocks.reportReady,
     ReportRuntimeFailure: mocks.reportFailure,

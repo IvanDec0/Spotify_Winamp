@@ -1,4 +1,4 @@
-import { Service } from "../../../bindings/cadence/internal/player";
+import { Service } from "../../../bindings/cadence/internal/wailsapi/player";
 import { call } from "./client";
 
 /**

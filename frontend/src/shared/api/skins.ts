@@ -1,4 +1,4 @@
-import { Service } from "../../../bindings/cadence/internal/skins";
+import { Service } from "../../../bindings/cadence/internal/wailsapi/skins";
 import { call } from "./client";
 
 /**

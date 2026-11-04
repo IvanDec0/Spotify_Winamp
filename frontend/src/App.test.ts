@@ -215,7 +215,7 @@ vi.mock("../bindings/cadence/internal/platform", () => ({
   WindowService: { SetSize: mocks.setSize },
 }));
 
-vi.mock("../bindings/cadence/internal/golibrespot", () => ({
+vi.mock("../bindings/cadence/internal/wailsapi/audio", () => ({
   Service: {
     GetState: vi.fn(() => Promise.resolve(mocks.audio)),
     OpenPairing: vi.fn(() => Promise.resolve()),
@@ -235,7 +235,7 @@ vi.mock("../bindings/cadence/internal/golibrespot", () => ({
   },
 }));
 
-vi.mock("../bindings/cadence/internal/skins", () => ({
+vi.mock("../bindings/cadence/internal/wailsapi/skins", () => ({
   Service: {
     GetCatalog: vi.fn(() => Promise.resolve(mocks.catalog)),
     GetRuntime: vi.fn(() => Promise.resolve(mocks.runtime)),

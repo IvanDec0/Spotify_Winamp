@@ -1,23 +1,25 @@
-package skins
+package skinsapi
 
 import (
 	"context"
 	"errors"
 	"sync"
 
+	"cadence/internal/skins"
+
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Service exposes the skin manager to the frontend.
 type Service struct {
-	manager *Manager
+	manager *skins.Manager
 
 	mu  sync.Mutex
 	app *application.App
 }
 
 // NewService creates the Wails-facing skin service.
-func NewService(manager *Manager) *Service {
+func NewService(manager *skins.Manager) *Service {
 	return &Service{manager: manager}
 }
 
@@ -28,7 +30,7 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 	s.mu.Unlock()
 	s.manager.SetEmitter(func(catalog SkinCatalog) {
 		if app != nil {
-			app.Event.Emit(ChangedEvent, catalog)
+			app.Event.Emit(skins.ChangedEvent, catalog)
 		}
 	})
 	return nil

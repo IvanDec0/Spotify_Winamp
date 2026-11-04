@@ -18,14 +18,14 @@ import * as $models from "./models.js";
  * Activate switches to a skin by id.
  */
 export function Activate(id: string): $CancellablePromise<$models.SkinCatalog> {
-    return $Call.ByID(2878946155, id);
+    return $Call.ByID(2432359250, id);
 }
 
 /**
  * GetCatalog returns the complete skin list and current selection.
  */
 export function GetCatalog(): $CancellablePromise<$models.SkinCatalog> {
-    return $Call.ByID(2753781869);
+    return $Call.ByID(3502348764);
 }
 
 /**
@@ -33,7 +33,7 @@ export function GetCatalog(): $CancellablePromise<$models.SkinCatalog> {
  * skin. Built-in Clarity returns Builtin=true and an empty layout.
  */
 export function GetRuntime(): $CancellablePromise<$models.SkinRuntime> {
-    return $Call.ByID(138100814);
+    return $Call.ByID(3854378103);
 }
 
 /**
@@ -41,7 +41,7 @@ export function GetRuntime(): $CancellablePromise<$models.SkinRuntime> {
  * the dialog helpers below; this method is useful for scripts and tests.
  */
 export function Install(path: string): $CancellablePromise<$models.InstallResult> {
-    return $Call.ByID(1201667433, path);
+    return $Call.ByID(3633212702, path);
 }
 
 /**
@@ -49,14 +49,14 @@ export function Install(path: string): $CancellablePromise<$models.InstallResult
  * selected skin directory.
  */
 export function InstallDirectoryDialog(): $CancellablePromise<$models.InstallResult> {
-    return $Call.ByID(337360308);
+    return $Call.ByID(4214610457);
 }
 
 /**
  * InstallZipDialog opens a native file picker and installs the selected ZIP.
  */
 export function InstallZipDialog(): $CancellablePromise<$models.InstallResult> {
-    return $Call.ByID(596315040);
+    return $Call.ByID(1185452321);
 }
 
 /**
@@ -64,7 +64,7 @@ export function InstallZipDialog(): $CancellablePromise<$models.InstallResult> {
  * mount failure.
  */
 export function ReportRuntimeFailure(id: string, reason: string): $CancellablePromise<$models.SkinCatalog> {
-    return $Call.ByID(54047854, id, reason);
+    return $Call.ByID(2936012935, id, reason);
 }
 
 /**
@@ -72,33 +72,33 @@ export function ReportRuntimeFailure(id: string, reason: string): $CancellablePr
  * good fallback.
  */
 export function ReportRuntimeReady(id: string, theme: string): $CancellablePromise<void> {
-    return $Call.ByID(1781287699, id, theme);
+    return $Call.ByID(3754754222, id, theme);
 }
 
 /**
  * Reset returns to the built-in skin and clears the skin settings.
  */
 export function Reset(): $CancellablePromise<$models.SkinCatalog> {
-    return $Call.ByID(2301019629);
+    return $Call.ByID(410306502);
 }
 
 /**
  * SetTheme selects a theme declared by the active skin.
  */
 export function SetTheme(theme: string): $CancellablePromise<$models.SkinCatalog> {
-    return $Call.ByID(933426859, theme);
+    return $Call.ByID(750654522, theme);
 }
 
 /**
  * SetThirdPartyDisabled disables third-party skins and returns to Clarity.
  */
 export function SetThirdPartyDisabled(disabled: boolean): $CancellablePromise<$models.SkinCatalog> {
-    return $Call.ByID(2028749805, disabled);
+    return $Call.ByID(3230678410, disabled);
 }
 
 /**
  * Uninstall removes a managed third-party skin.
  */
 export function Uninstall(id: string): $CancellablePromise<$models.SkinCatalog> {
-    return $Call.ByID(3093536124, id);
+    return $Call.ByID(1101561627, id);
 }

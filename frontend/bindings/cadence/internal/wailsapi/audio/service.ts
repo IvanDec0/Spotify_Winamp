@@ -19,21 +19,21 @@ import * as $models from "./models.js";
  * AddToQueue appends a track to the go-librespot queue.
  */
 export function AddToQueue(uri: string): $CancellablePromise<void> {
-    return $Call.ByID(4203087125, uri);
+    return $Call.ByID(3010419162, uri);
 }
 
 /**
  * Albums returns a page of the user's saved albums.
  */
 export function Albums(offset: number, limit: number): $CancellablePromise<$models.AlbumPage> {
-    return $Call.ByID(1205970168, offset, limit);
+    return $Call.ByID(3509853019, offset, limit);
 }
 
 /**
  * Artists returns a page of the user's followed artists.
  */
 export function Artists(offset: number, limit: number): $CancellablePromise<$models.ArtistPage> {
-    return $Call.ByID(2145420420, offset, limit);
+    return $Call.ByID(1279848221, offset, limit);
 }
 
 /**
@@ -41,14 +41,14 @@ export function Artists(offset: number, limit: number): $CancellablePromise<$mod
  * Liked Songs collection.
  */
 export function ContextTracks(uri: string): $CancellablePromise<$models.LibraryContext> {
-    return $Call.ByID(309675015, uri);
+    return $Call.ByID(3826649838, uri);
 }
 
 /**
  * GetState returns the engine and pairing state.
  */
 export function GetState(): $CancellablePromise<$models.AudioState> {
-    return $Call.ByID(1111564333);
+    return $Call.ByID(2632866718);
 }
 
 /**
@@ -56,7 +56,7 @@ export function GetState(): $CancellablePromise<$models.AudioState> {
  * browser.
  */
 export function OpenPairing(): $CancellablePromise<void> {
-    return $Call.ByID(3817223160);
+    return $Call.ByID(2163459145);
 }
 
 /**
@@ -64,21 +64,21 @@ export function OpenPairing(): $CancellablePromise<void> {
  * Songs collection. skipToURI selects a track inside the context.
  */
 export function PlayContext(uri: string, skipToURI: string): $CancellablePromise<void> {
-    return $Call.ByID(834534193, uri, skipToURI);
+    return $Call.ByID(3323882864, uri, skipToURI);
 }
 
 /**
  * PlayTrack starts playback of a single track URI.
  */
 export function PlayTrack(uri: string): $CancellablePromise<void> {
-    return $Call.ByID(931817557, uri);
+    return $Call.ByID(2248179840, uri);
 }
 
 /**
  * Playlists returns a page of the user's library playlists.
  */
 export function Playlists(offset: number, limit: number): $CancellablePromise<$models.PlaylistPage> {
-    return $Call.ByID(3756580115, offset, limit);
+    return $Call.ByID(2530376018, offset, limit);
 }
 
 /**
@@ -86,21 +86,21 @@ export function Playlists(offset: number, limit: number): $CancellablePromise<$m
  * pairing flow.
  */
 export function ResetSession(): $CancellablePromise<$models.AudioState> {
-    return $Call.ByID(2752950229);
+    return $Call.ByID(4202563638);
 }
 
 /**
  * Restart restarts the engine while keeping the paired credentials.
  */
 export function Restart(): $CancellablePromise<$models.AudioState> {
-    return $Call.ByID(2620845479);
+    return $Call.ByID(981510778);
 }
 
 /**
  * Search finds tracks, albums, artists and playlists in the Spotify catalog.
  */
 export function Search(query: string, limit: number): $CancellablePromise<$models.SearchResults> {
-    return $Call.ByID(190771008, query, limit);
+    return $Call.ByID(1121661771, query, limit);
 }
 
 /**
@@ -108,5 +108,5 @@ export function Search(query: string, limit: number): $CancellablePromise<$model
  * playlist uri.
  */
 export function StartRadio(uri: string): $CancellablePromise<void> {
-    return $Call.ByID(537959251, uri);
+    return $Call.ByID(181944504, uri);
 }

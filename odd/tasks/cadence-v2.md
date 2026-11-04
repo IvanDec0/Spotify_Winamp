@@ -474,14 +474,14 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 
 ### T3.3 — Wails adapters, bindings and frontend
 
-- [ ] `internal/wailsapi/{audio,player,skins}`: the three Wails service structs,
+- [x] `internal/wailsapi/{audio,player,skins}`: the three Wails service structs,
       each in its own package so the generator stays predictable. Only these
       adapters (plus `internal/platform`) import Wails.
-- [ ] Delete `internal/golibrespot`, the old `internal/player` adapter and
+- [x] Delete `internal/golibrespot`, the old `internal/player` adapter and
       `internal/artcache`.
-- [ ] Regenerate bindings with
+- [x] Regenerate bindings with
       `wails3 generate bindings -clean=true -ts -i .`.
-- [ ] Update `frontend/src/shared/api` imports, `frontend/bindings` consumers and
+- [x] Update `frontend/src/shared/api` imports, `frontend/bindings` consumers and
       the `vi.mock` paths. Keep the facade API stable for the app.
 - Commit: `refactor(api): move Wails services to wailsapi and regenerate bindings`
 
@@ -507,8 +507,8 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 | Task | Commit |
 |---|---|
 | T3.1 | `61d3ba1` |
-| T3.2 | this commit |
-| T3.3 | pending |
+| T3.2 | `ca2dc58` |
+| T3.3 | this commit |
 | T3.4 | pending |
 
 ## Progress log
@@ -536,4 +536,5 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 
 | 2026-11-04 | Phase 2 final fixes | `fix(frontend): skip non-tabbable dialog elements and stale locale errors` | Excluded `tabindex="-1"` from the dialog trap; ignored stale locale loader rejections; 124 tests green |
 | 2026-11-04 | T3.1 | `61d3ba1` | `engine` owns supervisor/rest/DTOs, `artwork` replaces `artcache`; old adapter imports the new packages; Go tests, vet and gofmt green |
-| 2026-11-04 | T3.2 | this commit | `catalog` owns engine-backed library/search/context orchestration; `playback` owns provider, state, demo and engine provider; temporary adapters delegate; Go tests, vet and gofmt green |
+| 2026-11-04 | T3.2 | `ca2dc58` | `catalog` owns engine-backed library/search/context orchestration; `playback` owns provider, state, demo and engine provider; temporary adapters delegate; Go tests, vet and gofmt green |
+| 2026-11-04 | T3.3 | this commit | Wails adapters moved to `internal/wailsapi/{audio,player,skins}` with `audioapi`/`playerapi`/`skinsapi`; old packages deleted; bindings regenerated (4 services, 39 methods, 38 models, 3 events); frontend facades and mocks repointed; Go and frontend checks green |

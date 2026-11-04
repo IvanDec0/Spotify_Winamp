@@ -16,53 +16,53 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 export function GetDevices(): $CancellablePromise<$models.Device[] | null> {
-    return $Call.ByID(186979006);
+    return $Call.ByID(2082213601);
 }
 
 export function GetQueue(): $CancellablePromise<$models.QueueItem[] | null> {
-    return $Call.ByID(1880516082);
+    return $Call.ByID(2524986129);
 }
 
 export function GetState(): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(559552804);
+    return $Call.ByID(2572044875);
 }
 
 export function Next(): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(3054335276);
+    return $Call.ByID(1544532951);
 }
 
 export function Pause(): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(3888827153);
+    return $Call.ByID(1339874988);
 }
 
 export function Play(): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(4282930359);
+    return $Call.ByID(3370178564);
 }
 
 export function Previous(): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(2091042724);
+    return $Call.ByID(1784800271);
 }
 
 export function Seek(positionMS: number): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(1209892893, positionMS);
+    return $Call.ByID(2206193378, positionMS);
 }
 
 export function SetRepeat(mode: string): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(1508763872, mode);
+    return $Call.ByID(74040181, mode);
 }
 
 export function SetShuffle(enabled: boolean): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(2823250216, enabled);
+    return $Call.ByID(137633267, enabled);
 }
 
 export function SetVolume(volume: number): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(4039849201, volume);
+    return $Call.ByID(2042638956, volume);
 }
 
 export function TogglePlay(): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(4102651095);
+    return $Call.ByID(276759068);
 }
 
 export function Transfer(deviceID: string): $CancellablePromise<$models.PlayerState> {
-    return $Call.ByID(2255667986, deviceID);
+    return $Call.ByID(566186929, deviceID);
 }

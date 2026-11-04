@@ -1,4 +1,4 @@
-export { RepeatMode, Status } from "../../../bindings/cadence/internal/player/models";
+export { RepeatMode, Status } from "../../../bindings/cadence/internal/playback/models";
 
 export type {
   Device,
@@ -6,16 +6,16 @@ export type {
   PlayerState,
   QueueItem,
   Track,
-} from "../../../bindings/cadence/internal/player/models";
+} from "../../../bindings/cadence/internal/playback/models";
+
+export type { ContextTrackInfo, LibraryContext } from "../../../bindings/cadence/internal/catalog/models";
 
 export type {
   AlbumPage,
   ArtistPage,
   AudioState,
-  ContextTrackInfo,
   LibraryAlbum,
   LibraryArtist,
-  LibraryContext,
   LibraryPlaylist,
   Pairing,
   PlaylistPage,
@@ -24,7 +24,7 @@ export type {
   SearchGroup,
   SearchHit,
   SearchResults,
-} from "../../../bindings/cadence/internal/golibrespot/models";
+} from "../../../bindings/cadence/internal/engine/models";
 
 export type {
   InstallResult,

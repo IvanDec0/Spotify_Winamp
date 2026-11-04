@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   setVolume: vi.fn(() => Promise.resolve({})),
 }));
 
-vi.mock("../../../bindings/cadence/internal/player", () => ({
+vi.mock("../../../bindings/cadence/internal/wailsapi/player", () => ({
   Service: {
     Seek: mocks.seek,
     SetVolume: mocks.setVolume,

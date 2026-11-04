@@ -1,4 +1,4 @@
-import { Service } from "../../../bindings/cadence/internal/golibrespot";
+import { Service } from "../../../bindings/cadence/internal/wailsapi/audio";
 import { call } from "./client";
 
 /**

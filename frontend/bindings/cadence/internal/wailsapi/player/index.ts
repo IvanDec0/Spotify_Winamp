@@ -6,15 +6,8 @@ export {
     Service
 };
 
-export {
-    RepeatMode,
-    Status
-} from "./models.js";
-
 export type {
     Device,
-    PlayerError,
     PlayerState,
-    QueueItem,
-    Track
+    QueueItem
 } from "./models.js";

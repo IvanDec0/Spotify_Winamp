@@ -34,18 +34,6 @@ export interface AudioState {
 }
 
 /**
- * ContextTrackInfo is the compact track metadata returned to the frontend.
- */
-export interface ContextTrackInfo {
-    "uri": string;
-    "title": string;
-    "artists": string[] | null;
-    "album": string;
-    "cover": string;
-    "durationMs": number;
-}
-
-/**
  * LibraryAlbum is an album saved in the user's library.
  */
 export interface LibraryAlbum {
@@ -63,17 +51,6 @@ export interface LibraryArtist {
     "uri": string;
     "name": string;
     "imageUrl": string;
-}
-
-/**
- * LibraryContext is the frontend-facing context listing.
- */
-export interface LibraryContext {
-    "uri": string;
-    "ready": boolean;
-    "length": number;
-    "cached": number;
-    "items": ContextTrackInfo[] | null;
 }
 
 /**
