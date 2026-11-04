@@ -47,7 +47,7 @@ Svelte stores ──Wails RPC/events──▶ Go services ──loopback HTTP─
 
 | Fact | Evidence |
 |---|---|
-| Idle engine traffic ≈ 3 req/s | `internal/player/service.go` 500 ms ticker calls `Provider.State()` → `GET /status`; `frontend/src/lib/music.svelte.ts:98` adds a 2 s `GetState`; `internal/golibrespot/provider.go` refreshes `/context/tracks` every 5 s |
+| Idle engine traffic ≈ 2.5 req/s steady | `internal/player/service.go` 500 ms ticker calls `Provider.State()` → `GET /status`; `frontend/src/lib/music.svelte.ts:98` adds a 2 s `GetState`; `internal/golibrespot/provider.go` fetches `/context/tracks` only until the context is `Ready` (≈0.2 req/s extra while warming up or retrying) |
 | Every 500 ms tick ships the full player state, queue included | `internal/player/service.go` `emit()`; queue capped at 50 items |
 | No WebSocket client | no `/events` reference outside the vendored engine |
 | Context lists render unvirtualized | `frontend/src/lib/MusicBrowser.svelte:417` renders every item; engine cap is `metadata.max_tracks: 800` in `internal/golibrespot/runtime.go` |
@@ -233,7 +233,7 @@ Rules:
 
 | Symptom | Root cause | Fix | Expected effect |
 |---|---|---|---|
-| UI feels laggy while playing | 500 ms full-state emission + 2 s duplicate poll | `/events` WebSocket; revisioned diffs; remove ticker and poll | Idle engine traffic ~3 req/s → ~0.07 req/s; IPC payload 15-30 KB/tick → <4 KB/change |
+| UI feels laggy while playing | 500 ms full-state emission + 2 s duplicate poll | `/events` WebSocket; revisioned diffs; remove ticker and poll | Idle engine traffic ~2.5 req/s → ~0.07 req/s; IPC payload 15-30 KB/tick → <4 KB/change |
 | Slow scroll in long playlists | 800 rows × cover images, unvirtualized | `VirtualList` + paged library (50/page) + lazy images | Constant DOM size; 60 fps with 800 items |
 | Memory and network growth on cover art | full-size covers, per-row fetch, no coalescing, memory only | size variants + single-flight + disk LRU (`xdg.CacheHome`) + `Cache-Control` retained | 40-70% fewer image bytes; no duplicate downloads; survives restart |
 | CPU while paused | rAF loops always running | single clock, stop on pause/hidden, 10 Hz text updates | Near-zero idle CPU from UI |

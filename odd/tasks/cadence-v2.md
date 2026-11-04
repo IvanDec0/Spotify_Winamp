@@ -136,7 +136,19 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 | T0.2 | `db2f968` |
 | T0.3 | `67143fe` |
 | T0.4 | `939e949` |
-| T0.5 | this commit (`chore: record Phase 0 verification`) |
+| T0.5 | `14644ca` |
+
+## Phase 0 status
+
+- **Code and docs:** complete at `1e02e7f`.
+- **Verification:** all commands green (see the progress log and
+  `docs/performance-baseline.md`).
+- **Pending:** runtime baseline capture on the reference machine
+  (`./bin/cadence --diagnostics`, 60 s idle, fill the measurement table in
+  `docs/performance-baseline.md`). It needs a paired Spotify session, so it is a
+  user step; capture it before Phase 1 changes engine configuration.
+- **Next:** Phase 1 (engine pin `master@16b65bb4`, `device_is_group`, explicit
+  image size) after the runtime baseline is captured or explicitly waived.
 
 ## Progress log
 
@@ -147,5 +159,5 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 | 2026-11-04 | T0.2 | `db2f968` | Artcache/player instrumentation, loopback stats and pprof, 12 s timeout preserved |
 | 2026-11-04 | T0.3 | `67143fe` | `--check` mode, `audio:check`/`verify` tasks, CI step |
 | 2026-11-04 | T0.4 | `939e949` | Baseline procedure + static estimate + gates; ADRs 0001-0003 |
-| 2026-11-04 | T0.5 | `chore: record Phase 0 verification` | All verification commands green |
-| 2026-11-04 | Review corrections | `fix(diagnostics): tighten artwork counters and baseline accuracy` | Atomic artwork recorder, `missing` counter, successful-write-only `served`, emission-only event accounting, corrected baseline provenance, transport edge cases, strict patch fuzz; all checks green |
+| 2026-11-04 | T0.5 | `14644ca` | All verification commands green |
+| 2026-11-04 | Review corrections | `1e02e7f` | Atomic artwork recorder, `missing` counter, successful-write-only `served`, emission-only event accounting, corrected baseline provenance, transport edge cases, strict patch fuzz; all checks green |
