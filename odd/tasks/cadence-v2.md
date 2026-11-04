@@ -330,13 +330,13 @@ and `git diff --check` all exited 0. Smoke first line:
 
 ### T2.3 — Shared UI primitives and navigation state
 
-- [ ] `src/shared/ui`: `Button.svelte`, `Dialog.svelte` (focus trap, Escape,
+- [x] `src/shared/ui`: `Button.svelte`, `Dialog.svelte` (focus trap, Escape,
       backdrop, `aria-modal`), `VirtualList.svelte` + pure `visibleRange` helper,
       `Skeleton.svelte`, `Toast.svelte` + `toasts.svelte.ts` store,
       `ToastHost.svelte`.
-- [ ] `src/app/navigation.svelte.ts`: typed panels and route stack, with tests.
+- [x] `src/app/navigation.svelte.ts`: typed panels and route stack, with tests.
       It is not wired into App.svelte in this phase; Phase 6 does that.
-- [ ] Component tests for Dialog, VirtualList, Toast and the navigation store.
+- [x] Component tests for Dialog, VirtualList, Toast and the navigation store.
 - Commit: `feat(ui): add shared primitives and navigation state`
 
 ### T2.4 — Verification
@@ -375,3 +375,4 @@ and `git diff --check` all exited 0. Smoke first line:
 | 2026-11-04 | Review corrections 2 | `59dc4d4` | `device_is_group` default off and group-icon-only docs; generated-config notice; version injection `${VERSION#v}` with `-buildvcs=false`; version cache cleared on start/stop with throttled `State` retry; stricter config/version tests; GPL notice updated |
 | 2026-11-04 | T2.1 | `refactor(frontend)` | Typed `shared/api` boundary with ApiError normalization, player/audio/skins/window/event facades and client/event/window tests; all binding imports migrated |
 | 2026-11-04 | T2.2 | `feat(i18n)` | `intl-messageformat@12.1.4`, literal-key TS catalogs with compile-time parity, cached ICU formatters, locale detection/persistence and `Intl` helpers; ADR-0003 and plan §7 updated |
+| 2026-11-04 | T2.3 | `feat(ui)` | Button, focus-trapped Dialog, virtual list helper/component, Skeleton, toast store/components and typed navigation store; not wired into App yet |
