@@ -8,6 +8,7 @@
 
 - Implementation plan: [`plan/nombre_plan.md`](plan/nombre_plan.md)
 - Development workflow: [`docs/development.md`](docs/development.md)
+- Package architecture: [`docs/architecture.md`](docs/architecture.md)
 - Skin format reference: [`docs/skin-format.md`](docs/skin-format.md)
 - Skin authoring guide: [`docs/skin-authoring.md`](docs/skin-authoring.md)
 - Spotify engine setup: [`docs/spotify-setup.md`](docs/spotify-setup.md)
@@ -44,11 +45,11 @@ The app uses a single compact window. The default skins use a 420×220 logical d
 ┌──────────────────────────── Cadence ────────────────────────────┐
 │  Svelte 5 UI  ── Wails service calls/events ──  Go services     │
 │                                                  │              │
-│                                       player.Service            │
+│                                      playerapi.Service           │
 │                                                  │              │
-│                                    golibrespot.Provider         │
+│                                    playback.EngineProvider      │
 │                                                  │              │
-│                                    golibrespot.Runtime          │
+│                                    engine.Supervisor            │
 └──────────────────────────────────────────────────┼──────────────┘
                                                    │ loopback HTTP
                                                    ▼
@@ -61,11 +62,14 @@ The app uses a single compact window. The default skins use a 420×220 logical d
                                             Speakers / headphones
 ```
 
-- `internal/golibrespot/runtime.go` owns the sidecar process, its config and pairing state.
-- `internal/golibrespot/client.go` is the loopback REST client.
-- `internal/golibrespot/provider.go` maps engine state to the provider-independent player model.
-- `internal/golibrespot/service.go` exposes pairing, library and playback selection to the frontend.
+- `internal/engine/supervisor.go` owns the sidecar process, its config and pairing state.
+- `internal/engine/rest.go` is the loopback REST client.
+- `internal/playback/engine_provider.go` maps engine state to the provider-independent player model.
+- `internal/catalog/service.go` implements library, search, context and playback selection; `internal/wailsapi/audio/service.go` exposes it to the frontend.
+- `internal/artwork/cache.go` proxies and bounds album art.
+- `internal/wailsapi/{audio,player,skins}` are the only Wails service adapters; `internal/platform` is the native window exception.
 - `frontend/src/lib/MusicBrowser.svelte` and `music.svelte.ts` implement the Library panel.
+- Package graph, dependency rule and event flow: [`docs/architecture.md`](docs/architecture.md).
 
 The engine binds only to `127.0.0.1` on a random port and stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json`. The frontend receives token-free state.
 

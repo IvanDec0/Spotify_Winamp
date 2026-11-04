@@ -8,7 +8,10 @@ export type {
   Track,
 } from "../../../bindings/cadence/internal/playback/models";
 
-export type { ContextTrackInfo, LibraryContext } from "../../../bindings/cadence/internal/catalog/models";
+export type {
+  ContextTrackInfo,
+  LibraryContext,
+} from "../../../bindings/cadence/internal/catalog/models";
 
 export type {
   AlbumPage,

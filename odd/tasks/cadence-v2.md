@@ -487,20 +487,55 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 
 ### T3.4 — Architecture docs and verification
 
-- [ ] Update ADR-0001 with the final layout and the `internal/platform`
+- [x] Update ADR-0001 with the final layout and the `internal/platform`
       exception for native window/GTK code. Add `docs/architecture.md`.
-- [ ] Run and record: `go test`, `go vet`, `gofmt`, `task audio:check`,
+- [x] Run and record: `go test`, `go vet`, `gofmt`, `task audio:check`,
       `wails3 generate bindings` (no diff), `npm run check/lint/format/test/build`.
 - Commit: `docs: record the v2 package layout and Phase 3 verification`
 
 ### Phase 3 acceptance
 
-- Domain packages (`engine`, `catalog`, `playback`, `artwork`, `skins`) do not
-  import Wails.
-- No JSON/event/API behavior changes; existing tests keep passing.
-- Bindings regenerate cleanly and the frontend builds with the facade intact.
-- `internal/golibrespot`, the old `internal/player` adapter and
-  `internal/artcache` are gone.
+- [x] Domain packages (`engine`, `catalog`, `playback`, `artwork`, `skins`) do not
+      import Wails.
+- [x] No JSON/event/API behavior changes; existing tests keep passing.
+- [x] Bindings regenerate cleanly and the frontend builds with the facade intact.
+- [x] `internal/golibrespot`, the old `internal/player` adapter and
+      `internal/artcache` are gone.
+
+## Phase 3 verification — 2026-11-04
+
+Environment: Go `go1.27.3-X:nodwarf5 linux/amd64`, Wails `v3.0.0-beta.34`,
+Node `v22.23.4`, branch `feat/cadence-v2`.
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0; all packages `ok`, three adapter packages have no test files |
+| `go test -race ./internal/engine/... ./internal/catalog/... ./internal/playback/... ./internal/artwork/...` | exit 0; engine 1.248s, playback 1.029s, artwork 1.025s; catalog has no tests |
+| `go vet $(go list ./... \| grep -v '/node_modules/')` | exit 0, no findings |
+| `gofmt -l $(go list -f '{{.Dir}}' ./... \| grep -v '/node_modules/')` | exit 0, no files listed |
+| `task audio:check` | exit 0; all nine patches apply cleanly to `v0.10.6-0.20261104085532-16b65bb4cd2b` |
+| `wails3 generate bindings -clean=true -ts -i .` | exit 0; 291 packages, 4 services, 39 methods, 2 enums, 38 models, 3 events |
+| `git status --porcelain frontend/bindings` after regeneration | no output (no binding diff) |
+| `npm run check` | exit 0, `svelte-check found 0 errors and 0 warnings` |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0, `All matched files use Prettier code style!` |
+| `npm run test` | exit 0, 24 files, 124 tests passed |
+| `npm run build` | exit 0, 230 modules transformed, built in 550 ms |
+| Domain Wails import scan | `none` for `engine`, `catalog`, `playback`, `artwork`, `skins`; only `main`, `platform` and the three `wailsapi` packages import Wails |
+| `git diff --check` | exit 0, no whitespace errors |
+
+Generated binding paths after regeneration:
+
+```text
+frontend/bindings/cadence/internal/wailsapi/audio/{index,models,service}.ts
+frontend/bindings/cadence/internal/wailsapi/player/{index,models,service}.ts
+frontend/bindings/cadence/internal/wailsapi/skins/{index,models,service}.ts
+frontend/bindings/cadence/internal/platform/{index,windowservice}.ts
+frontend/bindings/cadence/internal/engine/{index,models}.ts
+frontend/bindings/cadence/internal/catalog/{index,models}.ts
+frontend/bindings/cadence/internal/playback/{index,models}.ts
+frontend/bindings/cadence/internal/skins/{index,models}.ts
+```
 
 ### Commit map — Phase 3
 
@@ -508,8 +543,8 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 |---|---|
 | T3.1 | `61d3ba1` |
 | T3.2 | `ca2dc58` |
-| T3.3 | this commit |
-| T3.4 | pending |
+| T3.3 | `8b8ab2e` |
+| T3.4 | this commit |
 
 ## Progress log
 
@@ -537,4 +572,5 @@ may change. Each commit must leave the tree compiling and the Go tests green.
 | 2026-11-04 | Phase 2 final fixes | `fix(frontend): skip non-tabbable dialog elements and stale locale errors` | Excluded `tabindex="-1"` from the dialog trap; ignored stale locale loader rejections; 124 tests green |
 | 2026-11-04 | T3.1 | `61d3ba1` | `engine` owns supervisor/rest/DTOs, `artwork` replaces `artcache`; old adapter imports the new packages; Go tests, vet and gofmt green |
 | 2026-11-04 | T3.2 | `ca2dc58` | `catalog` owns engine-backed library/search/context orchestration; `playback` owns provider, state, demo and engine provider; temporary adapters delegate; Go tests, vet and gofmt green |
-| 2026-11-04 | T3.3 | this commit | Wails adapters moved to `internal/wailsapi/{audio,player,skins}` with `audioapi`/`playerapi`/`skinsapi`; old packages deleted; bindings regenerated (4 services, 39 methods, 38 models, 3 events); frontend facades and mocks repointed; Go and frontend checks green |
+| 2026-11-04 | T3.3 | `8b8ab2e` | Wails adapters moved to `internal/wailsapi/{audio,player,skins}` with `audioapi`/`playerapi`/`skinsapi`; old packages deleted; bindings regenerated (4 services, 39 methods, 38 models, 3 events); frontend facades and mocks repointed; Go and frontend checks green |
+| 2026-11-04 | T3.4 | this commit | ADR-0001 accepted with the final layout and `internal/platform` exception; `docs/architecture.md` linked from README and docs index; verification table recorded; all Go, engine, binding and frontend checks green |
