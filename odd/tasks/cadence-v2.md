@@ -237,9 +237,16 @@ patching file ap/proxy.go
 go-librespot patches apply cleanly to v0.10.6-0.20261104085532-16b65bb4cd2b; skipping build (--check)
 ```
 
-`task audio:build` produced `bin/go-librespot` and exited 0. A smoke start of
-that binary logged `running go-librespot fb41f3cf` as its first line, which
-confirms the parsed log shape.
+`task audio:build` produced `bin/go-librespot` and exited 0. A smoke start first
+logged `running go-librespot fb41f3cf` — Cadence's VCS revision, because the
+copied engine source lives inside this repository, so Go stamped it with Cadence's
+`vcs.revision` instead of the go-librespot pin. The build now injects the real pin
+with `-ldflags -X github.com/devgianlu/go-librespot.version=${VERSION}` and
+`-buildvcs=false`. Verified first line on the rebuilt binary:
+
+```text
+time="2026-11-04T10:47:15-03:00" level=info msg="running go-librespot 0.10.6-0.20261104085532-16b65bb4cd2b"
+```
 
 **Pending user verification:** live pairing, playback, library browsing and
 Spotify Jam participation require the user's Spotify account and audio device.
@@ -252,7 +259,7 @@ They are not claimed as verified here.
 | T1.1 | `2b10f55` |
 | T1.2 | `05adf37` |
 | T1.3 | `fb41f3c` |
-| T1.4 | this commit (`docs: document the engine upgrade and options`) |
+| T1.4 | `2b7a982` |
 
 ## Progress log
 
@@ -265,7 +272,8 @@ They are not claimed as verified here.
 | 2026-11-04 | T0.4 | `939e949` | Baseline procedure + static estimate + gates; ADRs 0001-0003 |
 | 2026-11-04 | T0.5 | `14644ca` | All verification commands green |
 | 2026-11-04 | Review corrections | `1e02e7f` | Atomic artwork recorder, `missing` counter, successful-write-only `served`, emission-only event accounting, corrected baseline provenance, transport edge cases, strict patch fuzz; all checks green |
-| 2026-11-04 | T1.1 | `build: pin go-librespot master for device_is_group support` | Pin updated to `16b65bb4`; both patches apply unchanged with `--fuzz=0`; `task audio:build` exit 0 |
-| 2026-11-04 | T1.2 | `feat(engine): advertise as a group and expose image size config` | `device_is_group: true`, validated `server.image_size`, `accesspoint_ports` override documented, config tests added |
-| 2026-11-04 | T1.3 | `feat(engine): surface the running go-librespot version` | Log parsing for `running go-librespot`, `Runtime.Version()`, `AudioState.EngineVersion`, `engine_version` in `/debug/stats`, tests |
-| 2026-11-04 | T1.4 | `docs: document the engine upgrade and options` | Pin and engine options documented; both patches documented; Phase 1 verification green; live Spotify checks pending user |
+| 2026-11-04 | T1.1 | `2b10f55` | Pin updated to `16b65bb4`; both patches apply unchanged with `--fuzz=0`; `task audio:build` exit 0 |
+| 2026-11-04 | T1.2 | `05adf37` | `device_is_group: true`, validated `server.image_size`, `accesspoint_ports` override documented, config tests added |
+| 2026-11-04 | T1.3 | `fb41f3c` | Log parsing for `running go-librespot`, `Runtime.Version()`, `AudioState.EngineVersion`, `engine_version` in `/debug/stats`, tests |
+| 2026-11-04 | T1.4 | `2b7a982` | Pin and engine options documented; both patches documented; Phase 1 verification green; live Spotify checks pending user |
+| 2026-11-04 | Engine version fix | `fix(build): report the go-librespot pin instead of Cadence's revision` | Injected `-X ...version` and `-buildvcs=false`; rebuilt binary now logs the real pin `0.10.6-20261104085532-16b65bb4cd2b` |

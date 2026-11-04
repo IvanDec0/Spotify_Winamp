@@ -45,7 +45,12 @@ fi
 
 (
 	cd "${BUILD_DIR}"
-	go build -trimpath -o "${OUTPUT}" ./cmd/daemon
+	# The source is copied inside the Cadence repository, so VCS stamping would
+	# report Cadence's revision as the engine version. Inject the real pin and
+	# disable VCS stamping.
+	go build -trimpath -buildvcs=false \
+		-ldflags "-X github.com/devgianlu/go-librespot.version=${VERSION}" \
+		-o "${OUTPUT}" ./cmd/daemon
 )
 
 chmod +x "${OUTPUT}"
