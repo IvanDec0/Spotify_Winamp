@@ -22,30 +22,34 @@ const (
 
 // RuntimeOptions configures the managed go-librespot process.
 type RuntimeOptions struct {
-	BinaryPath   string
-	ConfigDir    string
-	LogPath      string
-	DeviceName   string
-	AudioBackend string
-	AudioDevice  string
-	Bitrate      int
-	HTTPClient   *http.Client
-	Emit         func(AudioState)
+	BinaryPath    string
+	ConfigDir     string
+	LogPath       string
+	DeviceName    string
+	AudioBackend  string
+	AudioDevice   string
+	Bitrate       int
+	DeviceIsGroup bool
+	ImageSize     string
+	HTTPClient    *http.Client
+	Emit          func(AudioState)
 }
 
 // Runtime owns the go-librespot sidecar and its loopback API client.
 type Runtime struct {
 	mu sync.Mutex
 
-	binaryPath   string
-	configDir    string
-	logPath      string
-	deviceName   string
-	audioBackend string
-	audioDevice  string
-	bitrate      int
-	httpClient   *http.Client
-	emit         func(AudioState)
+	binaryPath    string
+	configDir     string
+	logPath       string
+	deviceName    string
+	audioBackend  string
+	audioDevice   string
+	bitrate       int
+	deviceIsGroup bool
+	imageSize     string
+	httpClient    *http.Client
+	emit          func(AudioState)
 
 	client    *Client
 	cmd       *exec.Cmd
@@ -75,16 +79,27 @@ func NewRuntime(options RuntimeOptions) *Runtime {
 		bitrate = 320
 	}
 	return &Runtime{
-		binaryPath:   binary,
-		configDir:    options.ConfigDir,
-		logPath:      options.LogPath,
-		deviceName:   deviceName,
-		audioBackend: backend,
-		audioDevice:  device,
-		bitrate:      bitrate,
-		httpClient:   options.HTTPClient,
-		emit:         options.Emit,
-		available:    binary != "",
+		binaryPath:    binary,
+		configDir:     options.ConfigDir,
+		logPath:       options.LogPath,
+		deviceName:    deviceName,
+		audioBackend:  backend,
+		audioDevice:   device,
+		bitrate:       bitrate,
+		deviceIsGroup: options.DeviceIsGroup,
+		imageSize:     normalizeImageSize(options.ImageSize),
+		httpClient:    options.HTTPClient,
+		emit:          options.Emit,
+		available:     binary != "",
+	}
+}
+
+func normalizeImageSize(value string) string {
+	switch value {
+	case "default", "small", "large", "xlarge":
+		return value
+	default:
+		return "default"
 	}
 }
 
@@ -392,8 +407,11 @@ func (r *Runtime) writeConfig(port int, configDir string) error {
 	config := fmt.Sprintf(`log_level: info
 device_name: %q
 device_type: computer
+device_is_group: %t
 bitrate: %d
 # Prefer 443/80 access points; 4070 is blocked on some corporate networks.
+# On networks that intercept 443, accesspoint_ports: [80, 443] overrides this
+# heuristic.
 prefer_firewall_friendly_ports: true
 audio_backend: %s
 audio_device: %s
@@ -404,12 +422,13 @@ server:
   enabled: true
   address: 127.0.0.1
   port: %d
+  image_size: %s
 metadata:
   enabled: true
   context_sweep: true
   max_tracks: 800
 mpris_enabled: false
-`, r.deviceName, r.bitrate, r.audioBackend, r.audioDevice, port)
+`, r.deviceName, r.deviceIsGroup, r.bitrate, r.audioBackend, r.audioDevice, port, normalizeImageSize(r.imageSize))
 	return os.WriteFile(filepath.Join(configDir, "config.yml"), []byte(config), 0o600)
 }
 

@@ -139,7 +139,9 @@ func main() {
 		AudioBackend: "pulseaudio",
 		AudioDevice:  "default",
 		Bitrate:      320,
-		HTTPClient:   engineHTTPClient,
+		// Advertise Cadence as a speaker group so Spotify Jam can include it.
+		DeviceIsGroup: true,
+		HTTPClient:    engineHTTPClient,
 	})
 	var provider player.Provider = demoProvider
 	if !*demoMode {

@@ -165,13 +165,13 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 
 ### T1.2 — Engine configuration
 
-- [ ] `RuntimeOptions`: add `DeviceIsGroup bool` and `ImageSize string`
+- [x] `RuntimeOptions`: add `DeviceIsGroup bool` and `ImageSize string`
       (validated against `default`/`small`/`large`/`xlarge`).
-- [ ] `writeConfig`: emit `device_is_group`, `server.image_size`, and a comment
+- [x] `writeConfig`: emit `device_is_group`, `server.image_size`, and a comment
       documenting `accesspoint_ports` as the override for networks that intercept
       443.
-- [ ] `main.go`: enable `DeviceIsGroup` so Spotify Jam can include Cadence.
-- [ ] Tests for the generated config and the image-size validation.
+- [x] `main.go`: enable `DeviceIsGroup` so Spotify Jam can include Cadence.
+- [x] Tests for the generated config and the image-size validation.
 - Commit: `feat(engine): advertise as a group and expose image size config`
 
 ### T1.3 — Surface the running engine version
@@ -206,3 +206,4 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 | 2026-11-04 | T0.5 | `14644ca` | All verification commands green |
 | 2026-11-04 | Review corrections | `1e02e7f` | Atomic artwork recorder, `missing` counter, successful-write-only `served`, emission-only event accounting, corrected baseline provenance, transport edge cases, strict patch fuzz; all checks green |
 | 2026-11-04 | T1.1 | `build: pin go-librespot master for device_is_group support` | Pin updated to `16b65bb4`; both patches apply unchanged with `--fuzz=0`; `task audio:build` exit 0 |
+| 2026-11-04 | T1.2 | `feat(engine): advertise as a group and expose image size config` | `device_is_group: true`, validated `server.image_size`, `accesspoint_ports` override documented, config tests added |
