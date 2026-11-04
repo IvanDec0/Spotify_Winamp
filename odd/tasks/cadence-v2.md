@@ -544,7 +544,9 @@ frontend/bindings/cadence/internal/skins/{index,models}.ts
 | T3.1 | `61d3ba1` |
 | T3.2 | `ca2dc58` |
 | T3.3 | `8b8ab2e` |
-| T3.4 | this commit |
+| T3.4 | `d8887e4` |
+| Review: catalog tests | this commit |
+| Review: docs alignment | pending |
 
 ## Progress log
 
@@ -573,4 +575,5 @@ frontend/bindings/cadence/internal/skins/{index,models}.ts
 | 2026-11-04 | T3.1 | `61d3ba1` | `engine` owns supervisor/rest/DTOs, `artwork` replaces `artcache`; old adapter imports the new packages; Go tests, vet and gofmt green |
 | 2026-11-04 | T3.2 | `ca2dc58` | `catalog` owns engine-backed library/search/context orchestration; `playback` owns provider, state, demo and engine provider; temporary adapters delegate; Go tests, vet and gofmt green |
 | 2026-11-04 | T3.3 | `8b8ab2e` | Wails adapters moved to `internal/wailsapi/{audio,player,skins}` with `audioapi`/`playerapi`/`skinsapi`; old packages deleted; bindings regenerated (4 services, 39 methods, 38 models, 3 events); frontend facades and mocks repointed; Go and frontend checks green |
-| 2026-11-04 | T3.4 | this commit | ADR-0001 accepted with the final layout and `internal/platform` exception; `docs/architecture.md` linked from README and docs index; verification table recorded; all Go, engine, binding and frontend checks green |
+| 2026-11-04 | T3.4 | `d8887e4` | ADR-0001 accepted with the final layout and `internal/platform` exception; `docs/architecture.md` linked from README and docs index; verification table recorded; all Go, engine, binding and frontend checks green |
+| 2026-11-04 | T3.4 review correction 1 | this commit | Added `internal/catalog/service_test.go` (`catalog_test`) against a fake engine: demo-disabled state, library pages/artwork rewriting, context mapping, all search groups, playback/queue/radio bodies, 500 propagation and missing-client error; `go test -cover ./internal/catalog/` = 80.4% |
