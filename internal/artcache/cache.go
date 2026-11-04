@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"cadence/internal/diagnostics"
 )
 
 const (
@@ -39,6 +41,7 @@ type Cache struct {
 	maxItems int
 	maxBytes int64
 	maxImage int64
+	recorder *diagnostics.Recorder
 }
 
 func New(client *http.Client) *Cache {
@@ -52,6 +55,21 @@ func New(client *http.Client) *Cache {
 		maxBytes: defaultMaxBytes,
 		maxImage: defaultMaxImage,
 	}
+}
+
+// SetRecorder attaches an optional diagnostics recorder. A nil recorder
+// disables instrumentation without changing cache behavior.
+func (c *Cache) SetRecorder(recorder *diagnostics.Recorder) {
+	c.mu.Lock()
+	c.recorder = recorder
+	c.mu.Unlock()
+}
+
+func (c *Cache) observe(kind string, bytes int64) {
+	c.mu.Lock()
+	recorder := c.recorder
+	c.mu.Unlock()
+	recorder.ObserveArtwork(kind, bytes)
 }
 
 // Register maps a remote image URL to an opaque key used by the frontend.
@@ -94,35 +112,44 @@ func (c *Cache) Get(ctx context.Context, key string) ([]byte, string, error) {
 	if len(item.data) > 0 {
 		data := append([]byte(nil), item.data...)
 		contentType := item.contentType
+		recorder := c.recorder
 		c.touchLocked(key)
 		c.mu.Unlock()
+		recorder.ObserveArtwork("hit", 0)
 		return data, contentType, nil
 	}
 	c.mu.Unlock()
+	c.observe("miss", 0)
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
+		c.observe("error", 0)
 		return nil, "", err
 	}
 	response, err := c.client.Do(request)
 	if err != nil {
+		c.observe("error", 0)
 		return nil, "", fmt.Errorf("fetch album art: %w", err)
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
+		c.observe("error", 0)
 		return nil, "", fmt.Errorf("fetch album art: Spotify image server returned %d", response.StatusCode)
 	}
 	data, err := io.ReadAll(io.LimitReader(response.Body, c.maxImage+1))
 	if err != nil {
+		c.observe("error", 0)
 		return nil, "", fmt.Errorf("read album art: %w", err)
 	}
 	if int64(len(data)) > c.maxImage {
+		c.observe("error", 0)
 		return nil, "", errors.New("album art exceeds the image size limit")
 	}
 	contentType := strings.ToLower(strings.TrimSpace(strings.Split(response.Header.Get("Content-Type"), ";")[0]))
 	switch contentType {
 	case "image/jpeg", "image/jpg", "image/png", "image/webp":
 	default:
+		c.observe("error", 0)
 		return nil, "", fmt.Errorf("unsupported album art content type %q", contentType)
 	}
 
@@ -191,6 +218,7 @@ func (c *Cache) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("X-Content-Type-Options", "nosniff")
 	writer.WriteHeader(http.StatusOK)
 	if request.Method == http.MethodGet {
-		_, _ = writer.Write(data)
+		written, _ := writer.Write(data)
+		c.observe("served", int64(written))
 	}
 }

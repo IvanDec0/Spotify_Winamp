@@ -2,9 +2,12 @@ package player
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
+
+	"cadence/internal/diagnostics"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -20,9 +23,10 @@ const emitInterval = 500 * time.Millisecond
 type Service struct {
 	provider Provider
 
-	mu   sync.Mutex
-	app  *application.App
-	stop chan struct{}
+	mu       sync.Mutex
+	app      *application.App
+	stop     chan struct{}
+	recorder *diagnostics.Recorder
 }
 
 func NewService(provider Provider) *Service {
@@ -46,6 +50,16 @@ func (s *Service) SetProvider(provider Provider) {
 			s.emit(state)
 		}
 	}()
+}
+
+// SetRecorder attaches an optional diagnostics recorder. A nil recorder
+// disables event payload accounting.
+//
+//wails:ignore
+func (s *Service) SetRecorder(recorder *diagnostics.Recorder) {
+	s.mu.Lock()
+	s.recorder = recorder
+	s.mu.Unlock()
 }
 
 func (s *Service) providerSnapshot() Provider {
@@ -193,7 +207,13 @@ func (s *Service) stopTicker() {
 func (s *Service) emit(state PlayerState) {
 	s.mu.Lock()
 	app := s.app
+	recorder := s.recorder
 	s.mu.Unlock()
+	if recorder != nil {
+		if payload, err := json.Marshal(state); err == nil {
+			recorder.ObserveEvent(StateEvent, len(payload))
+		}
+	}
 	if app != nil {
 		app.Event.Emit(StateEvent, state)
 	}

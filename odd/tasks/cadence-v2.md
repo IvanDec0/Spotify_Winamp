@@ -51,10 +51,10 @@ records that the module split will follow.
 
 ### T0.2 — Instrumentation and local diagnostics endpoint
 
-- [ ] `artcache` and `player.Service` accept an optional recorder (setter, nil-safe).
-- [ ] `main.go`: `--diagnostics` flag, loopback listener on `127.0.0.1:0`,
+- [x] `artcache` and `player.Service` accept an optional recorder (setter, nil-safe).
+- [x] `main.go`: `--diagnostics` flag, loopback listener on `127.0.0.1:0`,
       `/debug/stats` and `/debug/pprof/*`, logged URL, clean shutdown.
-- [ ] Preserve the 12 s engine HTTP timeout when wrapping the transport.
+- [x] Preserve the 12 s engine HTTP timeout when wrapping the transport.
 - Commit: `feat(diagnostics): expose loopback stats and pprof behind a flag`
 
 ### T0.3 — Engine patch verification in CI
@@ -89,3 +89,4 @@ records that the module split will follow.
 |---|---|---|---|
 | 2026-11-04 | Plan | `5cb1d2b` | Plan committed; no code changes |
 | 2026-11-04 | T0.1 | `feat(diagnostics): add engine and artwork metrics recorder` | Recorder, snapshot and transport wrapper with tests |
+| 2026-11-04 | T0.2 | `feat(diagnostics): expose loopback stats and pprof behind a flag` | Artcache/player instrumentation, loopback stats and pprof, 12 s timeout preserved |

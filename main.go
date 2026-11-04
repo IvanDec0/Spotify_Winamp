@@ -2,14 +2,20 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
+	"errors"
 	"flag"
 	"log"
+	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"cadence/internal/artcache"
+	"cadence/internal/diagnostics"
 	"cadence/internal/golibrespot"
 	"cadence/internal/platform"
 	"cadence/internal/player"
@@ -63,6 +69,7 @@ func main() {
 	safeMode := flag.Bool("safe-mode", false, "start with the built-in skin and disable third-party skins")
 	demoMode := flag.Bool("demo", false, "use the simulated player instead of Spotify")
 	devSkins := flag.String("skins-dev", "", "directory containing development skins")
+	diagnosticsEnabled := flag.Bool("diagnostics", false, "expose local diagnostics and pprof on a loopback port")
 	flag.Parse()
 
 	if *demoMode {
@@ -113,6 +120,18 @@ func main() {
 
 	demoProvider := player.NewDemoProvider()
 	artCache := artcache.New(nil)
+
+	var recorder *diagnostics.Recorder
+	var engineHTTPClient *http.Client
+	if *diagnosticsEnabled {
+		recorder = diagnostics.NewRecorder()
+		engineHTTPClient = &http.Client{
+			Timeout:   12 * time.Second,
+			Transport: diagnostics.WrapTransport(http.DefaultTransport, recorder),
+		}
+		log.Println("diagnostics enabled: counters and pprof are exposed on a loopback port")
+	}
+
 	audioRuntime := golibrespot.NewRuntime(golibrespot.RuntimeOptions{
 		ConfigDir:    filepath.Join(xdg.ConfigHome, "cadence", "audio"),
 		LogPath:      filepath.Join(xdg.CacheHome, "cadence", "logs", "go-librespot.log"),
@@ -120,12 +139,15 @@ func main() {
 		AudioBackend: "pulseaudio",
 		AudioDevice:  "default",
 		Bitrate:      320,
+		HTTPClient:   engineHTTPClient,
 	})
 	var provider player.Provider = demoProvider
 	if !*demoMode {
 		provider = golibrespot.NewProvider(audioRuntime, artCache)
 	}
 	playerService := player.NewService(provider)
+	artCache.SetRecorder(recorder)
+	playerService.SetRecorder(recorder)
 	windowService := platform.NewWindowService()
 	skinService := skins.NewService(skinManager)
 	audioService := golibrespot.NewService(golibrespot.ServiceOptions{
@@ -133,6 +155,16 @@ func main() {
 		Art:     artCache,
 		Enabled: !*demoMode,
 	})
+
+	if recorder != nil {
+		server, err := startDiagnosticsServer(recorder)
+		if err != nil {
+			log.Fatalf("start diagnostics server: %v", err)
+		}
+		defer func() {
+			_ = server.Close()
+		}()
+	}
 
 	frontend := application.AssetFileServerFS(assets)
 	assetHandler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -197,6 +229,46 @@ func main() {
 	if err := cadence.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func startDiagnosticsServer(recorder *diagnostics.Recorder) (*http.Server, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, err
+	}
+	server := &http.Server{
+		Handler:           diagnosticsHandler(recorder),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	go func() {
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("diagnostics server stopped: %v", err)
+		}
+	}()
+	log.Printf("diagnostics available at http://%s/debug/stats (pprof at /debug/pprof/)", listener.Addr().String())
+	return server, nil
+}
+
+func diagnosticsHandler(recorder *diagnostics.Recorder) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/stats", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet {
+			writer.Header().Set("Allow", http.MethodGet)
+			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		writer.Header().Set("Cache-Control", "no-store")
+		if err := json.NewEncoder(writer).Encode(recorder.Snapshot()); err != nil {
+			log.Printf("encode diagnostics snapshot: %v", err)
+		}
+	})
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	return mux
 }
 
 func withSecurityHeaders(next http.Handler) http.Handler {
