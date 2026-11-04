@@ -341,11 +341,11 @@ and `git diff --check` all exited 0. Smoke first line:
 
 ### T2.4 — Verification
 
-- [ ] `npm run check`, `npm run lint`, `npm run format`, `npm run test`,
+- [x] `npm run check`, `npm run lint`, `npm run format`, `npm run test`,
       `npm run build`.
-- [ ] Confirm `rg 'bindings/|@wailsio/runtime' frontend/src` only matches
+- [x] Confirm `rg 'bindings/|@wailsio/runtime' frontend/src` only matches
       `src/shared/api` and test mock paths.
-- [ ] Record exact results in this tracker.
+- [x] Record exact results in this tracker.
 - Commit: `chore: record Phase 2 verification`
 
 ### Phase 2 deviations
@@ -355,6 +355,52 @@ and `git diff --check` all exited 0. Smoke first line:
 - i18n catalogs are TS modules with literal key types instead of JSON plus a
   generated `.d.ts`; this removes a build step and keeps key parity compile-time.
 - Existing screens are not translated yet; Phase 7 performs the sweep.
+
+## Phase 2 verification — 2026-11-04
+
+Environment: Node `v22.23.4`, npm `12.2.1`, Vite `8.3.5`, branch
+`feat/cadence-v2`, commands run from `frontend/`.
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0, `svelte-check found 0 errors and 0 warnings` |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0, `All matched files use Prettier code style!` |
+| `npm run test` | exit 0, 23 files, 106 tests passed |
+| `npm run build` | exit 0, 226 modules transformed, built in 1.10 s |
+| `rg -n 'bindings/\|@wailsio/runtime' frontend/src` | only `src/shared/api/**` imports and `vi.mock` paths |
+| `git diff --check` | exit 0, no whitespace errors |
+
+`npm run build` output:
+
+```text
+dist/index.html                   0.43 kB │ gzip:  0.27 kB
+dist/assets/index-CcI2SMLs.css   63.62 kB │ gzip: 10.71 kB
+dist/assets/es-wzTepdfd.js        0.03 kB │ gzip:  0.05 kB
+dist/assets/es-BtaKyWmH.js        0.30 kB │ gzip:  0.21 kB
+dist/assets/index-D0Zql8id.js   235.40 kB │ gzip: 72.37 kB
+✓ built in 1.10s
+```
+
+The separate `es-*` chunks prove the Spanish catalog is loaded lazily.
+
+### Commit map — Phase 2
+
+| Task | Commit |
+|---|---|
+| T2.1 | `e4c9cb7` |
+| T2.2 | `c0b8c20` |
+| T2.3 | `7adecc5` |
+| T2.4 | verification commit |
+
+## Phase 2 status
+
+- **Code and docs:** complete on `feat/cadence-v2`.
+- **Verification:** check, lint, format, test, build, binding-import grep and
+  `git diff --check` are green.
+- **Behavior:** unchanged; the navigation store and toast host are not wired into
+  `App.svelte` until Phase 6, and existing screens remain English until Phase 7.
+- **Next:** Phase 3 (Go decomposition).
 
 ## Progress log
 
@@ -373,6 +419,7 @@ and `git diff --check` all exited 0. Smoke first line:
 | 2026-11-04 | T1.4 | `2b7a982` | Pin and engine options documented; both patches documented; Phase 1 verification green; live Spotify checks pending user |
 | 2026-11-04 | Engine version fix | `f2efa8e` | Injected `-X ...version` and `-buildvcs=false`; rebuilt binary now logs the real pin `0.10.6-20261104085532-16b65bb4cd2b` |
 | 2026-11-04 | Review corrections 2 | `59dc4d4` | `device_is_group` default off and group-icon-only docs; generated-config notice; version injection `${VERSION#v}` with `-buildvcs=false`; version cache cleared on start/stop with throttled `State` retry; stricter config/version tests; GPL notice updated |
-| 2026-11-04 | T2.1 | `refactor(frontend)` | Typed `shared/api` boundary with ApiError normalization, player/audio/skins/window/event facades and client/event/window tests; all binding imports migrated |
-| 2026-11-04 | T2.2 | `feat(i18n)` | `intl-messageformat@12.1.4`, literal-key TS catalogs with compile-time parity, cached ICU formatters, locale detection/persistence and `Intl` helpers; ADR-0003 and plan §7 updated |
-| 2026-11-04 | T2.3 | `feat(ui)` | Button, focus-trapped Dialog, virtual list helper/component, Skeleton, toast store/components and typed navigation store; not wired into App yet |
+| 2026-11-04 | T2.1 | `e4c9cb7` | Typed `shared/api` boundary with ApiError normalization, player/audio/skins/window/event facades and client/event/window tests; all binding imports migrated |
+| 2026-11-04 | T2.2 | `c0b8c20` | `intl-messageformat@12.1.4`, literal-key TS catalogs with compile-time parity, cached ICU formatters, locale detection/persistence and `Intl` helpers; ADR-0003 and plan §7 updated |
+| 2026-11-04 | T2.3 | `7adecc5` | Button, focus-trapped Dialog, virtual list helper/component, Skeleton, toast store/components and typed navigation store; not wired into App yet |
+| 2026-11-04 | T2.4 | `chore(verify)` | All frontend checks green; 23 test files / 106 tests; build emits lazy `es` chunks; binding imports confined to `shared/api` and mocks |
