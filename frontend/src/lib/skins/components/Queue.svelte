@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { coverURL } from "../../artwork";
   import { player } from "../../player.svelte";
   import { skins } from "../../skins.svelte";
   import { t } from "../../../shared/i18n";
@@ -80,7 +81,11 @@
             >
               {#if item.track.cover.startsWith("/art/") && !failedCovers.includes(item.track.cover)}
                 <img
-                  src={item.track.cover}
+                  src={coverURL(item.track.cover, 24)}
+                  loading="lazy"
+                  decoding="async"
+                  width={24}
+                  height={24}
                   alt=""
                   draggable="false"
                   onerror={() => markCoverFailed(item.track.cover)}

@@ -27,7 +27,7 @@ main.go
   ├── engine        supervisor, REST transport, raw engine DTOs
   ├── catalog       library/search/context orchestration, frontend context models
   ├── playback      Provider, PlayerState, DemoProvider, EngineProvider
-  ├── artwork       bounded in-memory album-art proxy
+  ├── artwork       bounded album-art proxy with variants, single-flight and a disk LRU
   ├── skins         skin manager, types, validation, CSS, layout, ZIP, assets
   ├── settings      user settings store
   ├── diagnostics   counters and round tripper
@@ -55,7 +55,7 @@ directly because they are the same frontend-facing shape; it owns the compact
 | `internal/engine` | `supervisor.go` (process, config, version, pairing state), `rest.go` (typed REST client, `APIError`), `dtos.go` (raw engine JSON) |
 | `internal/catalog` | `service.go` (GetState, ResetSession, Restart, Playlists, Albums, Artists, ContextTracks, Search, PlayContext, PlayTrack, AddToQueue, StartRadio, artwork URL mapping) |
 | `internal/playback` | `provider.go` (`Provider` interface), `state.go` (`PlayerState`, `Track`, `Device`, `QueueItem`, `PlayerError`), `demo.go` (`DemoProvider`), `engine_provider.go` (`EngineProvider`) |
-| `internal/artwork` | `cache.go` (LRU bounds, diagnostics counters, `/art/` handler) |
+| `internal/artwork` | `cache.go` (memory 256 entries / 64 MiB, disk LRU of resized variants, single-flight per `key@size`, diagnostics counters, `GET /art/{key}?size=64\|128\|240\|640`) |
 | `internal/skins` | domain only: `manager.go`, `types.go`, `validate.go`, `css.go`, `layout.go`, `zip.go`, `asset.go` |
 | `internal/wailsapi/audio` | `service.go` (startup/shutdown/emitter/browser + delegated catalog methods), `types.go` aliases |
 | `internal/wailsapi/player` | `service.go` (500 ms ticker, mutations, emit), `types.go` aliases |

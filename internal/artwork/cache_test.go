@@ -27,14 +27,14 @@ func TestCacheFetchesAndReusesImage(t *testing.T) {
 	if len(key) != 64 {
 		t.Fatalf("key length = %d", len(key))
 	}
-	data, contentType, err := cache.Get(context.Background(), key)
+	data, contentType, err := cache.Get(context.Background(), key, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(data) != string(image) || contentType != "image/png" {
 		t.Fatalf("image = %q, %q", data, contentType)
 	}
-	if _, _, err := cache.Get(context.Background(), key); err != nil {
+	if _, _, err := cache.Get(context.Background(), key, 0); err != nil {
 		t.Fatal(err)
 	}
 	if requests.Load() != 1 {
@@ -51,7 +51,7 @@ func TestCacheRejectsUnsupportedContentAndOversizedImages(t *testing.T) {
 		defer server.Close()
 		cache := New(server.Client())
 		key := cache.Register(server.URL + "/cover")
-		if _, _, err := cache.Get(context.Background(), key); err == nil {
+		if _, _, err := cache.Get(context.Background(), key, 0); err == nil {
 			t.Fatal("Get() error = nil")
 		}
 	})
@@ -65,7 +65,7 @@ func TestCacheRejectsUnsupportedContentAndOversizedImages(t *testing.T) {
 		cache := New(server.Client())
 		cache.maxImage = 16
 		key := cache.Register(server.URL + "/cover")
-		if _, _, err := cache.Get(context.Background(), key); err == nil {
+		if _, _, err := cache.Get(context.Background(), key, 0); err == nil {
 			t.Fatal("Get() error = nil")
 		}
 	})
@@ -177,7 +177,7 @@ func TestServedCountsOnlySuccessfulWrites(t *testing.T) {
 	cache := New(server.Client())
 	cache.SetRecorder(recorder)
 	key := cache.Register(server.URL + "/cover.png")
-	if _, _, err := cache.Get(context.Background(), key); err != nil {
+	if _, _, err := cache.Get(context.Background(), key, 0); err != nil {
 		t.Fatal(err)
 	}
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { coverURL } from "../../artwork";
   import { player } from "../../player.svelte";
 
   interface Props {
@@ -37,7 +38,11 @@
   <div class="cad-cover-inner">
     {#if isImage && !imageFailed}
       <img
-        src={player.state.track.cover}
+        src={coverURL(player.state.track.cover, size)}
+        loading="eager"
+        decoding="async"
+        width={size}
+        height={size}
         alt=""
         draggable="false"
         onerror={() => {

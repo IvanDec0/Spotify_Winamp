@@ -123,7 +123,10 @@ func main() {
 	}
 
 	demoProvider := playback.NewDemoProvider()
-	artCache := artwork.New(nil)
+	artCache := artwork.NewWithOptions(artwork.Options{
+		DiskDir:   filepath.Join(xdg.CacheHome, "cadence", "art"),
+		DiskLimit: 256 << 20,
+	})
 
 	var recorder *diagnostics.Recorder
 	var engineHTTPClient *http.Client

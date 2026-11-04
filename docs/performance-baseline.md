@@ -43,7 +43,7 @@ Returns JSON with `Cache-Control: no-store`:
 | `goroutines` | Current Go goroutine count |
 | `engine` | Map of `METHOD /path` to `requests`, `errors`, `bytes_in`, `bytes_out`, `latency_ms_total` |
 | `engine_total` | Aggregate of all engine routes |
-| `artwork` | Map of `hit`, `miss`, `missing`, `error`, `served` to `count` and `bytes` |
+| `artwork` | Map of `hit`, `disk_hit`, `miss`, `missing`, `error`, `served` to `count` and `bytes` |
 | `events` | Map of event name to `count` and `bytes` |
 
 `bytes_in` is the request body size; `bytes_out` is the response body bytes

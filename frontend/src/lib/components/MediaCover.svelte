@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { coverLoading, coverURL } from "../artwork";
+
   interface Props {
     src?: string;
     label: string;
@@ -25,7 +27,11 @@
 >
   {#if src && !failed}
     <img
-      {src}
+      src={coverURL(src, size)}
+      loading={coverLoading(size)}
+      decoding="async"
+      width={size}
+      height={size}
       alt=""
       draggable="false"
       onerror={() => {

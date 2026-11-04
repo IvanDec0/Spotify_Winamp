@@ -102,8 +102,9 @@ func (r *Recorder) ObserveEngineRequest(method, path string, status int, bytesIn
 	r.engineTotal = total
 }
 
-// ObserveArtwork records one artwork cache observation. kind is "hit", "miss",
-// "missing", "error" or "served"; bytes is only meaningful for "served".
+// ObserveArtwork records one artwork cache observation. kind is "hit",
+// "disk_hit", "miss", "missing", "error" or "served"; bytes is only meaningful
+// for "served".
 func (r *Recorder) ObserveArtwork(kind string, bytes int64) {
 	if r == nil {
 		return

@@ -8,6 +8,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/tdewolff/parse/v2 v2.8.20
 	github.com/wailsapp/wails/v3 v3.0.0-beta.34
+	golang.org/x/image v0.41.0
 )
 
 require (

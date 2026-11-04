@@ -594,13 +594,13 @@ change, no event while paused and unchanged, idle CPU <2%.
 
 ### T4.2 — Artwork variants, single-flight and disk cache
 
-- [ ] `internal/artwork`: size variants (64/128/240/640) on
+- [x] `internal/artwork`: size variants (64/128/240/640) on
       `GET /art/{key}?size=`, single-flight for concurrent misses, bounded disk
       LRU under `$XDG_CACHE_HOME/cadence/art`, unchanged default behavior.
-- [ ] Frontend: request the right variant from `CoverArt`/`MediaCover` and the
+- [x] Frontend: request the right variant from `CoverArt`/`MediaCover` and the
       skin components, with `loading="lazy"`, `decoding="async"` and explicit
       dimensions.
-- [ ] Tests for variant selection, single-flight, disk eviction and fallback.
+- [x] Tests for variant selection, single-flight, disk eviction and fallback.
 - Commit: `perf(art): add size variants, single-flight and a disk cache`
 
 ### T4.3 — Idle rendering and long lists
@@ -634,6 +634,7 @@ change, no event while paused and unchanged, idle CPU <2%.
 |---|---|
 | T4.1 | `feat(state): drive player state from the engine event stream` |
 | T4.1 review corrections | `fix(state): harden stream revisions, queue loading and skin progress` |
+| T4.2 | `perf(art): add size variants, single-flight and a disk cache` |
 
 The commit hashes are recorded in T4.4 together with the after-baseline, so the
 task commit stays self-contained.
@@ -688,3 +689,4 @@ task commit stays self-contained.
 | 2026-11-04 | Phase 3 close | `docs(odd): close Phase 3` | Split complete at 85de8a9; 80.4% catalog coverage; bindings and frontend green; live smoke test and runtime baseline pending |
 | 2026-11-04 | T4.1 | `feat(state)` | `/events` WebSocket client, `Streamer` + revisioned `EngineProvider.Stream` (100 ms coalesce, 15 s reconcile, change-only emit), on-demand `Provider.Queue`, streaming player adapter with fallback ticker, frontend queue/position/revision stores and authenticated-only audio polling; Go race and frontend checks green |
 | 2026-11-04 | T4.1 review corrections | `fix(state)` | Stopped state on engine loss, capture-ordered revisions, queue loading placeholders, interpolated skin progress, track-scoped queue reload, subscribe-before-fetch, watcher-before-fetch with reconcile dirt clearing, demo state without the queue and reconnect logging |
+| 2026-11-04 | T4.2 | `perf(art)` | `GET /art/{key}?size=` variants (64/128/240/640, JPEG q85, no upscale), per-`key@size` single-flight, 256 MiB disk LRU of resized variants with scan/write eviction, `disk_hit` diagnostics, 256-entry/64 MiB memory bounds, `coverURL`/`coverLoading` wired into the frontend covers |
