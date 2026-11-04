@@ -510,7 +510,8 @@ Node `v22.23.4`, branch `feat/cadence-v2`.
 | Command | Result |
 |---|---|
 | `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0; all packages `ok`, three adapter packages have no test files |
-| `go test -race ./internal/engine/... ./internal/catalog/... ./internal/playback/... ./internal/artwork/...` | exit 0; engine 1.248s, playback 1.029s, artwork 1.025s; catalog has no tests |
+| `go test -race ./internal/engine/... ./internal/catalog/... ./internal/playback/... ./internal/artwork/...` | exit 0; engine 1.248s, catalog 1.033s, playback 1.029s, artwork 1.025s |
+| `go test -cover ./internal/catalog/` | exit 0, `coverage: 80.4% of statements` |
 | `go vet $(go list ./... \| grep -v '/node_modules/')` | exit 0, no findings |
 | `gofmt -l $(go list -f '{{.Dir}}' ./... \| grep -v '/node_modules/')` | exit 0, no files listed |
 | `task audio:check` | exit 0; all nine patches apply cleanly to `v0.10.6-0.20261104085532-16b65bb4cd2b` |
@@ -546,7 +547,23 @@ frontend/bindings/cadence/internal/skins/{index,models}.ts
 | T3.3 | `8b8ab2e` |
 | T3.4 | `d8887e4` |
 | Review: catalog tests | `b16a453` |
-| Review: docs alignment | this commit |
+| Review: docs alignment | `85de8a9` |
+
+## Phase 3 status
+
+- **Code and docs:** complete at `85de8a9`. The old `internal/golibrespot`,
+  `internal/player` adapter and `internal/artcache` are gone.
+- **Verification:** all Go tests and race tests green, `go vet`, `gofmt`,
+  `task audio:check`, binding regeneration with no diff, 124 frontend tests,
+  `npm run check/lint/format/build`, and catalog coverage at **80.4%**.
+- **Behavior:** unchanged. Only `main.go`, `internal/platform` and the three
+  `wailsapi` packages import Wails; domain packages are independent.
+- **Pending user verification:** a live GUI/Spotify smoke test (pairing,
+  playback, library, skins) after the refactor.
+- **Pending before Phase 4:** capture the runtime performance baseline in
+  `docs/performance-baseline.md`. The user deferred it; Phase 4 changes the
+  state transport, so the before/after comparison needs this capture first.
+- **Next:** Phase 4 (event-driven engine state and artwork variants).
 
 ## Progress log
 
@@ -570,11 +587,12 @@ frontend/bindings/cadence/internal/skins/{index,models}.ts
 | 2026-11-04 | T2.3 | `7adecc5` | Button, focus-trapped Dialog, virtual list helper/component, Skeleton, toast store/components and typed navigation store; not wired into App yet |
 | 2026-11-04 | T2.4 | `9210648` | All frontend checks green; 23 test files / 106 tests; build emits lazy `es` chunks; binding imports confined to `shared/api` and mocks |
 | 2026-11-04 | Phase 2 corrections | `4a28390` | Rounded seek/volume, non-blocking i18n startup, latest-wins locale switches, dialog focus/escape hardening, fractional virtual rows, Button attribute forwarding, single live region, lazy `es` barrel fix, extra i18n tests and docs |
-
 | 2026-11-04 | Phase 2 final fixes | `fix(frontend): skip non-tabbable dialog elements and stale locale errors` | Excluded `tabindex="-1"` from the dialog trap; ignored stale locale loader rejections; 124 tests green |
 | 2026-11-04 | T3.1 | `61d3ba1` | `engine` owns supervisor/rest/DTOs, `artwork` replaces `artcache`; old adapter imports the new packages; Go tests, vet and gofmt green |
 | 2026-11-04 | T3.2 | `ca2dc58` | `catalog` owns engine-backed library/search/context orchestration; `playback` owns provider, state, demo and engine provider; temporary adapters delegate; Go tests, vet and gofmt green |
 | 2026-11-04 | T3.3 | `8b8ab2e` | Wails adapters moved to `internal/wailsapi/{audio,player,skins}` with `audioapi`/`playerapi`/`skinsapi`; old packages deleted; bindings regenerated (4 services, 39 methods, 38 models, 3 events); frontend facades and mocks repointed; Go and frontend checks green |
 | 2026-11-04 | T3.4 | `d8887e4` | ADR-0001 accepted with the final layout and `internal/platform` exception; `docs/architecture.md` linked from README and docs index; verification table recorded; all Go, engine, binding and frontend checks green |
 | 2026-11-04 | T3.4 review correction 1 | `b16a453` | Added `internal/catalog/service_test.go` (`catalog_test`) against a fake engine: demo-disabled state, library pages/artwork rewriting, context mapping, all search groups, playback/queue/radio bodies, 500 propagation and missing-client error; `go test -cover ./internal/catalog/` = 80.4% |
-| 2026-11-04 | T3.4 review correction 2 | this commit | README repository tree, plan header and docs index aligned with the Phase 3 split; ADR-0001 constructors/logging claims corrected; architecture Wails boundary includes `main.go`; performance-baseline paths point at the new packages without changing measurements |
+| 2026-11-04 | T3.4 review correction 2 | `85de8a9` | README repository tree, plan header and docs index aligned with the Phase 3 split; ADR-0001 constructors/logging claims corrected; architecture Wails boundary includes `main.go`; performance-baseline paths point at the new packages without changing measurements |
+
+| 2026-11-04 | Phase 3 close | `docs(odd): close Phase 3` | Split complete at 85de8a9; 80.4% catalog coverage; bindings and frontend green; live smoke test and runtime baseline pending |
