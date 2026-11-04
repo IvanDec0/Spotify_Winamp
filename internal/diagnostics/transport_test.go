@@ -82,6 +82,122 @@ func TestWrapTransportCountsStatusErrors(t *testing.T) {
 	}
 }
 
+func TestWrapTransportHandlesNilResponseBody(t *testing.T) {
+	recorder := NewRecorder()
+	base := roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: nil}, nil
+	})
+
+	response, err := WrapTransport(base, recorder).RoundTrip(httptest.NewRequest(http.MethodGet, "http://engine/status", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Body != nil {
+		t.Fatalf("body = %v, want nil preserved", response.Body)
+	}
+
+	route := recorder.Snapshot().Engine["GET /status"]
+	if route.Requests != 1 || route.Errors != 0 || route.BytesOut != 0 {
+		t.Fatalf("route = %+v, want one successful request with no body", route)
+	}
+}
+
+func TestWrapTransportRecordsNoContent(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	recorder := NewRecorder()
+	client := &http.Client{Transport: WrapTransport(http.DefaultTransport, recorder)}
+	response, err := client.Get(server.URL + "/player/play")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, response.Body)
+	_ = response.Body.Close()
+
+	route := recorder.Snapshot().Engine["GET /player/play"]
+	if route.Requests != 1 || route.Errors != 0 || route.BytesOut != 0 {
+		t.Fatalf("route = %+v, want one successful 204 with no body", route)
+	}
+}
+
+func TestWrapTransportRecordsHeadWithoutBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "image/png")
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write([]byte("not served for HEAD"))
+	}))
+	defer server.Close()
+
+	recorder := NewRecorder()
+	client := &http.Client{Transport: WrapTransport(http.DefaultTransport, recorder)}
+	response, err := client.Head(server.URL + "/status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+
+	route := recorder.Snapshot().Engine["HEAD /status"]
+	if route.Requests != 1 || route.Errors != 0 || route.BytesOut != 0 {
+		t.Fatalf("route = %+v, want one successful HEAD with no bytes", route)
+	}
+}
+
+func TestWrapTransportRecordsCloseBeforeReading(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		_, _ = writer.Write([]byte("abcdefghij"))
+	}))
+	defer server.Close()
+
+	recorder := NewRecorder()
+	client := &http.Client{Transport: WrapTransport(http.DefaultTransport, recorder)}
+	response, err := client.Get(server.URL + "/status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := response.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	route := recorder.Snapshot().Engine["GET /status"]
+	if route.Requests != 1 || route.BytesOut != 0 {
+		t.Fatalf("route = %+v, want one request with no bytes read", route)
+	}
+}
+
+func TestWrapTransportCountsEveryRedirectHop(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/first" {
+			http.Redirect(writer, request, "/second", http.StatusFound)
+			return
+		}
+		_, _ = writer.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	recorder := NewRecorder()
+	client := &http.Client{Transport: WrapTransport(http.DefaultTransport, recorder)}
+	response, err := client.Get(server.URL + "/first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, response.Body)
+	_ = response.Body.Close()
+
+	snapshot := recorder.Snapshot()
+	if snapshot.EngineTotal.Requests != 2 {
+		t.Fatalf("total requests = %d, want 2 (one per redirect hop)", snapshot.EngineTotal.Requests)
+	}
+	if snapshot.Engine["GET /first"].Requests != 1 || snapshot.Engine["GET /second"].Requests != 1 {
+		t.Fatalf("per-hop routes = %+v, want one request each", snapshot.Engine)
+	}
+	if snapshot.EngineTotal.Errors != 0 {
+		t.Fatalf("errors = %d, want 0 for a followed redirect", snapshot.EngineTotal.Errors)
+	}
+}
+
 func TestWrapTransportCountsTransportErrors(t *testing.T) {
 	recorder := NewRecorder()
 	base := roundTripFunc(func(*http.Request) (*http.Response, error) {

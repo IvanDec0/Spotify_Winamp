@@ -21,7 +21,7 @@ type EngineRouteStats struct {
 }
 
 // ArtworkStats is the accumulated count and byte volume for one artwork kind
-// (hit, miss, error or served).
+// (hit, miss, missing, error or served).
 type ArtworkStats struct {
 	Count int64 `json:"count"`
 	Bytes int64 `json:"bytes"`
@@ -103,7 +103,7 @@ func (r *Recorder) ObserveEngineRequest(method, path string, status int, bytesIn
 }
 
 // ObserveArtwork records one artwork cache observation. kind is "hit", "miss",
-// "error" or "served"; bytes is only meaningful for "served".
+// "missing", "error" or "served"; bytes is only meaningful for "served".
 func (r *Recorder) ObserveArtwork(kind string, bytes int64) {
 	if r == nil {
 		return

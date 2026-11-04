@@ -2,6 +2,7 @@ package artcache
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -133,16 +134,25 @@ func TestCacheRecorderCountsHitsMissesErrorsAndServedBytes(t *testing.T) {
 			t.Fatalf("status = %d, want 200", response.Code)
 		}
 	}
-	missingKey := cache.Register(server.URL + "/missing.png")
+	badKey := cache.Register(server.URL + "/missing.png")
 	response := httptest.NewRecorder()
-	cache.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/art/"+missingKey, nil))
+	cache.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/art/"+badKey, nil))
 	if response.Code != http.StatusNotFound {
-		t.Fatalf("missing status = %d, want 404", response.Code)
+		t.Fatalf("bad key status = %d, want 404", response.Code)
+	}
+	unknownKey := strings.Repeat("0", 64)
+	response = httptest.NewRecorder()
+	cache.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/art/"+unknownKey, nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("unknown key status = %d, want 404", response.Code)
 	}
 
 	artwork := recorder.Snapshot().Artwork
 	if artwork["miss"].Count != 2 {
 		t.Fatalf("misses = %+v, want 2", artwork["miss"])
+	}
+	if artwork["missing"].Count != 1 {
+		t.Fatalf("missing = %+v, want 1", artwork["missing"])
 	}
 	if artwork["hit"].Count != 1 {
 		t.Fatalf("hits = %+v, want 1", artwork["hit"])
@@ -153,4 +163,42 @@ func TestCacheRecorderCountsHitsMissesErrorsAndServedBytes(t *testing.T) {
 	if artwork["served"].Count != 2 || artwork["served"].Bytes != int64(2*len(image)) {
 		t.Fatalf("served = %+v, want 2 images", artwork["served"])
 	}
+}
+
+func TestServedCountsOnlySuccessfulWrites(t *testing.T) {
+	image := []byte("\x89PNG\r\n\x1a\nfake-image")
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "image/png")
+		_, _ = writer.Write(image)
+	}))
+	defer server.Close()
+
+	recorder := diagnostics.NewRecorder()
+	cache := New(server.Client())
+	cache.SetRecorder(recorder)
+	key := cache.Register(server.URL + "/cover.png")
+	if _, _, err := cache.Get(context.Background(), key); err != nil {
+		t.Fatal(err)
+	}
+
+	writer := &failingResponseWriter{header: make(http.Header)}
+	cache.ServeHTTP(writer, httptest.NewRequest(http.MethodGet, "/art/"+key, nil))
+
+	if served := recorder.Snapshot().Artwork["served"]; served.Count != 0 || served.Bytes != 0 {
+		t.Fatalf("served after failed write = %+v, want zero", served)
+	}
+}
+
+type failingResponseWriter struct {
+	header http.Header
+}
+
+func (w *failingResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *failingResponseWriter) WriteHeader(int) {}
+
+func (w *failingResponseWriter) Write([]byte) (int, error) {
+	return 0, errors.New("client disconnected")
 }

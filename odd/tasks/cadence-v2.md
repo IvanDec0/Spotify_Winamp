@@ -148,3 +148,4 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 | 2026-11-04 | T0.3 | `67143fe` | `--check` mode, `audio:check`/`verify` tasks, CI step |
 | 2026-11-04 | T0.4 | `939e949` | Baseline procedure + static estimate + gates; ADRs 0001-0003 |
 | 2026-11-04 | T0.5 | `chore: record Phase 0 verification` | All verification commands green |
+| 2026-11-04 | Review corrections | `fix(diagnostics): tighten artwork counters and baseline accuracy` | Atomic artwork recorder, `missing` counter, successful-write-only `served`, emission-only event accounting, corrected baseline provenance, transport edge cases, strict patch fuzz; all checks green |

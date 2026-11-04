@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cadence/internal/diagnostics"
@@ -41,7 +42,7 @@ type Cache struct {
 	maxItems int
 	maxBytes int64
 	maxImage int64
-	recorder *diagnostics.Recorder
+	recorder atomic.Pointer[diagnostics.Recorder]
 }
 
 func New(client *http.Client) *Cache {
@@ -60,15 +61,16 @@ func New(client *http.Client) *Cache {
 // SetRecorder attaches an optional diagnostics recorder. A nil recorder
 // disables instrumentation without changing cache behavior.
 func (c *Cache) SetRecorder(recorder *diagnostics.Recorder) {
-	c.mu.Lock()
-	c.recorder = recorder
-	c.mu.Unlock()
+	c.recorder.Store(recorder)
 }
 
+// observe is the hot-path accounting entry point: one atomic load, and an
+// immediate return when diagnostics are disabled.
 func (c *Cache) observe(kind string, bytes int64) {
-	c.mu.Lock()
-	recorder := c.recorder
-	c.mu.Unlock()
+	recorder := c.recorder.Load()
+	if recorder == nil {
+		return
+	}
 	recorder.ObserveArtwork(kind, bytes)
 }
 
@@ -106,16 +108,16 @@ func (c *Cache) Get(ctx context.Context, key string) ([]byte, string, error) {
 	item, ok := c.entries[key]
 	if !ok {
 		c.mu.Unlock()
+		c.observe("missing", 0)
 		return nil, "", errors.New("unknown album art key")
 	}
 	url := item.url
 	if len(item.data) > 0 {
 		data := append([]byte(nil), item.data...)
 		contentType := item.contentType
-		recorder := c.recorder
 		c.touchLocked(key)
 		c.mu.Unlock()
-		recorder.ObserveArtwork("hit", 0)
+		c.observe("hit", 0)
 		return data, contentType, nil
 	}
 	c.mu.Unlock()
@@ -190,7 +192,9 @@ func (c *Cache) evictLocked() {
 }
 
 // ServeHTTP serves /art/<opaque-key>. It is wired into the application asset
-// handler; requests never contain the remote URL.
+// handler; requests never contain the remote URL. A "served" observation
+// records only a GET body write that completed without an error, so aborted or
+// partial writes do not inflate delivered-image bytes.
 func (c *Cache) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	const prefix = "/art/"
 	if !strings.HasPrefix(request.URL.Path, prefix) {
@@ -218,7 +222,8 @@ func (c *Cache) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("X-Content-Type-Options", "nosniff")
 	writer.WriteHeader(http.StatusOK)
 	if request.Method == http.MethodGet {
-		written, _ := writer.Write(data)
-		c.observe("served", int64(written))
+		if written, err := writer.Write(data); err == nil {
+			c.observe("served", int64(written))
+		}
 	}
 }

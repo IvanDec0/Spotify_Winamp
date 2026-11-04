@@ -29,8 +29,9 @@ capture happens; the static estimate is not a substitute for a measurement.
 - starts an ephemeral listener on `127.0.0.1:0` and logs its URL, for example
   `diagnostics available at http://127.0.0.1:43127/debug/stats (pprof at /debug/pprof/)`.
 
-With the flag disabled no listener starts and the recorder stays `nil`; the
-application pays no instrumentation cost.
+With the flag disabled no listener starts and the recorder stays `nil`. There is
+no transport wrapper and no event JSON marshalling; the artwork hot path pays
+one atomic load and returns.
 
 ### `GET /debug/stats`
 
@@ -42,12 +43,17 @@ Returns JSON with `Cache-Control: no-store`:
 | `goroutines` | Current Go goroutine count |
 | `engine` | Map of `METHOD /path` to `requests`, `errors`, `bytes_in`, `bytes_out`, `latency_ms_total` |
 | `engine_total` | Aggregate of all engine routes |
-| `artwork` | Map of `hit`, `miss`, `error`, `served` to `count` and `bytes` |
+| `artwork` | Map of `hit`, `miss`, `missing`, `error`, `served` to `count` and `bytes` |
 | `events` | Map of event name to `count` and `bytes` |
 
 `bytes_in` is the request body size; `bytes_out` is the response body bytes
 actually read. `errors` counts transport failures (`status == 0`) and HTTP
 status codes `>= 400`.
+
+`artwork.missing` counts requests for an unknown or LRU-evicted key (the paths
+that return 404). `artwork.served` counts only `GET` body writes that completed
+without an error; aborted or partial writes are not counted, so delivered-image
+stats are not inflated.
 
 The pprof handlers are registered at `/debug/pprof/`, `/debug/pprof/cmdline`,
 `/debug/pprof/profile`, `/debug/pprof/symbol` and `/debug/pprof/trace`.
@@ -136,13 +142,13 @@ explain where idle traffic comes from; they do not replace runtime capture.
 |---|---|---|
 | Player ticker | `internal/player/service.go` emits every 500 ms; each `Provider.State()` calls `GET /status` | 2.0 req/s |
 | Frontend audio poll | `frontend/src/lib/music.svelte.ts` calls `AudioService.GetState()` every 2 s | 0.5 req/s |
-| Context refresh | `internal/golibrespot/provider.go` refreshes `/context/tracks` every 5 s while a context is active | 0.2 req/s |
-| **Total** | | **≈2.7 req/s** |
+| Context fetch | `internal/golibrespot/provider.go` fetches `/context/tracks` only while the context is not `Ready`; once a successful response reports `Ready`, that URI is cached indefinitely. The 5 s window gates warmup and retries only. | 0.2 req/s while warming up or retrying; 0 in steady state |
+| **Steady idle total** | | **≈2.5 req/s** |
+| **Warmup total** | | **≈2.7 req/s** |
 
-The plan's earlier estimate was **≈3.2 req/s** (2/s ticker + 1/s frontend poll +
-0.2/s context refresh). The exact interval-derived sum is 2.7 req/s because a
-2-second poll is 0.5 requests per second; the measured `/debug/stats` value is
-authoritative.
+The plan estimated **≈3 req/s** of idle traffic. The code-derived steady-state
+rate is ≈2.5 req/s (2.0 ticker + 0.5 frontend); context warmup or retry adds
+≈0.2 req/s. The measured `/debug/stats` value remains authoritative.
 
 Other static properties that affect the baseline:
 
@@ -197,7 +203,10 @@ on the reference machine:
 - Counters are per process and reset on restart.
 - Latency is recorded when the response body reaches EOF or is closed, so it
   includes body consumption time.
-- `served` counts response bytes written for `GET` artwork requests; `HEAD`
-  requests do not serve a body.
+- `served` counts response bytes only for successful `GET` artwork writes;
+  aborted or partial writes are not counted, and `HEAD` requests do not serve a
+  body.
+- `missing` counts requests for unknown or evicted artwork keys; it is separate
+  from `error`, which counts remote fetch failures.
 - The diagnostics listener is loopback-only and exists only while
   `--diagnostics` is set. It is a development tool, not a product surface.

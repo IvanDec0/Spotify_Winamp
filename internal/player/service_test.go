@@ -6,19 +6,15 @@ import (
 	"cadence/internal/diagnostics"
 )
 
-func TestEmitRecordsEventPayload(t *testing.T) {
+func TestEmitWithoutAppDoesNotRecordEvent(t *testing.T) {
 	service := NewService(NewDemoProvider())
 	recorder := diagnostics.NewRecorder()
 	service.SetRecorder(recorder)
 
 	service.emit(PlayerState{Provider: "demo", Status: StatusPaused, Queue: []QueueItem{}})
 
-	events := recorder.Snapshot().Events
-	if events[StateEvent].Count != 1 {
-		t.Fatalf("events = %+v, want one %s", events, StateEvent)
-	}
-	if events[StateEvent].Bytes == 0 {
-		t.Fatalf("event bytes = 0, want the marshalled payload size")
+	if events := recorder.Snapshot().Events; len(events) != 0 {
+		t.Fatalf("events = %+v, want none without an application", events)
 	}
 }
 

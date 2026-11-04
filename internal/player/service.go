@@ -209,12 +209,12 @@ func (s *Service) emit(state PlayerState) {
 	app := s.app
 	recorder := s.recorder
 	s.mu.Unlock()
-	if recorder != nil {
-		if payload, err := json.Marshal(state); err == nil {
-			recorder.ObserveEvent(StateEvent, len(payload))
-		}
-	}
 	if app != nil {
 		app.Event.Emit(StateEvent, state)
+		if recorder != nil {
+			if payload, err := json.Marshal(state); err == nil {
+				recorder.ObserveEvent(StateEvent, len(payload))
+			}
+		}
 	}
 }
