@@ -316,16 +316,16 @@ and `git diff --check` all exited 0. Smoke first line:
 
 ### T2.2 — i18n foundation
 
-- [ ] Add `intl-messageformat` at an exact version (12.1.4) and update the
+- [x] Add `intl-messageformat` at an exact version (12.1.4) and update the
       lockfile.
-- [ ] `src/shared/i18n`: typed `en`/`es` catalogs as TS modules (compile-time key
+- [x] `src/shared/i18n`: typed `en`/`es` catalogs as TS modules (compile-time key
       parity), `I18n` runtime with `IntlMessageFormat`, cached formatters, locale
       detection, `localStorage` persistence and `document.documentElement.lang`.
-- [ ] Call `initI18n()` before mounting in `main.ts`. Add `ui.*` keys used by the
+- [x] Call `initI18n()` before mounting in `main.ts`. Add `ui.*` keys used by the
       shared primitives; do not sweep existing screens yet (Phase 7).
-- [ ] Update ADR-0003 and plan §7 to record TS catalogs instead of JSON plus a
+- [x] Update ADR-0003 and plan §7 to record TS catalogs instead of JSON plus a
       generator.
-- [ ] Tests: interpolation, plural, locale switch, persistence, fallback.
+- [x] Tests: interpolation, plural, locale switch, persistence, fallback.
 - Commit: `feat(i18n): add typed catalogs and a locale runtime`
 
 ### T2.3 — Shared UI primitives and navigation state
@@ -374,3 +374,4 @@ and `git diff --check` all exited 0. Smoke first line:
 | 2026-11-04 | Engine version fix | `f2efa8e` | Injected `-X ...version` and `-buildvcs=false`; rebuilt binary now logs the real pin `0.10.6-20261104085532-16b65bb4cd2b` |
 | 2026-11-04 | Review corrections 2 | `59dc4d4` | `device_is_group` default off and group-icon-only docs; generated-config notice; version injection `${VERSION#v}` with `-buildvcs=false`; version cache cleared on start/stop with throttled `State` retry; stricter config/version tests; GPL notice updated |
 | 2026-11-04 | T2.1 | `refactor(frontend)` | Typed `shared/api` boundary with ApiError normalization, player/audio/skins/window/event facades and client/event/window tests; all binding imports migrated |
+| 2026-11-04 | T2.2 | `feat(i18n)` | `intl-messageformat@12.1.4`, literal-key TS catalogs with compile-time parity, cached ICU formatters, locale detection/persistence and `Intl` helpers; ADR-0003 and plan §7 updated |

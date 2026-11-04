@@ -16,14 +16,17 @@ are embedded in code and backend errors are opaque sentences.
 
 - The Go backend is **not localized**. It returns stable `{code, params}` error
   values; the frontend renders `errors.<code>` with the active locale.
-- Frontend catalogs use ICU MessageFormat JSON at
-  `frontend/src/shared/i18n/locales/{en,es}.json`, rendered with
+- Frontend catalogs are TypeScript modules with ICU MessageFormat strings at
+  `frontend/src/shared/i18n/locales/{en,es}.ts`, rendered with
   `intl-messageformat`; `Intl` handles numbers, dates and relative time.
-- Typed keys are generated from `en.json` into `messages.d.ts`, so a missing key
-  is a TypeScript error.
-- The active locale is loaded eagerly; other locales use dynamic `import()`.
-  First run uses `navigator.language` matched against available locales, then
-  the preference persists in settings and updates `document.lang`.
+- `en.ts` is `as const` and exports `MessageKey = keyof typeof en`; `es.ts` is
+  typed `Record<MessageKey, string>`. Missing or unknown keys are a
+  compile-time error, so there is no generator and no `.d.ts` build step.
+- The base locale is bundled eagerly; other locales are separate chunks loaded
+  with dynamic `import()`, and switching locale clears the formatter cache.
+- First run reads `localStorage["cadence.locale"]`, then falls back to
+  `navigator.language` (`es*` to `es`, otherwise `en`). The choice persists in
+  `localStorage` and updates `document.documentElement.lang`.
 - Skins may provide an optional `i18n` map in `manifest.json`; missing entries
   fall back to the raw label.
 - An ESLint rule guards literal `aria-label`, `title`, `placeholder`, `alt` and
@@ -39,5 +42,6 @@ are embedded in code and backend errors are opaque sentences.
   language-neutral.
 - New UI cannot merge with hardcoded user-facing strings once the guard is
   enabled.
-- Catalogs, the key generator, the parity test and the ESLint rule become part
-  of the build and review surface.
+- Catalogs, the `MessageKey` union, the `Record<MessageKey, string>` parity
+  type and the ESLint rule become part of the review surface. Adding a key is
+  a two-file change with no generated artifacts to commit.

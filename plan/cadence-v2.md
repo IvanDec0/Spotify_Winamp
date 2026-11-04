@@ -309,19 +309,24 @@ Phases 0-5 are independent of D1; only Phase 6 needs the answer.
 
 ## 7. Internationalization
 
-- **Catalogs:** ICU MessageFormat JSON at `frontend/src/shared/i18n/locales/{en,es}.json`.
+- **Catalogs:** ICU MessageFormat strings in TypeScript modules at
+  `frontend/src/shared/i18n/locales/{en,es}.ts`.
 - **Runtime:** `intl-messageformat` for ICU, `Intl` for numbers, dates, relative time.
-- **Typed keys:** a generator reads `en.json` and emits `messages.d.ts`, so a missing
-  key is a TypeScript error. No string-key typos at runtime.
-- **Loading:** active locale loaded eagerly; others via dynamic `import()`.
-- **Selection:** first run uses `navigator.language` matched against available
-  locales; persisted in preferences; switchable in Settings; updates `document.lang`.
+- **Typed keys:** `en.ts` is `as const` and exports `MessageKey = keyof typeof en`;
+  `es.ts` is typed `Record<MessageKey, string>`, so missing or unknown keys are a
+  compile-time error. No generator, build step or `messages.d.ts` to maintain, and
+  no string-key typos at runtime.
+- **Loading:** the base locale is bundled eagerly; other locales are separate chunks
+  loaded via dynamic `import()` and the formatter cache is cleared on switch.
+- **Selection:** first run checks `localStorage["cadence.locale"]`, then
+  `navigator.language` (`es*` to `es`, otherwise `en`); the choice persists, is
+  switchable in Settings, and updates `document.documentElement.lang`.
 - **Go is not localized.** Backend returns `{code, params}`; the frontend renders
   `errors.<code>`. Migrate `AudioState.Error`, `SkinCatalog.LastError`, validation
   warnings and pairing messages to codes.
 - **Skins:** optional `i18n` map in `manifest.json`; fallback to the raw label.
 - **Guards:** ESLint rule for literal `aria-label`/`title`/`placeholder`/`alt` and text
-  nodes in `.svelte`; a test that asserts key parity and no empty values.
+  nodes in `.svelte`; TS key parity and a test that no catalog value is empty.
 - **Migration:** infrastructure in Phase 2; per-module migration as modules are
   touched; final sweep gate before release (Phase 7). New code must use `t()` from day
   one.
