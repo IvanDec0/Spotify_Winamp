@@ -67,11 +67,11 @@ records that the module split will follow.
 
 ### T0.4 — Baseline and decision records
 
-- [ ] `docs/performance-baseline.md`: procedure, static baseline, measurement
+- [x] `docs/performance-baseline.md`: procedure, static baseline, measurement
       table to fill on the reference machine, Phase 4 gates.
-- [ ] `docs/adr/0001-module-boundaries.md`
-- [ ] `docs/adr/0002-event-driven-engine-state.md`
-- [ ] `docs/adr/0003-error-codes-and-i18n.md`
+- [x] `docs/adr/0001-module-boundaries.md`
+- [x] `docs/adr/0002-event-driven-engine-state.md`
+- [x] `docs/adr/0003-error-codes-and-i18n.md`
 - Commit: `docs: add performance baseline and v2 ADRs`
 
 ### T0.5 — Phase 0 verification
@@ -91,3 +91,4 @@ records that the module split will follow.
 | 2026-11-04 | T0.1 | `feat(diagnostics): add engine and artwork metrics recorder` | Recorder, snapshot and transport wrapper with tests |
 | 2026-11-04 | T0.2 | `feat(diagnostics): expose loopback stats and pprof behind a flag` | Artcache/player instrumentation, loopback stats and pprof, 12 s timeout preserved |
 | 2026-11-04 | T0.3 | `build: verify go-librespot patches without building` | `--check` mode, `audio:check`/`verify` tasks, CI step |
+| 2026-11-04 | T0.4 | `docs: add performance baseline and v2 ADRs` | Baseline procedure + static estimate + gates; ADRs 0001-0003 |
