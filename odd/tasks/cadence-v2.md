@@ -663,13 +663,11 @@ the context list without nested scrolling or sticky-header regressions.
 
 | Task | Commit |
 |---|---|
-| T4.1 | `feat(state): drive player state from the engine event stream` |
-| T4.1 review corrections | `fix(state): harden stream revisions, queue loading and skin progress` |
-| T4.2 | `perf(art): add size variants, single-flight and a disk cache` |
-| T4.3 | `perf(ui): stop idle animation work and virtualize long lists` |
+| T4.1 | `26b8c62` |
+| T4.1 review corrections | `9ae6a79` |
+| T4.2 | `7a2fc8d` |
+| T4.3 | `a28d8ea` |
 
-The commit hashes are recorded in T4.4 together with the after-baseline, so the
-task commit stays self-contained.
 
 ### T4.1 review corrections — 2026-11-04
 
@@ -688,6 +686,42 @@ task commit stays self-contained.
   the dirty flag so one event cannot cause two `/status` requests.
 - The demo state no longer embeds the queue; `Queue()` remains the on-demand
   path. Reconnect attempts are logged with the error and backoff.
+
+## Phase 4 verification (static) — 2026-11-04
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0, all Go packages ok |
+| `go test -race ./internal/engine/... ./internal/playback/... ./internal/artwork/... ./internal/wailsapi/player/...` | exit 0 |
+| `go vet`, `gofmt -l` | exit 0, no findings |
+| `wails3 generate bindings -clean=true -ts -i .` | exit 0; `frontend/bindings` unchanged |
+| `task audio:check` | exit 0, both patches apply |
+| `npm run check` | exit 0, 0 errors/warnings |
+| `npm run lint`, `npm run format` | exit 0 |
+| `npm run test` | exit 0, 28 files / 143 tests |
+| `npm run build` | exit 0, 231 modules |
+| `git diff --check` | exit 0 |
+
+## Phase 4 status
+
+- **Code:** complete at `a28d8ea`.
+- **Idle traffic (structural):** the 500 ms ticker and the 2 s frontend poll are
+  gone. Authenticated idle is only the 15 s `/status` reconciliation, about
+  **0.067 req/s**. The audio poll runs only while unauthenticated (5 s).
+- **Payload (structural):** streamed `PlayerState` no longer carries the queue;
+  the remaining fields are roughly 0.8-1.2 KB per change. The queue is fetched
+  on demand with `GetQueue`.
+- **Idle work:** progress and visualizer loops stop when paused or hidden; the
+  visualizer caps at 30 fps.
+- **Pending measurement:** T4.4 after-baseline on the reference machine
+  (`./bin/cadence --diagnostics`, 60 s paused). Capture `engine_total`,
+  `events["player:state"]`, idle CPU and RSS, then update
+  `docs/performance-baseline.md`.
+- **Deferred:** context-list virtualization moves to Phase 6. The measured row
+  pitch is 36 px inside the shared `.library-body` scroll container; forcing
+  `VirtualList` there would nest scroll containers and change the context header
+  behavior.
+- **Next:** T4.4 measurement, then Phase 5 (catalog features).
 
 ## Progress log
 
@@ -723,3 +757,5 @@ task commit stays self-contained.
 | 2026-11-04 | T4.1 review corrections | `fix(state)` | Stopped state on engine loss, capture-ordered revisions, queue loading placeholders, interpolated skin progress, track-scoped queue reload, subscribe-before-fetch, watcher-before-fetch with reconcile dirt clearing, demo state without the queue and reconnect logging |
 | 2026-11-04 | T4.2 | `perf(art)` | `GET /art/{key}?size=` variants (64/128/240/640, JPEG q85, no upscale), per-`key@size` single-flight, 256 MiB disk LRU of resized variants with scan/write eviction, `disk_hit` diagnostics, 256-entry/64 MiB memory bounds, `coverURL`/`coverLoading` wired into the frontend covers |
 | 2026-11-04 | T4.3 | `perf(ui)` | Progress and both visualizers now start rAF loops only while playing, visible and (for visualizers) not reduced-motion; loops cancel on pause/hide with a final static frame; visualizer frame cap at 30 fps; skin progress paused-state and unmount cleanup covered by tests; context-list virtualization deferred to Phase 6 (34 px row + 2 px gap, shared scroll container) |
+
+| 2026-11-04 | Phase 4 verification | `docs(odd): record Phase 4 verification and pending after-baseline` | Static gates green; idle structure is 0.067 req/s; after-baseline pending reference-machine run |
