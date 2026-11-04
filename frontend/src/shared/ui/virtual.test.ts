@@ -16,6 +16,15 @@ describe("visibleRange", () => {
     expect(visibleRange(0, 100, 20, 50)).toEqual({ start: 0, end: 9 });
   });
 
+  it("honours overscan 0", () => {
+    expect(visibleRange(0, 60, 20, 100, 0)).toEqual({ start: 0, end: 3 });
+  });
+
+  it("includes the trailing partial row after a fractional scroll", () => {
+    expect(visibleRange(210, 60, 20, 100, 0)).toEqual({ start: 10, end: 14 });
+    expect(visibleRange(210, 60, 20, 100, 2)).toEqual({ start: 8, end: 16 });
+  });
+
   it("adds overscan around the middle", () => {
     expect(visibleRange(500, 100, 20, 50)).toEqual({ start: 21, end: 34 });
   });

@@ -21,5 +21,9 @@ export const screens = {
 };
 
 export const system = {
-  invoke: (message: unknown): void => System.invoke(message),
+  /**
+   * Fire-and-forget native command (for example `wails:drag`). Intentionally
+   * not wrapped with `call`: the binding returns void and has no failure path.
+   */
+  invoke: (message: string): void => System.invoke(message),
 };

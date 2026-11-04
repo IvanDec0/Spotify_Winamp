@@ -7,6 +7,10 @@
     itemHeight: number;
     height?: number;
     overscan?: number;
+    /**
+     * Stable identity for each row. Consumers must pass this when items can
+     * reorder; otherwise the index is used and row state follows the position.
+     */
     key?: (item: T, index: number) => string | number;
     children: Snippet<[T, number]>;
   }

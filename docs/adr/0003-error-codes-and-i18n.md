@@ -29,8 +29,10 @@ are embedded in code and backend errors are opaque sentences.
   `localStorage` and updates `document.documentElement.lang`.
 - Skins may provide an optional `i18n` map in `manifest.json`; missing entries
   fall back to the raw label.
-- An ESLint rule guards literal `aria-label`, `title`, `placeholder`, `alt` and
-  text nodes in `.svelte` files. A test asserts key parity and no empty values.
+- An ESLint rule for literal `aria-label`, `title`, `placeholder`, `alt` and
+  text nodes in `.svelte` files is planned for the Phase 7 sweep; it is not
+  active in Phase 2. Key parity is compile-time and a test asserts no empty
+  catalog values.
 - Migration is per module as modules are touched; new code uses `t()` from day
   one. The final sweep lands in Phase 7.
 

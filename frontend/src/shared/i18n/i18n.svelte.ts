@@ -70,6 +70,7 @@ export class I18n {
   #catalog: Catalog;
   #loaders: Record<Locale, CatalogLoader>;
   #formatters: Record<string, IntlMessageFormat> = {};
+  #request = 0;
 
   constructor(options: I18nOptions = {}) {
     this.#base = options.base ?? en;
@@ -84,9 +85,13 @@ export class I18n {
   /**
    * Loads the catalog (dynamic import for non-base locales), drops cached
    * formatters, persists the choice and updates `document.documentElement.lang`.
+   * Calls are latest-wins: a slow loader cannot overwrite a newer selection.
    */
   async setLocale(locale: Locale): Promise<void> {
+    const request = ++this.#request;
     const catalog = await this.#loaders[locale]();
+    if (request !== this.#request) return;
+
     this.#catalog = catalog;
     this.#formatters = {};
     this.locale = locale;
@@ -142,12 +147,23 @@ export function t(key: MessageKey, params?: MessageParams): string {
 
 /**
  * Applies the saved locale, then the browser language, defaulting to English.
+ * A failing catalog loader falls back to English so startup never blocks mount.
  */
-export async function initI18n(): Promise<Locale> {
+export async function initI18n(instance: I18n = i18n): Promise<Locale> {
   const stored = readStoredLocale();
   const locale = isLocale(stored) ? stored : detectLocale();
-  await i18n.setLocale(locale);
-  return locale;
+  try {
+    await instance.setLocale(locale);
+    return locale;
+  } catch {
+    try {
+      await instance.setLocale("en");
+    } catch {
+      // The base catalog is already loaded; mounting must continue regardless.
+      setDocumentLang("en");
+    }
+    return "en";
+  }
 }
 
 export { LOCALE_STORAGE_KEY };

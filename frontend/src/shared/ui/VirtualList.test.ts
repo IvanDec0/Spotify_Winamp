@@ -1,4 +1,4 @@
-import { fireEvent, render } from "@testing-library/svelte";
+import { fireEvent, render, waitFor } from "@testing-library/svelte";
 import { createRawSnippet } from "svelte";
 import { describe, expect, it } from "vitest";
 import VirtualList from "./VirtualList.svelte";
@@ -35,6 +35,33 @@ describe("VirtualList", () => {
     expect(rows(container)).toEqual(["8:8", "9:9", "10:10", "11:11", "12:12", "13:13", "14:14"]);
     const spacer = container.querySelector<HTMLElement>(".ui-virtual-spacer");
     expect(spacer?.style.height).toBe("2000px");
+  });
+
+  it("measures the viewport when no height prop is provided", async () => {
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get: () => 60,
+    });
+
+    try {
+      const { container } = render(VirtualList, {
+        props: {
+          items: Array.from({ length: 20 }, (_, index) => index),
+          itemHeight: 20,
+          overscan: 0,
+          children,
+        },
+      });
+
+      await waitFor(() => expect(rows(container)).toEqual(["0:0", "1:1", "2:2"]));
+    } finally {
+      if (original) {
+        Object.defineProperty(HTMLElement.prototype, "clientHeight", original);
+      } else {
+        delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      }
+    }
   });
 
   it("renders nothing for an empty list", () => {

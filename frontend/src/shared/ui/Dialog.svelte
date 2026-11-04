@@ -13,21 +13,33 @@
 
   const titleId = $props.id();
   const FOCUSABLE =
-    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]";
 
   let dialog: HTMLDivElement | undefined = $state();
   let restoreFocus: HTMLElement | null = null;
 
+  function isVisible(node: HTMLElement): boolean {
+    const checkVisibility = (node as HTMLElement & { checkVisibility?: () => boolean })
+      .checkVisibility;
+    return typeof checkVisibility !== "function" || checkVisibility.call(node);
+  }
+
   function focusable(): HTMLElement[] {
     if (!dialog) return [];
-    return Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
+    return Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((node) => {
+      if (node instanceof HTMLInputElement && node.type === "hidden") return false;
+      if (node.closest("[hidden], [aria-hidden='true'], [inert]")) return false;
+      const tabindex = node.getAttribute("tabindex");
+      if (tabindex !== null && Number(tabindex) < -1) return false;
+      return isVisible(node);
+    });
   }
 
   $effect(() => {
     if (!open) return;
     restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     void tick().then(() => {
-      focusable()[0]?.focus();
+      (focusable()[0] ?? dialog)?.focus();
     });
     return () => {
       restoreFocus?.focus();
@@ -38,6 +50,7 @@
   function handleKeydown(event: KeyboardEvent): void {
     if (event.key === "Escape") {
       event.preventDefault();
+      event.stopPropagation();
       onclose();
       return;
     }

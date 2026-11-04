@@ -22,8 +22,10 @@ export function visibleRange(
   }
 
   const padding = Math.max(0, Math.floor(overscan));
-  const first = Math.min(count - 1, Math.max(0, Math.floor(scrollTop / itemHeight)));
-  const visible = Math.max(1, Math.ceil(viewportHeight / itemHeight));
+  const rawFirst = scrollTop / itemHeight;
+  const first = Math.min(count - 1, Math.max(0, Math.floor(rawFirst)));
+  const offset = Math.max(0, scrollTop - first * itemHeight);
+  const visible = Math.max(1, Math.ceil((offset + viewportHeight) / itemHeight));
   const start = Math.max(0, first - padding);
   const end = Math.min(count, first + visible + padding);
 

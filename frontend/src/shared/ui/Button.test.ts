@@ -27,6 +27,31 @@ describe("Button", () => {
     expect(onclick).not.toHaveBeenCalled();
   });
 
+  it("forwards native button attributes", async () => {
+    const onkeydown = vi.fn();
+    render(Button, {
+      props: {
+        "aria-pressed": true,
+        "aria-expanded": false,
+        "data-test": "action",
+        style: "width: 120px",
+        form: "settings-form",
+        onkeydown,
+        children,
+      },
+    });
+
+    const button = screen.getByRole("button", { name: "Save changes" });
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(button.getAttribute("data-test")).toBe("action");
+    expect(button.getAttribute("style")).toContain("width: 120px");
+    expect(button.getAttribute("form")).toBe("settings-form");
+
+    await fireEvent.keyDown(button, { key: "Enter" });
+    expect(onkeydown).toHaveBeenCalledOnce();
+  });
+
   it("applies variant, size, type, label and title", () => {
     render(Button, {
       props: {

@@ -1,7 +1,8 @@
+import { render, screen, waitFor } from "@testing-library/svelte";
+import IntlMessageFormat from "intl-messageformat";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   en,
-  es,
   I18n,
   i18n,
   initI18n,
@@ -10,6 +11,8 @@ import {
   type Catalog,
   type MessageKey,
 } from "./index";
+import { es } from "./locales/es";
+import Fixture from "./test-fixture.svelte";
 
 const originalLanguage = navigator.language;
 
@@ -32,6 +35,15 @@ describe("i18n catalogs", () => {
     expect(Object.keys(es).sort()).toEqual(Object.keys(en).sort());
     for (const value of [...Object.values(en), ...Object.values(es)]) {
       expect(value.trim()).not.toBe("");
+    }
+  });
+
+  it("parses every message as valid ICU", () => {
+    for (const [key, value] of Object.entries(en)) {
+      expect(() => new IntlMessageFormat(value, "en"), key).not.toThrow();
+    }
+    for (const [key, value] of Object.entries(es)) {
+      expect(() => new IntlMessageFormat(value, "es"), key).not.toThrow();
     }
   });
 });
@@ -68,6 +80,75 @@ describe("i18n runtime", () => {
     expect(t("ui.items", { count: 2 })).toBe("2 elementos");
     await i18n.setLocale("en");
     expect(t("ui.items", { count: 2 })).toBe("2 items");
+  });
+
+  it("clears cached formatters when the same locale is reloaded", async () => {
+    let version = 0;
+    const instance = new I18n({
+      loaders: {
+        es: async () => ({
+          ...es,
+          "ui.close": version++ === 0 ? "Cerrar uno" : "Cerrar dos",
+        }),
+      },
+    });
+
+    await instance.setLocale("es");
+    expect(instance.t("ui.close")).toBe("Cerrar uno");
+
+    await instance.setLocale("es");
+    expect(instance.t("ui.close")).toBe("Cerrar dos");
+  });
+
+  it("applies the latest locale switch when loaders resolve out of order", async () => {
+    let resolveEs!: (catalog: Catalog) => void;
+    let resolveEn!: (catalog: Catalog) => void;
+    const pendingEs = new Promise<Catalog>((resolve) => {
+      resolveEs = resolve;
+    });
+    const pendingEn = new Promise<Catalog>((resolve) => {
+      resolveEn = resolve;
+    });
+    const instance = new I18n({
+      loaders: { es: () => pendingEs, en: () => pendingEn },
+    });
+
+    const first = instance.setLocale("es");
+    const second = instance.setLocale("en");
+
+    resolveEn(en);
+    await second;
+    expect(instance.locale).toBe("en");
+    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("en");
+
+    resolveEs(es);
+    await first;
+    expect(instance.locale).toBe("en");
+    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("en");
+    expect(document.documentElement.lang).toBe("en");
+  });
+
+  it("reacts to locale changes in Svelte templates", async () => {
+    render(Fixture);
+    expect(screen.getByText("Close")).not.toBeNull();
+
+    await i18n.setLocale("es");
+    await waitFor(() => expect(screen.getByText("Cerrar")).not.toBeNull());
+  });
+
+  it("falls back to English when the stored locale loader rejects", async () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "es");
+    const instance = new I18n({
+      loaders: {
+        es: async () => {
+          throw new Error("catalog chunk failed");
+        },
+      },
+    });
+
+    await expect(initI18n(instance)).resolves.toBe("en");
+    expect(instance.locale).toBe("en");
+    expect(document.documentElement.lang).toBe("en");
   });
 
   it("falls back to the base catalog and then to the key", async () => {

@@ -12,4 +12,3 @@ export {
   type MessageParams,
 } from "./i18n.svelte";
 export { en } from "./locales/en";
-export { es } from "./locales/es";

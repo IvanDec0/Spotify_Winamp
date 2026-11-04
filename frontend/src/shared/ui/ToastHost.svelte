@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { t } from "../i18n";
   import Toast from "./Toast.svelte";
   import { toasts } from "./toasts.svelte";
 </script>
 
-<div class="ui-toast-host" aria-live="polite" aria-label={t("ui.notifications")}>
+<div class="ui-toast-host">
   {#each toasts.toasts as toast (toast.id)}
     <Toast {toast} ondismiss={(id) => toasts.dismiss(id)} />
   {/each}

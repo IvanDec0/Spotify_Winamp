@@ -1,10 +1,16 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import type { HTMLButtonAttributes } from "svelte/elements";
 
   type Variant = "primary" | "secondary" | "ghost";
   type Size = "sm" | "md" | "lg";
 
-  interface Props {
+  type NativeButtonProps = Omit<
+    HTMLButtonAttributes,
+    "class" | "type" | "disabled" | "onclick" | "children"
+  >;
+
+  type Props = NativeButtonProps & {
     variant?: Variant;
     size?: Size;
     type?: "button" | "submit" | "reset";
@@ -14,7 +20,7 @@
     ariaLabel?: string;
     title?: string;
     children?: Snippet;
-  }
+  };
 
   let {
     variant = "secondary",
@@ -24,8 +30,10 @@
     onclick,
     class: className = "",
     ariaLabel,
+    "aria-label": ariaLabelNative,
     title,
     children,
+    ...rest
   }: Props = $props();
 
   function handleClick(event: MouseEvent): void {
@@ -38,10 +46,11 @@
 </script>
 
 <button
+  {...rest}
   class={`ui-button ui-button--${variant} ui-button--${size} ${className}`.trim()}
   {type}
   {disabled}
-  aria-label={ariaLabel}
+  aria-label={ariaLabel ?? ariaLabelNative}
   {title}
   onclick={handleClick}
 >

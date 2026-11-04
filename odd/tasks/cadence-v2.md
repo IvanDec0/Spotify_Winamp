@@ -392,12 +392,48 @@ The separate `es-*` chunks prove the Spanish catalog is loaded lazily.
 | T2.2 | `c0b8c20` |
 | T2.3 | `7adecc5` |
 | T2.4 | verification commit |
+| Review corrections | `fix(frontend)` — hardening commit |
+
+### Phase 2 review corrections — 2026-11-04
+
+- `player.seek` and `player.setVolume` round to integers before calling the
+  binding; Wails/Go reject fractional ints. Added `shared/api/player.test.ts`.
+- `initI18n(instance = i18n)` falls back to English when the selected catalog
+  loader rejects, so startup never blocks mount. Locale switches are
+  latest-wins via a request token.
+- Dialog focus filtering skips `type="hidden"`, `[hidden]`,
+  `[aria-hidden="true"]`, `[inert]` and `tabindex < -1`; an empty dialog
+  focuses its panel, Escape stops propagation, and App ignores already
+  prevented key events.
+- `visibleRange` includes a fractional trailing row; VirtualList documents the
+  `key` prop for reordering. Added fractional, overscan-0 and measured-height
+  tests.
+- Button forwards native button attributes through a typed rest. ToastHost no
+  longer adds a second live region; each toast announces itself.
+- The i18n barrel no longer statically exports `es`; the lazy chunk remains.
+  Added same-locale cache invalidation, Svelte template reactivity and ICU
+  syntax coverage.
+- `system.invoke` is typed `string` and documented as fire-and-forget.
+  ADR-0003 now marks the ESLint literal guard as Phase 7 work.
+
+Correction verification, run from `frontend/`:
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0, 0 errors and 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0, all files match Prettier |
+| `npm run test` | exit 0, 24 files, 122 tests passed |
+| `npm run build` | exit 0, 226 modules; one lazy `es-*` chunk |
+| `rg -n 'bindings/\|@wailsio/runtime' src` | only `src/shared/api/**` imports and `vi.mock` paths |
+| `git diff --check` | exit 0, no whitespace errors |
 
 ## Phase 2 status
 
-- **Code and docs:** complete on `feat/cadence-v2`.
+- **Code and docs:** complete on `feat/cadence-v2`, including the review
+  correction round.
 - **Verification:** check, lint, format, test, build, binding-import grep and
-  `git diff --check` are green.
+  `git diff --check` are green (106 tests before corrections, 122 after).
 - **Behavior:** unchanged; the navigation store and toast host are not wired into
   `App.svelte` until Phase 6, and existing screens remain English until Phase 7.
 - **Next:** Phase 3 (Go decomposition).
@@ -423,3 +459,4 @@ The separate `es-*` chunks prove the Spanish catalog is loaded lazily.
 | 2026-11-04 | T2.2 | `c0b8c20` | `intl-messageformat@12.1.4`, literal-key TS catalogs with compile-time parity, cached ICU formatters, locale detection/persistence and `Intl` helpers; ADR-0003 and plan §7 updated |
 | 2026-11-04 | T2.3 | `7adecc5` | Button, focus-trapped Dialog, virtual list helper/component, Skeleton, toast store/components and typed navigation store; not wired into App yet |
 | 2026-11-04 | T2.4 | `chore(verify)` | All frontend checks green; 23 test files / 106 tests; build emits lazy `es` chunks; binding imports confined to `shared/api` and mocks |
+| 2026-11-04 | Phase 2 corrections | `fix(frontend)` | Rounded seek/volume, non-blocking i18n startup, latest-wins locale switches, dialog focus/escape hardening, fractional virtual rows, Button attribute forwarding, single live region, lazy `es` barrel fix, extra i18n tests and docs |

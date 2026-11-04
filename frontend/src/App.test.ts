@@ -334,6 +334,21 @@ describe("App shell", () => {
     expect(mocks.player.toggle).not.toHaveBeenCalled();
   });
 
+  it("ignores shortcuts when another handler already prevented the default", () => {
+    render(App);
+    mocks.player.toggle.mockClear();
+
+    const event = new KeyboardEvent("keydown", {
+      key: " ",
+      bubbles: true,
+      cancelable: true,
+    });
+    event.preventDefault();
+    window.dispatchEvent(event);
+
+    expect(mocks.player.toggle).not.toHaveBeenCalled();
+  });
+
   it("opens the skin library from appearance settings", async () => {
     render(App);
 

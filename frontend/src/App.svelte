@@ -257,6 +257,7 @@
   }
 
   function handleKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented) return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
 
     if (event.key === "Escape") {

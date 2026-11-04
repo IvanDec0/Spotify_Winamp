@@ -12,6 +12,23 @@ const children = createRawSnippet(() => ({
   `,
 }));
 
+const hiddenOnly = createRawSnippet(() => ({
+  render: () => `
+    <div>
+      <input type="hidden" aria-label="Hidden field" />
+    </div>
+  `,
+}));
+
+const hiddenBeforeButton = createRawSnippet(() => ({
+  render: () => `
+    <div>
+      <input type="hidden" aria-label="Hidden field" />
+      <button type="button">Visible action</button>
+    </div>
+  `,
+}));
+
 function props(open: boolean, onclose = vi.fn()) {
   return { open, title: "Test dialog", onclose, children };
 }
@@ -68,6 +85,44 @@ describe("Dialog", () => {
     close.focus();
     await fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
     expect(document.activeElement).toBe(confirm);
+  });
+
+  it("skips hidden inputs when looking for the first focusable element", async () => {
+    render(Dialog, {
+      props: { open: true, title: "Test dialog", onclose: vi.fn(), children: hiddenBeforeButton },
+    });
+    screen.getByRole("button", { name: "Close" }).setAttribute("disabled", "");
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Visible action" })),
+    );
+  });
+
+  it("focuses the dialog itself when there are no focusable children", async () => {
+    const onclose = vi.fn();
+    render(Dialog, {
+      props: { open: true, title: "Test dialog", onclose, children: hiddenOnly },
+    });
+    screen.getByRole("button", { name: "Close" }).setAttribute("disabled", "");
+
+    const dialog = screen.getByRole("dialog");
+    await waitFor(() => expect(document.activeElement).toBe(dialog));
+
+    await fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+
+  it("stops Escape propagation out of the dialog", async () => {
+    const onclose = vi.fn();
+    const bubble = vi.fn();
+    document.body.addEventListener("keydown", bubble);
+    render(Dialog, { props: props(true, onclose) });
+
+    await fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    expect(onclose).toHaveBeenCalledOnce();
+    expect(bubble).not.toHaveBeenCalled();
+    document.body.removeEventListener("keydown", bubble);
   });
 
   it("renders nothing while closed", () => {
