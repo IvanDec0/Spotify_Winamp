@@ -186,13 +186,73 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 
 ### T1.4 — Documentation and verification
 
-- [ ] Update the pin in `README.md`, `plan/nombre_plan.md` and
+- [x] Update the pin in `README.md`, `plan/nombre_plan.md` and
       `docs/performance-baseline.md`.
-- [ ] Document `device_is_group`, `accesspoint_ports` and `server.image_size` in
+- [x] Document `device_is_group`, `accesspoint_ports` and `server.image_size` in
       `docs/spotify-setup.md`; mention both patches in `docs/development.md`.
-- [ ] Run and record: `go test`, `go vet`, `gofmt`, `task audio:check`,
+- [x] Run and record: `go test`, `go vet`, `gofmt`, `task audio:check`,
       `task audio:build`.
 - Commit: `docs: document the engine upgrade and options`
+
+## Phase 1 verification — 2026-11-04
+
+Environment: Go `go1.27.3-X:nodwarf5 linux/amd64`, Task `3.54.0`, branch
+`feat/cadence-v2`. The pin upgrade needed **no patch rebase**: both patches
+applied unchanged with `--fuzz=0`.
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `go vet $(go list ./... \| grep -v '/node_modules/')` | exit 0, no findings |
+| `gofmt -l $(go list -f '{{.Dir}}' ./... \| grep -v '/node_modules/')` | exit 0, no files listed |
+| `./scripts/build-go-librespot.sh --check` | exit 0, both patches applied |
+| `task audio:build` | exit 0, engine binary built |
+| `git diff --check` | exit 0, no whitespace errors |
+
+`go test` output:
+
+```text
+ok  	cadence	(cached)
+ok  	cadence/internal/artcache	(cached)
+ok  	cadence/internal/diagnostics	(cached)
+ok  	cadence/internal/golibrespot	(cached)
+?   	cadence/internal/platform	[no test files]
+ok  	cadence/internal/player	(cached)
+ok  	cadence/internal/settings	(cached)
+ok  	cadence/internal/skins	(cached)
+```
+
+Patch check output:
+
+```text
+patching file daemon/api_server.go
+patching file daemon/player.go
+patching file daemon/search.go
+patching file daemon/track_meta_cache.go
+patching file spclient/context_resolver.go
+patching file spclient/searchview.go
+patching file spclient/spclient.go
+patching file ap/ap.go
+patching file ap/proxy.go
+go-librespot patches apply cleanly to v0.10.6-0.20261104085532-16b65bb4cd2b; skipping build (--check)
+```
+
+`task audio:build` produced `bin/go-librespot` and exited 0. A smoke start of
+that binary logged `running go-librespot fb41f3cf` as its first line, which
+confirms the parsed log shape.
+
+**Pending user verification:** live pairing, playback, library browsing and
+Spotify Jam participation require the user's Spotify account and audio device.
+They are not claimed as verified here.
+
+### Commit map — Phase 1
+
+| Task | Commit |
+|---|---|
+| T1.1 | `2b10f55` |
+| T1.2 | `05adf37` |
+| T1.3 | `fb41f3c` |
+| T1.4 | this commit (`docs: document the engine upgrade and options`) |
 
 ## Progress log
 
@@ -208,3 +268,4 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 | 2026-11-04 | T1.1 | `build: pin go-librespot master for device_is_group support` | Pin updated to `16b65bb4`; both patches apply unchanged with `--fuzz=0`; `task audio:build` exit 0 |
 | 2026-11-04 | T1.2 | `feat(engine): advertise as a group and expose image size config` | `device_is_group: true`, validated `server.image_size`, `accesspoint_ports` override documented, config tests added |
 | 2026-11-04 | T1.3 | `feat(engine): surface the running go-librespot version` | Log parsing for `running go-librespot`, `Runtime.Version()`, `AudioState.EngineVersion`, `engine_version` in `/debug/stats`, tests |
+| 2026-11-04 | T1.4 | `docs: document the engine upgrade and options` | Pin and engine options documented; both patches documented; Phase 1 verification green; live Spotify checks pending user |

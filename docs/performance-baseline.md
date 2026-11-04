@@ -172,7 +172,7 @@ Reference machine:
 | Machine / CPU / RAM | (fill) |
 | OS / kernel | (fill) |
 | Cadence commit | (fill) |
-| Engine pin | `v0.10.6-0.20261102145552-522adcae8d65` |
+| Engine pin | `v0.10.6-0.20261104085532-16b65bb4cd2b` |
 | Build command and build tags | (fill) |
 | Window size / active skin | (fill) |
 

@@ -70,6 +70,30 @@ Spotify session, not the rate-limited public Web API. The local engine patch in
 `build/patches/go-librespot-search-radio.patch` adds the search and radio
 endpoints. Audio output uses the configured PulseAudio device (`default` in v1).
 
+## Engine version and options
+
+Cadence writes these options into
+`$XDG_CONFIG_HOME/cadence/audio/config.yml`:
+
+| Option | Value and purpose |
+|---|---|
+| `device_is_group` | `true`. Advertises Cadence as a speaker group so Spotify Jam can include it. |
+| `accesspoint_ports` | Not written by default. `prefer_firewall_friendly_ports: true` prefers 443/80; on networks that intercept 443, set `accesspoint_ports: [80, 443]` to override that heuristic. |
+| `server.image_size` | Cover-art source variant: `default`, `small`, `large` or `xlarge`. Cadence currently writes `default`; Phase 4 selects the variant after local resizing exists. |
+
+The engine writes its running version as its first log line
+(`running go-librespot <version>`). Cadence parses it after startup and exposes it
+in the audio state and the diagnostics snapshot:
+
+```bash
+./bin/cadence --diagnostics
+# copy the logged http://127.0.0.1:PORT/debug/stats URL
+curl -sS http://127.0.0.1:PORT/debug/stats | jq -r .engine_version
+```
+
+Without `--diagnostics`, the same line is the first entry in
+`$XDG_CACHE_HOME/cadence/logs/go-librespot.log`.
+
 ## Troubleshooting
 
 | Symptom | Fix |

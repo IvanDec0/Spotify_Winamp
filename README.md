@@ -78,7 +78,7 @@ The engine binds only to `127.0.0.1` on a random port and stores its credentials
 - TypeScript 6.0.3
 - Vitest 5.0.5, ESLint 10.13.0, Prettier 3.9.10
 - Node.js 26.12.1 / npm 12.2.1
-- go-librespot pinned to `v0.10.6-0.20261102145552-522adcae8d65` (GPL-3.0 binary, separate process)
+- go-librespot pinned to `v0.10.6-0.20261104085532-16b65bb4cd2b` (GPL-3.0 binary, separate process)
 
 TypeScript 7 is intentionally not used because `svelte-check` 4.7.7 and `typescript-eslint` 8.72.0 are not compatible with it.
 
@@ -154,9 +154,9 @@ task build     # bin/cadence
 task package   # AppImage, tar.gz and SHA-256 checksums in bin/
 ```
 
-`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. The engine build applies the small search/radio patch in [`build/patches/`](build/patches/) and is documented in [`docs/development.md`](docs/development.md). It also includes the Lumina, Vanta, Nightstar and Afterglow skins. The AppImage and tarball are named `cadence-0.1.0-linux-x86_64.*`. See [`docs/installation.md`](docs/installation.md).
+`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. The engine build applies the small search/radio and HTTP proxy patches in [`build/patches/`](build/patches/) and is documented in [`docs/development.md`](docs/development.md). It also includes the Lumina, Vanta, Nightstar and Afterglow skins. The AppImage and tarball are named `cadence-0.1.0-linux-x86_64.*`. See [`docs/installation.md`](docs/installation.md).
 
-The engine binary is not committed. `task audio:build` downloads the pinned source, applies the search/radio patch and builds it with the local CGO libraries. Cadence also discovers `go-librespot` from `CADENCE_GO_LIBRESPOT`, `PATH` or next to the Cadence binary.
+The engine binary is not committed. `task audio:build` downloads the pinned source, applies the search/radio and HTTP proxy patches and builds it with the local CGO libraries. Cadence also discovers `go-librespot` from `CADENCE_GO_LIBRESPOT`, `PATH` or next to the Cadence binary.
 
 ## Spotify setup
 
