@@ -2,9 +2,9 @@
 
 > **Design source:** [`../plan/cadence-v2.md`](../plan/cadence-v2.md)
 > **Branch:** `feat/cadence-v2`
-> **Authorized scope:** Phase 3 (user approved on 2026-11-04) after Phases 0-2.
-> The runtime baseline capture remains explicitly deferred until before the
-> Phase 4 performance work.
+> **Authorized scope:** Phase 4 (user approved on 2026-11-04) after Phases 0-3.
+> The measured idle baseline is recorded in `docs/performance-baseline.md`:
+> **2.5 engine req/s**, 396 B/request, 0.87 ms/request.
 > **TDD:** off — no project or session TDD configuration exists. Ordinary functional
 > checks apply (`go test`, `go vet`, `gofmt`, frontend checks when touched).
 > **Delivery:** one work-unit commit per task on the feature branch. Push, PRs and
@@ -564,6 +564,69 @@ frontend/bindings/cadence/internal/skins/{index,models}.ts
   `docs/performance-baseline.md`. The user deferred it; Phase 4 changes the
   state transport, so the before/after comparison needs this capture first.
 - **Next:** Phase 4 (event-driven engine state and artwork variants).
+
+## Phase 4 tasks
+
+Measured baseline: idle engine traffic **2.5 req/s**, 396 B/request, 0.87 ms/request
+(150 requests in 60 s). Targets: ≤0.2 req/s idle, ≤4 KB per `player:state`
+change, no event while paused and unchanged, idle CPU <2%.
+
+### T4.1 — Event-driven state transport
+
+- [ ] `internal/engine/events.go`: `/events` WebSocket client using
+      `github.com/coder/websocket`, typed event envelope, bounded reads.
+- [ ] `internal/playback`: `Streamer` interface and `EngineProvider.Stream`:
+      initial `/status` snapshot, debounced refresh on engine events, 15 s
+      reconciliation, monotonic `Revision`, `CapturedAt`, and emit only when the
+      state changes. No queue in the streamed state.
+- [ ] `Provider.Queue(ctx)`: move the queue building out of `State`; implement it
+      for the engine and demo providers. `wailsapi/player.GetQueue` uses it.
+- [ ] `wailsapi/player`: replace the 500 ms ticker with `Stream` for providers
+      that implement it (demo keeps a fallback ticker). Emit on revision change;
+      keep actions and recorder behavior.
+- [ ] Frontend: remove the 2 s audio poll; poll only while unauthenticated (5 s).
+      Add `player.queue` + `loadQueue`, use it in the main and skin Queue
+      components, add a `positionMs` getter from `capturedAt` for the seek
+      shortcuts, and drop stale states by revision.
+- [ ] Tests: engine event parsing, provider stream refresh/reconnect, queue
+      separation, adapter no-duplicate emit, frontend store/queue/position.
+- Commit: `feat(state): drive player state from the engine event stream`
+
+### T4.2 — Artwork variants, single-flight and disk cache
+
+- [ ] `internal/artwork`: size variants (64/128/240/640) on
+      `GET /art/{key}?size=`, single-flight for concurrent misses, bounded disk
+      LRU under `$XDG_CACHE_HOME/cadence/art`, unchanged default behavior.
+- [ ] Frontend: request the right variant from `CoverArt`/`MediaCover` and the
+      skin components, with `loading="lazy"`, `decoding="async"` and explicit
+      dimensions.
+- [ ] Tests for variant selection, single-flight, disk eviction and fallback.
+- Commit: `perf(art): add size variants, single-flight and a disk cache`
+
+### T4.3 — Idle rendering and long lists
+
+- [ ] Gate the `Progress` rAF loop while paused/hidden; add interpolation to the
+      skin `Progress`; pause visualizers when not playing or the window is hidden.
+- [ ] Virtualize the context list if its row height is fixed; otherwise report the
+      measured row behavior and defer to Phase 6 instead of forcing it.
+- [ ] Frontend tests for the position getter and the idle gate helper.
+- Commit: `perf(ui): stop idle animation work and virtualize long lists`
+
+### T4.4 — After-baseline and verification
+
+- [ ] Run the app with `--diagnostics` and capture the same idle sample; record
+      the after numbers in `docs/performance-baseline.md`.
+- [ ] Run `go test`, race on the touched packages, `go vet`, `gofmt`, bindings
+      regeneration with no diff, `task audio:check`, and frontend
+      check/lint/format/test/build.
+- Commit: `docs: record the Phase 4 after-baseline and verification`
+
+### Phase 4 acceptance
+
+- Idle engine request rate ≤0.2 req/s (measured).
+- Streamed `player:state` ≤4 KB per change; no event while paused and unchanged.
+- Queue is fetched on demand and no longer inflates every state.
+- Idle UI work stops when paused or hidden.
 
 ## Progress log
 
