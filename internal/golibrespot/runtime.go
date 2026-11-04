@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"syscall"
@@ -19,6 +21,8 @@ const (
 	engineName    = "go-librespot"
 	defaultDevice = "Cadence"
 )
+
+var engineVersionPattern = regexp.MustCompile(`running go-librespot ([^\s"]+)`)
 
 // RuntimeOptions configures the managed go-librespot process.
 type RuntimeOptions struct {
@@ -48,6 +52,7 @@ type Runtime struct {
 	bitrate       int
 	deviceIsGroup bool
 	imageSize     string
+	engineVersion string
 	httpClient    *http.Client
 	emit          func(AudioState)
 
@@ -161,6 +166,52 @@ func (r *Runtime) ConfigDir() string {
 	return r.configDir
 }
 
+// Version returns the running engine version parsed from its log. It retries
+// while the stored value is empty and never returns an error.
+func (r *Runtime) Version() string {
+	r.mu.Lock()
+	version := r.engineVersion
+	r.mu.Unlock()
+	if version != "" {
+		return version
+	}
+	return r.loadEngineVersion()
+}
+
+func (r *Runtime) loadEngineVersion() string {
+	r.mu.Lock()
+	logPath := r.logPath
+	r.mu.Unlock()
+	version := readEngineVersion(logPath)
+	if version == "" {
+		return ""
+	}
+	r.mu.Lock()
+	r.engineVersion = version
+	r.mu.Unlock()
+	return version
+}
+
+func readEngineVersion(logPath string) string {
+	if logPath == "" {
+		return ""
+	}
+	file, err := os.Open(logPath)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, 8<<10))
+	if err != nil {
+		return ""
+	}
+	match := engineVersionPattern.FindSubmatch(data)
+	if len(match) != 2 {
+		return ""
+	}
+	return string(match[1])
+}
+
 // Start launches the engine. It is safe to call again after a failed start.
 func (r *Runtime) Start(ctx context.Context) error {
 	r.mu.Lock()
@@ -259,6 +310,7 @@ func (r *Runtime) Start(ctx context.Context) error {
 		client := r.Client()
 		if client != nil {
 			if _, err := client.Root(ctx); err == nil {
+				r.loadEngineVersion()
 				r.notify()
 				return nil
 			}
@@ -361,12 +413,14 @@ func (r *Runtime) State(ctx context.Context) AudioState {
 	client := r.client
 	lastError := r.lastError
 	configDir := r.configDir
+	engineVersion := r.engineVersion
 	r.mu.Unlock()
 
 	state := AudioState{
 		Available:       available,
 		Running:         running,
 		Engine:          engineName,
+		EngineVersion:   engineVersion,
 		DeviceName:      r.deviceName,
 		AudioBackend:    r.audioBackend,
 		Error:           lastError,
@@ -450,13 +504,15 @@ func (r *Runtime) notify() {
 	client := r.client
 	lastError := r.lastError
 	configDir := r.configDir
+	engineVersion := r.engineVersion
 	r.mu.Unlock()
 	if emit == nil {
 		return
 	}
 	state := AudioState{
-		Available: available, Running: running, Engine: engineName, DeviceName: r.deviceName,
-		AudioBackend: r.audioBackend, Error: lastError, BinaryPath: r.binaryPath, ConfigDirectory: configDir,
+		Available: available, Running: running, Engine: engineName, EngineVersion: engineVersion,
+		DeviceName: r.deviceName, AudioBackend: r.audioBackend, Error: lastError,
+		BinaryPath: r.binaryPath, ConfigDirectory: configDir,
 	}
 	if running && client != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

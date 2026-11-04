@@ -176,12 +176,12 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 
 ### T1.3 — Surface the running engine version
 
-- [ ] Parse the engine log line `running go-librespot <version>` after startup and
+- [x] Parse the engine log line `running go-librespot <version>` after startup and
       expose it through `Runtime.Version()`.
-- [ ] Populate `AudioState.EngineVersion` (the field and frontend model already
+- [x] Populate `AudioState.EngineVersion` (the field and frontend model already
       exist but were always empty).
-- [ ] Add `engine_version` to `GET /debug/stats`.
-- [ ] Tests with a temporary log file; no version parse when the log is missing.
+- [x] Add `engine_version` to `GET /debug/stats`.
+- [x] Tests with a temporary log file; no version parse when the log is missing.
 - Commit: `feat(engine): surface the running go-librespot version`
 
 ### T1.4 — Documentation and verification
@@ -207,3 +207,4 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
 | 2026-11-04 | Review corrections | `1e02e7f` | Atomic artwork recorder, `missing` counter, successful-write-only `served`, emission-only event accounting, corrected baseline provenance, transport edge cases, strict patch fuzz; all checks green |
 | 2026-11-04 | T1.1 | `build: pin go-librespot master for device_is_group support` | Pin updated to `16b65bb4`; both patches apply unchanged with `--fuzz=0`; `task audio:build` exit 0 |
 | 2026-11-04 | T1.2 | `feat(engine): advertise as a group and expose image size config` | `device_is_group: true`, validated `server.image_size`, `accesspoint_ports` override documented, config tests added |
+| 2026-11-04 | T1.3 | `feat(engine): surface the running go-librespot version` | Log parsing for `running go-librespot`, `Runtime.Version()`, `AudioState.EngineVersion`, `engine_version` in `/debug/stats`, tests |

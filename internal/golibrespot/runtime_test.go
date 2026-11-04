@@ -61,3 +61,34 @@ func TestNewRuntimeValidatesImageSize(t *testing.T) {
 		})
 	}
 }
+
+func TestRuntimeParsesEngineVersionFromLog(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "go-librespot.log")
+	line := `time="2026-11-04T08:55:32Z" level=info msg="running go-librespot v0.10.6-0.20261104085532-16b65bb4cd2b"` + "\n"
+	if err := os.WriteFile(logPath, []byte(line), 0o600); err != nil {
+		t.Fatalf("write log: %v", err)
+	}
+
+	runtime := &Runtime{logPath: logPath}
+	const want = "v0.10.6-0.20261104085532-16b65bb4cd2b"
+	if got := runtime.Version(); got != want {
+		t.Fatalf("Version() = %q, want %q", got, want)
+	}
+	if got := runtime.Version(); got != want {
+		t.Fatalf("cached Version() = %q, want %q", got, want)
+	}
+}
+
+func TestRuntimeVersionEmptyWhenLogMissing(t *testing.T) {
+	runtime := &Runtime{logPath: filepath.Join(t.TempDir(), "missing.log")}
+	if got := runtime.Version(); got != "" {
+		t.Fatalf("Version() = %q, want empty", got)
+	}
+}
+
+func TestRuntimeVersionDoesNotPanic(t *testing.T) {
+	var runtime Runtime
+	if got := runtime.Version(); got != "" {
+		t.Fatalf("Version() = %q, want empty", got)
+	}
+}

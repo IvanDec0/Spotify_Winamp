@@ -159,7 +159,7 @@ func main() {
 	})
 
 	if recorder != nil {
-		server, err := startDiagnosticsServer(recorder)
+		server, err := startDiagnosticsServer(recorder, audioRuntime.Version)
 		if err != nil {
 			log.Fatalf("start diagnostics server: %v", err)
 		}
@@ -233,13 +233,13 @@ func main() {
 	}
 }
 
-func startDiagnosticsServer(recorder *diagnostics.Recorder) (*http.Server, error) {
+func startDiagnosticsServer(recorder *diagnostics.Recorder, engineVersion func() string) (*http.Server, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
 	}
 	server := &http.Server{
-		Handler:           diagnosticsHandler(recorder),
+		Handler:           diagnosticsHandler(recorder, engineVersion),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
@@ -251,7 +251,7 @@ func startDiagnosticsServer(recorder *diagnostics.Recorder) (*http.Server, error
 	return server, nil
 }
 
-func diagnosticsHandler(recorder *diagnostics.Recorder) http.Handler {
+func diagnosticsHandler(recorder *diagnostics.Recorder, engineVersion func() string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/debug/stats", func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method != http.MethodGet {
@@ -259,9 +259,20 @@ func diagnosticsHandler(recorder *diagnostics.Recorder) http.Handler {
 			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		version := ""
+		if engineVersion != nil {
+			version = engineVersion()
+		}
+		payload := struct {
+			diagnostics.Snapshot
+			EngineVersion string `json:"engine_version"`
+		}{
+			Snapshot:      recorder.Snapshot(),
+			EngineVersion: version,
+		}
 		writer.Header().Set("Content-Type", "application/json")
 		writer.Header().Set("Cache-Control", "no-store")
-		if err := json.NewEncoder(writer).Encode(recorder.Snapshot()); err != nil {
+		if err := json.NewEncoder(writer).Encode(payload); err != nil {
 			log.Printf("encode diagnostics snapshot: %v", err)
 		}
 	})
