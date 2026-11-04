@@ -2,7 +2,9 @@
 
 > **Design source:** [`../plan/cadence-v2.md`](../plan/cadence-v2.md)
 > **Branch:** `feat/cadence-v2`
-> **Authorized scope:** Phase 0 only (user approved "Arranca" on 2026-11-04).
+> **Authorized scope:** Phase 0 (complete) and Phase 1 (user approved on
+> 2026-11-04). The runtime baseline capture is explicitly deferred by the user;
+> capture it before the Phase 4 performance work.
 > **TDD:** off — no project or session TDD configuration exists. Ordinary functional
 > checks apply (`go test`, `go vet`, `gofmt`, frontend checks when touched).
 > **Delivery:** one work-unit commit per task on the feature branch. Push, PRs and
@@ -145,10 +147,52 @@ package; all passed. `task --list-all` shows `audio:check` and `verify`.
   `docs/performance-baseline.md`).
 - **Pending:** runtime baseline capture on the reference machine
   (`./bin/cadence --diagnostics`, 60 s idle, fill the measurement table in
-  `docs/performance-baseline.md`). It needs a paired Spotify session, so it is a
-  user step; capture it before Phase 1 changes engine configuration.
-- **Next:** Phase 1 (engine pin `master@16b65bb4`, `device_is_group`, explicit
-  image size) after the runtime baseline is captured or explicitly waived.
+  `docs/performance-baseline.md`). Deferred by the user on 2026-11-04; capture it
+  before the Phase 4 performance work so the before/after comparison stays honest.
+- **Next:** Phase 2 (frontend foundation) or Phase 3 (Go decomposition) after
+  Phase 1 closes.
+
+## Phase 1 tasks
+
+### T1.1 — Pin go-librespot `master@16b65bb4`
+
+- [ ] Set `VERSION="v0.10.6-0.20261104085532-16b65bb4cd2b"` in
+      `scripts/build-go-librespot.sh`.
+- [ ] Verify both patches still apply with `--fuzz=0`; rebase them if the
+      station-page fix conflicts.
+- [ ] Build the engine with `task audio:build` and confirm the binary runs.
+- Commit: `build: pin go-librespot master for device_is_group support`
+
+### T1.2 — Engine configuration
+
+- [ ] `RuntimeOptions`: add `DeviceIsGroup bool` and `ImageSize string`
+      (validated against `default`/`small`/`large`/`xlarge`).
+- [ ] `writeConfig`: emit `device_is_group`, `server.image_size`, and a comment
+      documenting `accesspoint_ports` as the override for networks that intercept
+      443.
+- [ ] `main.go`: enable `DeviceIsGroup` so Spotify Jam can include Cadence.
+- [ ] Tests for the generated config and the image-size validation.
+- Commit: `feat(engine): advertise as a group and expose image size config`
+
+### T1.3 — Surface the running engine version
+
+- [ ] Parse the engine log line `running go-librespot <version>` after startup and
+      expose it through `Runtime.Version()`.
+- [ ] Populate `AudioState.EngineVersion` (the field and frontend model already
+      exist but were always empty).
+- [ ] Add `engine_version` to `GET /debug/stats`.
+- [ ] Tests with a temporary log file; no version parse when the log is missing.
+- Commit: `feat(engine): surface the running go-librespot version`
+
+### T1.4 — Documentation and verification
+
+- [ ] Update the pin in `README.md`, `plan/nombre_plan.md` and
+      `docs/performance-baseline.md`.
+- [ ] Document `device_is_group`, `accesspoint_ports` and `server.image_size` in
+      `docs/spotify-setup.md`; mention both patches in `docs/development.md`.
+- [ ] Run and record: `go test`, `go vet`, `gofmt`, `task audio:check`,
+      `task audio:build`.
+- Commit: `docs: document the engine upgrade and options`
 
 ## Progress log
 
