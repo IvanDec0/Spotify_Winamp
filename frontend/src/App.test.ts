@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => {
       albums: { hits: [], total: 0 },
       artists: { hits: [], total: 0 },
       playlists: { hits: [], total: 0 },
+      shows: { hits: [], total: 0 },
+      episodes: { hits: [], total: 0 },
     }),
   );
   const startRadio = vi.fn(() => Promise.resolve());

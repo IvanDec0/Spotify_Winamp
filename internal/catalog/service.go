@@ -201,7 +201,8 @@ func (s *Service) AddToQueue(uri string) error {
 	return client.AddToQueue(ctx, uri)
 }
 
-// Search finds tracks, albums, artists and playlists in the Spotify catalog.
+// Search finds tracks, albums, artists, playlists, shows and episodes in the
+// Spotify catalog.
 func (s *Service) Search(query string, limit int) (engine.SearchResults, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
@@ -217,7 +218,7 @@ func (s *Service) Search(query string, limit int) (engine.SearchResults, error) 
 	if err != nil {
 		return engine.SearchResults{}, err
 	}
-	for _, group := range []*engine.SearchGroup{&results.Tracks, &results.Albums, &results.Artists, &results.Playlists} {
+	for _, group := range []*engine.SearchGroup{&results.Tracks, &results.Albums, &results.Artists, &results.Playlists, &results.Shows, &results.Episodes} {
 		for index := range group.Hits {
 			group.Hits[index].Image = s.artURL(group.Hits[index].Image)
 		}

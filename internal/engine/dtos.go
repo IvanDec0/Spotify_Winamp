@@ -172,6 +172,9 @@ type SearchHit struct {
 	Author         string         `json:"author"`
 	FollowersCount int            `json:"followersCount"`
 	Verified       bool           `json:"verified"`
+	ShowType       string         `json:"showType"`
+	MusicAndTalk   bool           `json:"musicAndTalk"`
+	Explicit       bool           `json:"explicit"`
 }
 
 // SearchGroup is one category of search results.
@@ -186,4 +189,6 @@ type SearchResults struct {
 	Albums    SearchGroup `json:"albums"`
 	Artists   SearchGroup `json:"artists"`
 	Playlists SearchGroup `json:"playlists"`
+	Shows     SearchGroup `json:"shows"`
+	Episodes  SearchGroup `json:"episodes"`
 }

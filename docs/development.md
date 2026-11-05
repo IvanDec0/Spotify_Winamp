@@ -26,7 +26,7 @@ Run commands from the repository root. The Taskfile is Linux-only.
 |---|---|
 | `task dev` | Start the Wails development loop with Vite HMR |
 | `task build` | Build the production frontend and `bin/cadence` |
-| `task audio:build` | Build the pinned go-librespot engine with the search/radio and HTTP proxy patches |
+| `task audio:build` | Build the pinned go-librespot engine with the search/radio, search groups and HTTP proxy patches |
 | `task run` | Run the built binary |
 | `task test` | Build the frontend, run Go tests and Vitest |
 | `task check` | Run Go vet, `svelte-check`, ESLint and Prettier |
@@ -131,7 +131,7 @@ sudo pacman -S --needed libogg libvorbis flac mpg123 alsa-lib libpulse
 task audio:build
 ```
 
-`audio:build` runs [`scripts/build-go-librespot.sh`](../scripts/build-go-librespot.sh), which copies the pinned source, applies [`build/patches/go-librespot-search-radio.patch`](../build/patches/go-librespot-search-radio.patch) and [`build/patches/go-librespot-http-proxy.patch`](../build/patches/go-librespot-http-proxy.patch), then builds the daemon. The search/radio patch adds the internal `/search` and `/player/radio` endpoints. The HTTP proxy patch routes Access Point dialing through `ALL_PROXY`, `HTTPS_PROXY` or `HTTP_PROXY` (honoring `NO_PROXY`) for networks that require a proxy. Both are local GPL-3.0 modifications kept as patches, not linked into Cadence.
+`audio:build` runs [`scripts/build-go-librespot.sh`](../scripts/build-go-librespot.sh), which copies the pinned source, applies [`build/patches/go-librespot-search-radio.patch`](../build/patches/go-librespot-search-radio.patch), [`build/patches/go-librespot-search-groups.patch`](../build/patches/go-librespot-search-groups.patch) and [`build/patches/go-librespot-http-proxy.patch`](../build/patches/go-librespot-http-proxy.patch), then builds the daemon. The search/radio patch adds the internal `/search` and `/player/radio` endpoints. The search groups patch decodes `shows` and `audioepisodes` from the internal searchview and exposes them as `shows` and `episodes`, with `showType`, `musicAndTalk` and `explicit` on hits. The HTTP proxy patch routes Access Point dialing through `ALL_PROXY`, `HTTPS_PROXY` or `HTTP_PROXY` (honoring `NO_PROXY`) for networks that require a proxy. All three are local GPL-3.0 modifications kept as patches, not linked into Cadence.
 
 Run the app:
 

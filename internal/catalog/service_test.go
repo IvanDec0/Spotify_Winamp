@@ -194,7 +194,9 @@ func TestSearchRewritesAllGroupsAndRejectsBlankQuery(t *testing.T) {
 			"tracks":{"hits":[{"name":"One More Time","uri":"spotify:track:1","image":"https://images.example/t.jpg","artists":[{"name":"Daft Punk","uri":"spotify:artist:1"}],"album":{"name":"Discovery","uri":"spotify:album:1"},"duration":320000}],"total":1},
 			"albums":{"hits":[{"name":"Discovery","uri":"spotify:album:1","image":"https://images.example/al.jpg"}],"total":1},
 			"artists":{"hits":[{"name":"Daft Punk","uri":"spotify:artist:1","image":"https://images.example/ar.jpg"}],"total":1},
-			"playlists":{"hits":[{"name":"This Is Daft Punk","uri":"spotify:playlist:1","image":"https://images.example/p.jpg"}],"total":1}
+			"playlists":{"hits":[{"name":"This Is Daft Punk","uri":"spotify:playlist:1","image":"https://images.example/p.jpg"}],"total":1},
+			"shows":{"hits":[{"name":"Daft Punk Stories","uri":"spotify:show:1","image":"https://images.example/s.jpg","showType":"podcast","musicAndTalk":true}],"total":1},
+			"episodes":{"hits":[{"name":"Episode One","uri":"spotify:episode:1","image":"https://images.example/e.jpg","explicit":true,"musicAndTalk":true}],"total":1}
 		}`))
 	}))
 
@@ -203,7 +205,8 @@ func TestSearchRewritesAllGroupsAndRejectsBlankQuery(t *testing.T) {
 		t.Fatalf("Search() error = %v", err)
 	}
 	if len(results.Tracks.Hits) != 1 || len(results.Albums.Hits) != 1 ||
-		len(results.Artists.Hits) != 1 || len(results.Playlists.Hits) != 1 {
+		len(results.Artists.Hits) != 1 || len(results.Playlists.Hits) != 1 ||
+		len(results.Shows.Hits) != 1 || len(results.Episodes.Hits) != 1 {
 		t.Fatalf("search groups = %#v", results)
 	}
 	groups := []struct {
@@ -214,6 +217,8 @@ func TestSearchRewritesAllGroupsAndRejectsBlankQuery(t *testing.T) {
 		{name: "albums", hit: results.Albums.Hits[0]},
 		{name: "artists", hit: results.Artists.Hits[0]},
 		{name: "playlists", hit: results.Playlists.Hits[0]},
+		{name: "shows", hit: results.Shows.Hits[0]},
+		{name: "episodes", hit: results.Episodes.Hits[0]},
 	}
 	for _, group := range groups {
 		if group.hit.Name == "" || group.hit.URI == "" {
@@ -222,8 +227,17 @@ func TestSearchRewritesAllGroupsAndRejectsBlankQuery(t *testing.T) {
 		assertArtKey(t, group.hit.Image)
 	}
 	if results.Tracks.Hits[0].Name != "One More Time" || results.Albums.Hits[0].Name != "Discovery" ||
-		results.Artists.Hits[0].Name != "Daft Punk" || results.Playlists.Hits[0].Name != "This Is Daft Punk" {
+		results.Artists.Hits[0].Name != "Daft Punk" || results.Playlists.Hits[0].Name != "This Is Daft Punk" ||
+		results.Shows.Hits[0].Name != "Daft Punk Stories" || results.Episodes.Hits[0].Name != "Episode One" {
 		t.Fatalf("search hits = %#v", results)
+	}
+	show := results.Shows.Hits[0]
+	if show.ShowType != "podcast" || !show.MusicAndTalk || show.Explicit {
+		t.Fatalf("show hit = %#v", show)
+	}
+	episode := results.Episodes.Hits[0]
+	if !episode.Explicit || !episode.MusicAndTalk || episode.ShowType != "" {
+		t.Fatalf("episode hit = %#v", episode)
 	}
 
 	if _, err := service.Search("   ", 7); err == nil || err.Error() != "the search query is empty" {

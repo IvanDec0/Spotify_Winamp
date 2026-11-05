@@ -13,6 +13,8 @@ export type SearchResultsView = {
   albums: SearchHit[];
   artists: SearchHit[];
   playlists: SearchHit[];
+  shows: SearchHit[];
+  episodes: SearchHit[];
 };
 
 function normalizeAudio(state: AudioState): AudioState {
@@ -264,6 +266,8 @@ class MusicStore {
         albums: results.albums?.hits ?? [],
         artists: results.artists?.hits ?? [],
         playlists: results.playlists?.hits ?? [],
+        shows: results.shows?.hits ?? [],
+        episodes: results.episodes?.hits ?? [],
       };
     } catch (error) {
       this.searchError = toApiError(error).message;

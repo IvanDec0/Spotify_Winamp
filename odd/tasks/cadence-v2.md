@@ -747,15 +747,15 @@ four original groups, so the new groups are lost before the HTTP response.
 
 ### T5.1 — Search groups (shows and episodes)
 
-- [ ] Add `build/patches/go-librespot-search-groups.patch`, applied after the
+- [x] Add `build/patches/go-librespot-search-groups.patch`, applied after the
       search/radio patch: decode `shows` and `audioepisodes` from the raw
       searchview, expose them as `shows` and `episodes` in `/search`, and add
       `showType`, `musicAndTalk` and `explicit` to search hits.
-- [ ] Add the patch to `scripts/build-go-librespot.sh`, the Taskfile
+- [x] Add the patch to `scripts/build-go-librespot.sh`, the Taskfile
       `audio:ensure` status list and the engine docs/notices.
-- [ ] Extend `internal/engine` search DTOs and the catalog test with show and
+- [x] Extend `internal/engine` search DTOs and the catalog test with show and
       episode hits, including artwork rewriting.
-- [ ] Add `shows`/`episodes` to the frontend `SearchResultsView` mapping; the
+- [x] Add `shows`/`episodes` to the frontend `SearchResultsView` mapping; the
       tabs land in Phase 6.
 - [ ] Live-verify the patched `/search` returns non-empty `shows` and `episodes`
       (parent-run with copied credentials; no secrets in output).
@@ -807,6 +807,12 @@ four original groups, so the new groups are lost before the HTTP response.
 - Engine settings persist and apply on restart; no silent restart.
 - No frontend regression; UI for the new surfaces remains Phase 6.
 
+### Commit map — Phase 5
+
+| Task | Commit |
+|---|---|
+| T5.1 | `feat(search): expose podcast shows and episodes` |
+
 ## Progress log
 
 | Date | Task | Commit | Result |
@@ -844,3 +850,4 @@ four original groups, so the new groups are lost before the HTTP response.
 
 | 2026-11-04 | Phase 4 verification | `e301b99` | Static gates green; idle structure is 0.067 req/s; after-baseline pending reference-machine run |
 | 2026-11-04 | T4.4 after-baseline | `docs: record the Phase 4 after-baseline` | Measured 0.067 req/s (4/60 s), 541 B/event, 0 idle events; CPU/RSS caveats recorded; Phase 5 not started |
+| 2026-11-05 | T5.1 | `feat(search): expose podcast shows and episodes` | Third engine patch maps `audioepisodes` to `episodes` and adds show/episode hit fields; search DTOs, artwork rewriting, catalog test and frontend mapping extended; `audio:check`/`audio:build`, Go and frontend gates green; live `/search` verification pending parent |

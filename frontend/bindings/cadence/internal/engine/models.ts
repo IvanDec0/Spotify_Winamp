@@ -121,6 +121,9 @@ export interface SearchHit {
     "author": string;
     "followersCount": number;
     "verified": boolean;
+    "showType": string;
+    "musicAndTalk": boolean;
+    "explicit": boolean;
 }
 
 /**
@@ -131,4 +134,6 @@ export interface SearchResults {
     "albums": SearchGroup;
     "artists": SearchGroup;
     "playlists": SearchGroup;
+    "shows": SearchGroup;
+    "episodes": SearchGroup;
 }

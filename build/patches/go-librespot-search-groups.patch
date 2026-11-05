@@ -1,0 +1,60 @@
+diff -ruN a/spclient/searchview.go b/spclient/searchview.go
+--- a/spclient/searchview.go	2026-11-05 08:40:36.754611231 -0300
++++ b/spclient/searchview.go	2026-11-05 08:40:48.422979267 -0300
+@@ -32,6 +32,9 @@
+ 	Author         string         `json:"author"`
+ 	FollowersCount int            `json:"followersCount"`
+ 	Verified       bool           `json:"verified"`
++	ShowType       string         `json:"showType"`
++	MusicAndTalk   bool           `json:"musicAndTalk"`
++	Explicit       bool           `json:"explicit"`
+ }
+ 
+ type SearchGroup struct {
+@@ -39,15 +42,30 @@
+ 	Total int         `json:"total"`
+ }
+ 
++// SearchResults is the public shape of a search response. The internal
++// searchview calls episodes "audioepisodes"; that key never leaves the engine.
+ type SearchResults struct {
+ 	Tracks    SearchGroup `json:"tracks"`
+ 	Albums    SearchGroup `json:"albums"`
+ 	Artists   SearchGroup `json:"artists"`
+ 	Playlists SearchGroup `json:"playlists"`
++	Shows     SearchGroup `json:"shows"`
++	Episodes  SearchGroup `json:"episodes"`
++}
++
++// searchResultsRaw mirrors the searchview response keys. Only this type may
++// know about "audioepisodes".
++type searchResultsRaw struct {
++	Tracks        SearchGroup `json:"tracks"`
++	Albums        SearchGroup `json:"albums"`
++	Artists       SearchGroup `json:"artists"`
++	Playlists     SearchGroup `json:"playlists"`
++	Shows         SearchGroup `json:"shows"`
++	AudioEpisodes SearchGroup `json:"audioepisodes"`
+ }
+ 
+ type searchResponse struct {
+-	Results SearchResults `json:"results"`
++	Results searchResultsRaw `json:"results"`
+ }
+ 
+ func searchUUID() string {
+@@ -112,5 +130,13 @@
+ 	if err := json.Unmarshal(body, &result); err != nil {
+ 		return nil, fmt.Errorf("invalid search response: %w", err)
+ 	}
+-	return &result.Results, nil
++	raw := result.Results
++	return &SearchResults{
++		Tracks:    raw.Tracks,
++		Albums:    raw.Albums,
++		Artists:   raw.Artists,
++		Playlists: raw.Playlists,
++		Shows:     raw.Shows,
++		Episodes:  raw.AudioEpisodes,
++	}, nil
+ }

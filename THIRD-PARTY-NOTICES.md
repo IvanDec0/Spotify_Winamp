@@ -14,10 +14,12 @@ an adjacent executable in the tarball and inside the AppImage. Its complete
 license text is in [`LICENSES/go-librespot-GPL-3.0.txt`](LICENSES/go-librespot-GPL-3.0.txt).
 
 The corresponding source is available from the upstream repository at the
-pinned revision. Cadence applies two local patches, both GPL-3.0:
+pinned revision. Cadence applies three local patches, all GPL-3.0:
 
 - [`build/patches/go-librespot-search-radio.patch`](build/patches/go-librespot-search-radio.patch)
   adds the internal search and radio endpoints.
+- [`build/patches/go-librespot-search-groups.patch`](build/patches/go-librespot-search-groups.patch)
+  exposes podcast shows and episodes in the search endpoint.
 - [`build/patches/go-librespot-http-proxy.patch`](build/patches/go-librespot-http-proxy.patch)
   routes proxy-aware access-point dialing.
 

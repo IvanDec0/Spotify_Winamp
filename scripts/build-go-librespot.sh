@@ -31,6 +31,7 @@ chmod -R u+w "${BUILD_DIR}"
 
 for PATCH_FILE in \
 	"${ROOT_DIR}/build/patches/go-librespot-search-radio.patch" \
+	"${ROOT_DIR}/build/patches/go-librespot-search-groups.patch" \
 	"${ROOT_DIR}/build/patches/go-librespot-http-proxy.patch"; do
 	if ! patch -p1 --batch --forward --fuzz=0 -d "${BUILD_DIR}" < "${PATCH_FILE}"; then
 		echo "failed to apply $(basename "${PATCH_FILE}")" >&2
