@@ -1234,7 +1234,7 @@ Taskfile/CI yet because it is red until the T7.2 sweep.
 |---|---|
 | T7.1 | `bdf54c1` — `chore(i18n): remove dead UI and add the translation guard` |
 | T7.2 | `293f632` — `feat(i18n): translate the compact player and skin UI` |
-| T7.3 | `feat(i18n): add typed engine error states and the i18n guide` (hash in the final report) |
+| T7.3 | `d421e95` |
 
 ### T7.2 — Compact and skin i18n sweep
 
@@ -1327,7 +1327,8 @@ codes. No live-process readiness test was added.
 
 - **Code and docs:** complete; T7.1-T7.3 committed on `feat/cadence-v2`.
 - **Verification:** all Go, engine patch, binding, frontend and full-build gates
-  green (tables above).
+  green (tables above); **197 frontend tests**, **0 i18n guard findings**, and
+  `task build` produces `bin/cadence`.
 - **Known limitations:** raw Go skin-validation warnings remain English
   diagnostic detail; the live GTK/language-switch smoke test is pending user
   verification (switch to Español in Browse Settings, confirm the compact window
