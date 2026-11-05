@@ -961,9 +961,9 @@ case. No Go API was missing; no bindings changed.
 
 | Task | Commit |
 |---|---|
-| T6.1 | `feat(browse): add the separate skin-aware Browse window` |
-| T6.2 | `feat(browse): add search, library and podcast surfaces` |
-| T6.3 | `feat(browse): add settings and accessibility polish` |
+| T6.1 | `698a185` |
+| T6.2 | `1996a77` |
+| T6.3 | `b55a8c1` |
 
 ### T6.3 — Settings, accessibility and polish
 
@@ -995,10 +995,11 @@ restart behavior were not exercised.
 
 ### T6.4 — Verification
 
-- [ ] Go tests/race/vet/gofmt, all four engine patches, bindings no diff,
+- [x] Go tests/race/vet/gofmt, all four engine patches, bindings no diff,
       frontend check/lint/format/test/build.
 - [ ] Live UI smoke: open Browse from compact, search podcasts, play, save/
-      follow, change skin/theme, restart engine settings.
+      follow, change skin/theme, restart engine settings. (Pending: the
+      environment cannot open the GTK window; the user runs `./bin/cadence`.)
 - Commit: `docs: record Phase 6 verification`
 
 ### Phase 6 acceptance
@@ -1010,6 +1011,50 @@ restart behavior were not exercised.
 - Search exposes shows/episodes; library pages, entity pages, podcasts and
   actions work; long lists are virtualized.
 - Existing compact window behavior and performance are unchanged.
+
+## Phase 6 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0, all packages ok |
+| `go test -race ./internal/engine/... ./internal/catalog/... ./internal/settings/... ./internal/wailsapi/audio/... ./internal/wailsapi/player/...` | exit 0 |
+| `go vet`, `gofmt -l` | exit 0, no findings |
+| `./scripts/build-go-librespot.sh --check` | exit 0, all four patches apply with `--fuzz=0` |
+| `wails3 generate bindings -clean=true -ts -i .` | exit 0, 4 services / 55 methods / 40 models; no diff after commit |
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint`, `npm run format` | exit 0 |
+| `npm run test` | exit 0, 37 files / 177 tests |
+| `npm run build` | exit 0, 259 modules; `browse-*.js` 65.32 kB |
+| `task build` | exit 0; `bin/cadence` produced (16 MB) |
+| `git diff --check` | exit 0 |
+
+## Phase 6 status
+
+- **Code:** complete at `b55a8c1`; the full Wails app builds as `bin/cadence`.
+- **Window:** Browse is a separate 960×640 opaque window opened from the compact
+  Library header; re-opening focuses the existing window. It is a native-frame
+  window, not a shaped/transparent skin window.
+- **Skin-aware:** the active skin’s theme tokens are read through a hidden
+  shadow/Clarity probe and applied inline; the compact `styles.css` is never
+  injected. An optional manifest `browse.css` lets a skin restyle the Browse
+  subtree; Lumina has a working example. Clarity uses the default Browse styling
+  plus its `.clarity[data-theme]` tokens.
+- **Surfaces:** six-group search (tracks/albums/artists/playlists/shows/episodes),
+  paged library (playlists/albums/artists/Your Episodes, Liked Songs card),
+  entity pages with a back stack, show/episode browsing, like/save/follow,
+  playlist add/remove, a now-playing bar and engine settings with an explicit
+  restart confirmation.
+- **Performance:** entity track lists use `VirtualList` at a 44 px pitch; the
+  Browse window owns its scroll container.
+- **Pending live smoke:** the environment cannot open the GTK window. The user
+  should run `./bin/cadence`, open Browse, search podcasts, play an episode,
+  save/follow an album/artist/show, change a skin/theme and restart the engine
+  from Settings.
+- **Deferred:** saved-shows listing (the `show` collection set is identified),
+  per-row liked hearts (the now-playing bar has the current-track like), and any
+  native window resize/frame polish if the live smoke finds it.
+- **Next:** live smoke, then Phase 7 (i18n sweep/tests/docs) or Phase 8
+  (packaging).
 
 ## Progress log
 
@@ -1055,6 +1100,8 @@ restart behavior were not exercised.
 | 2026-11-05 | T5.3 | `1d845ee` | `settings.EngineState` persists bitrate/crossfade/normalisation/cache/FLAC/MPRIS/device-group/image-size with defaults; engine `PlaybackConfig` normalizes and applies under the supervisor mutex; generated config emits the new keys; adapter `Get`/`SetEngineSettings` persists without restarting; bindings and typed facade ready; tests for defaults, round-trip, normalization, config generation and adapter persistence |
 
 | 2026-11-05 | T5.4 | `docs(odd): record Phase 5 verification` | All Go/engine/binding/frontend gates green; live read-only search and collection checks passed; actual writes and UI remain Phase 6 |
-| 2026-11-05 | T6.1 | `feat(browse): add the separate skin-aware Browse window` | Separate `browse` window host (open/close/status, focus instead of duplicate), `?surface=browse` dynamic entry, app-owned Browse shell with sidebar/top bar/now-playing, hidden shadow/Clarity token probe applied inline with storage re-sync, optional manifest `browse.css` with schema/validation/runtime URL, Lumina example; Go and frontend checks green; live window smoke not run |
-| 2026-11-05 | T6.2 | `feat(browse): add search, library and podcast surfaces` | Browse store with latest-wins six-group search, paged library tabs, retried entity contexts and back stack; Search/Library/Podcasts/Entity views, VirtualList context rows (44 px), save/follow/like and playlist add/remove with optimistic rollback, now-playing heart and playlist picker; no Go or binding changes; 35 files / 164 frontend tests green; live UI not run |
-| 2026-11-05 | T6.3 | `feat(browse): add settings and accessibility polish` | Engine settings view/store (bitrate, crossfade, normalisation, cache, FLAC, MPRIS, device group, image size), explicit Dialog restart flow, tablist/roving keyboard focus, search/entity focus management, loading/empty/error-retry and aria-busy states, responsive token-only styling, tooltip labels; 37 files / 177 frontend tests green; live UI/native restart not run |
+| 2026-11-05 | T6.1 | `698a185` | Separate `browse` window host (open/close/status, focus instead of duplicate), `?surface=browse` dynamic entry, app-owned Browse shell with sidebar/top bar/now-playing, hidden shadow/Clarity token probe applied inline with storage re-sync, optional manifest `browse.css` with schema/validation/runtime URL, Lumina example; Go and frontend checks green; live window smoke not run |
+| 2026-11-05 | T6.2 | `1996a77` | Browse store with latest-wins six-group search, paged library tabs, retried entity contexts and back stack; Search/Library/Podcasts/Entity views, VirtualList context rows (44 px), save/follow/like and playlist add/remove with optimistic rollback, now-playing heart and playlist picker; no Go or binding changes; 35 files / 164 frontend tests green; live UI not run |
+| 2026-11-05 | T6.3 | `b55a8c1` | Engine settings view/store (bitrate, crossfade, normalisation, cache, FLAC, MPRIS, device group, image size), explicit Dialog restart flow, tablist/roving keyboard focus, search/entity focus management, loading/empty/error-retry and aria-busy states, responsive token-only styling, tooltip labels; 37 files / 177 frontend tests green; live UI/native restart not run |
+
+| 2026-11-05 | T6.4 | `docs(odd): record Phase 6 verification` | Go/engine/binding/frontend gates green; full `task build` produces `bin/cadence`; Browse window, search/library/entities/podcasts/settings code complete; live GTK smoke pending user |
