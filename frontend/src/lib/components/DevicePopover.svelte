@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { Device } from "../../../bindings/cadence/internal/player/models";
+  import type { Device } from "../../shared/api/types";
+  import { t } from "../../shared/i18n";
   import Icon from "./Icon.svelte";
 
   interface Props {
@@ -11,19 +12,19 @@
   let { devices, onTransfer, onClose }: Props = $props();
 </script>
 
-<div class="devices" role="dialog" aria-modal="true" aria-label="Playback devices">
+<div class="devices" role="dialog" aria-modal="true" aria-label={t("device.dialogLabel")}>
   <header class="devices-head">
     <div class="devices-title">
-      <span class="eyebrow">Connect</span>
-      <h2>Playback device</h2>
+      <span class="eyebrow">{t("device.connect")}</span>
+      <h2>{t("device.title")}</h2>
     </div>
-    <button class="close" type="button" aria-label="Close device picker" onclick={onClose}>
+    <button class="close" type="button" aria-label={t("device.closePicker")} onclick={onClose}>
       <Icon name="close" size={12} />
     </button>
   </header>
 
   {#if devices.length === 0}
-    <p class="empty">The local audio engine is not available.</p>
+    <p class="empty">{t("device.empty")}</p>
   {:else}
     <div class="device-list">
       {#each devices as device (device.id)}
@@ -32,7 +33,7 @@
           class:is-active={device.active}
           type="button"
           disabled={device.active || device.restricted}
-          aria-label={`${device.name}${device.active ? ", active device" : ""}`}
+          aria-label={device.active ? t("device.nameActive", { name: device.name }) : device.name}
           aria-pressed={device.active}
           onclick={() => onTransfer(device.id)}
         >
@@ -42,8 +43,9 @@
           <span class="device-copy">
             <span class="device-name">{device.name}</span>
             <span class="device-meta mono">
-              {device.type || "device"} · {device.volumePercent}%
-              {#if device.restricted}· restricted{/if}
+              {device.type || t("device.genericType")} · {device.volumePercent}%
+              {#if device.restricted}
+                · {t("device.restricted")}{/if}
             </span>
           </span>
           {#if device.active}
@@ -51,14 +53,14 @@
               <Icon name="check" size={11} strokeWidth={2.1} />
             </span>
           {:else}
-            <span class="transfer mono">Use</span>
+            <span class="transfer mono">{t("device.use")}</span>
           {/if}
         </button>
       {/each}
     </div>
   {/if}
 
-  <p class="hint mono">Local playback · Cadence</p>
+  <p class="hint mono">{t("device.localPlayback")}</p>
 </div>
 
 <style>

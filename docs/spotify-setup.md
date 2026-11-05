@@ -38,8 +38,8 @@ The engine is a separate process. It is not linked into Cadence.
 ## Pair the device
 
 1. Start Cadence without `--demo`.
-2. Open the provider badge in the titlebar (**CONNECT** / **DEMO**).
-3. If the engine is not paired, Cadence shows a pairing code.
+2. Click **Browse** in the compact titlebar.
+3. If the engine is not paired, Browse shows a pairing code.
 4. Choose **Open pairing page**, sign in to Spotify, and approve the device.
 5. Cadence updates automatically. The local device appears as **Cadence**.
 
@@ -55,27 +55,64 @@ flow.
 
 ## Library and playback
 
-The Library panel is the Spotify account/library surface:
+The Browse window is the Spotify account/library surface:
 
-- browse playlists, saved albums and followed artists;
-- open a context and play any track;
+- browse playlists, saved albums, followed artists, Liked Songs and Your Episodes;
+- open an entity page and play any track;
 - play an entire playlist, album, artist or Liked Songs;
-- search the Spotify catalog for tracks, albums, artists and playlists;
+- search the Spotify catalog for tracks, albums, artists, playlists, shows and episodes;
 - start a Spotify radio station from a track, album, artist or playlist;
-- add tracks to the local play queue;
-- queue expansion and playback controls use the local engine.
+- add tracks to the play queue;
+- use the Queue section and the now-playing bar for playback state.
 
-The library, search and radio endpoints are provided by go-librespot's internal
-Spotify session, not the rate-limited public Web API. The local engine patch in
-`build/patches/go-librespot-search-radio.patch` adds the search and radio
-endpoints. Audio output uses the configured PulseAudio device (`default` in v1).
+The library, search, podcast and radio endpoints are provided by go-librespot's
+internal Spotify session, not the rate-limited public Web API. The local engine
+patches add the search/radio, search-group and collection-write endpoints. Audio
+output uses the configured PulseAudio device (`default`).
+
+## Engine version and options
+
+Cadence generates `$XDG_CONFIG_HOME/cadence/audio/config.yml` on every start;
+manual edits to that file are overwritten. The playback and cache options below
+are persisted in `$XDG_CONFIG_HOME/cadence/config.json` under `engine`. Changes
+are validated and saved immediately but only take effect after an explicit
+engine restart.
+
+| Option | Default and purpose |
+|---|---|
+| `bitrate` | `320` kbps. Accepted values: `96`, `160`, `320`. |
+| `crossfade_duration` | `0` ms (disabled). Range: `0`-`12000` ms. |
+| `normalisation_disabled` | `false`; set to `true` to disable track/album normalisation. |
+| `normalisation_use_album_gain` | `false`; use album gain instead of track gain. |
+| `normalisation_pregain` | `0` dB. Range: `-20` to `20` dB. |
+| `cache.enabled` | `false`; cache downloaded audio files on disk. |
+| `cache.dir` | Empty in settings; Cadence resolves it to `$XDG_CACHE_HOME/cadence/audio-cache`. |
+| `cache.size_limit` | `1GB`. Accepted values: empty (engine default), `0` (unlimited), `512MB`, `1GB`, `2GB`, `4GB`, `8GB`. |
+| `flac_enabled` | `false`; prefer FLAC when Spotify offers it. |
+| `mpris_enabled` | `false`; expose MPRIS media controls on Linux. |
+| `device_is_group` | `false` by default. When enabled, Spotify can show a group icon for Cadence; it does not enable Spotify Jam. Jam participation uses the engine's Connect/Jam mode independently, and live Jam behavior is unverified. |
+| `accesspoint_ports` | Engine option not exposed by Cadence yet. It is not written to the generated file; `prefer_firewall_friendly_ports: true` is active instead. |
+| `server.image_size` | Cover-art source variant: `default`, `small`, `large` or `xlarge`. Cadence writes `default` unless changed; Phase 4 selects the variant after local resizing exists. |
+
+The engine writes its running version as its first log line
+(`running go-librespot <version>`). Cadence parses it after startup and exposes it
+in the audio state and the diagnostics snapshot:
+
+```bash
+./bin/cadence --diagnostics
+# copy the logged http://127.0.0.1:PORT/debug/stats URL
+curl -sS http://127.0.0.1:PORT/debug/stats | jq -r .engine_version
+```
+
+Without `--diagnostics`, the same line is the first entry in
+`$XDG_CACHE_HOME/cadence/logs/go-librespot.log`.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
 | `Local audio engine unavailable` | Run `task audio:build` or set `CADENCE_GO_LIBRESPOT` |
-| No pairing code | Restart the engine from the Library panel; check the engine log |
+| No pairing code | Retry the engine from the Browse pairing screen; check the engine log |
 | Pairing code expired | Select **Reset pairing** and use the new code |
 | No sound | Check that PipeWire/PulseAudio is running and the default sink is correct |
 | Engine exits immediately | Run `bin/go-librespot --config_dir ~/.config/cadence/audio` manually to see its output |

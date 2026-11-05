@@ -1,30 +1,36 @@
 <script lang="ts">
-  import type { QueueItem } from "../../../bindings/cadence/internal/player/models";
+  import type { QueueItem } from "../../shared/api/types";
+  import { t } from "../../shared/i18n";
   import { formatTime } from "../format";
   import CoverArt from "./CoverArt.svelte";
 
   interface Props {
     items: QueueItem[];
     provider?: string;
+    loading?: boolean;
   }
 
-  let { items, provider = "demo" }: Props = $props();
+  let { items, provider = "demo", loading = false }: Props = $props();
 
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
-  let queueNote = $derived(provider === "demo" ? "Demo queue" : "Local queue");
+  let queueNote = $derived(provider === "demo" ? t("queue.demo") : t("queue.playback"));
 </script>
 
-<section class="queue" aria-label="Playback queue">
+<section class="queue" aria-label={t("queue.playback")} aria-busy={loading}>
   <header class="queue-head">
     <div class="queue-heading">
-      <span class="eyebrow">Up next</span>
+      <span class="eyebrow">{t("queue.upNext")}</span>
       <span class="queue-count mono">{countLabel}</span>
     </div>
     <span class="queue-note mono">{queueNote}</span>
   </header>
 
   {#if items.length === 0}
-    <p class="queue-empty">Nothing queued. Start a track in the Library.</p>
+    {#if loading}
+      <p class="queue-empty" role="status">{t("ui.loading")}</p>
+    {:else}
+      <p class="queue-empty">{t("queue.empty")}</p>
+    {/if}
   {:else}
     <ol class="queue-list">
       {#each items as item (item.index)}
@@ -36,7 +42,7 @@
         >
           <span class="queue-index mono">
             {#if item.isCurrent}
-              <span class="playing-bars" aria-label="Currently playing">
+              <span class="playing-bars" aria-label={t("queue.currentlyPlaying")}>
                 <i></i><i></i><i></i>
               </span>
             {:else}
@@ -49,12 +55,12 @@
           <span class="queue-copy">
             <span class="queue-title" title={item.track.title}>{item.track.title}</span>
             <span class="queue-artist" title={item.track.artists?.join(", ") ?? ""}>
-              {item.track.artists?.join(", ") || "Unknown artist"}
+              {item.track.artists?.join(", ") || t("player.unknownArtist")}
             </span>
           </span>
 
           {#if item.isNext}
-            <span class="next-tag mono">Next</span>
+            <span class="next-tag mono">{t("queue.next")}</span>
           {/if}
           <span class="queue-time mono">{formatTime(item.track.durationMs / 1000)}</span>
         </li>

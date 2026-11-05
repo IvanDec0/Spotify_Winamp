@@ -9,6 +9,7 @@ afterglow/
 ├── manifest.json
 ├── layout.json
 ├── styles.css
+├── browse.css           # optional, dedicated Browse-window styling
 ├── themes/              # optional, one file per declared theme
 │   ├── ember.css
 │   └── tide.css
@@ -19,7 +20,7 @@ afterglow/
         └── display.woff2
 ```
 
-`manifest.json`, `layout.json` and `styles.css` must be at the package root. A ZIP archive must also place those files at its root, not inside a wrapper directory.
+`manifest.json`, `layout.json` and `styles.css` must be at the package root. A ZIP archive must also place those files at its root, not inside a wrapper directory. `browse.css` is optional and must also be a root-level file when declared.
 
 Installed skins live at:
 
@@ -67,6 +68,9 @@ During development, directories under `skins-dev/` are discovered when Cadence r
     "minHeight": 200,
     "queueHeight": 460,
     "resizable": true
+  },
+  "browse": {
+    "css": "browse.css"
   }
 }
 ```
@@ -89,6 +93,7 @@ Rules:
 | `visualizer.default` | Must appear in `modes`. |
 | `visualizer.intensity` | Number from `0` to `1`. |
 | `window` | Logical design size `420`×`height`, where `height` is 220–460; `minHeight` is 200–460; `queueHeight` is 300–760. Cadence starts at this size and renders it with an adaptive 125–300% UI scale. `resizable` may be `true` or `false`. |
+| `browse` | Optional. `browse.css` must be a root-level `.css` filename with no path separators and cannot be `styles.css`. The declared file must exist and validates like every other stylesheet. |
 
 Unknown fields are rejected. The complete manifest is limited to 64 KB.
 
@@ -194,8 +199,8 @@ At least one of `text` or `label` is required on a `button`. The allowed actions
 
 | Action | Effect | Capability |
 |---|---|---|
-| `open-library` | Open the Library panel | none |
-| `open-settings` | Open the skin settings / library surface | none |
+| `open-library` | Open the Browse window | none |
+| `open-settings` | Open Browse Settings | none |
 | `open-devices` | Open the playback device popover | `devices.read` |
 | `toggle-queue` | Show or hide the queue | `queue.read` |
 | `play-pause` | Toggle playback | `player.control` |
@@ -236,6 +241,51 @@ Cadence's components consume these fallback variables when present:
 
 Themes may also change fonts, borders, shadows, backgrounds, spacing, transitions and animations. Reduced-motion preferences are applied to the host as `data-reduced-motion="true"`; Cadence's base stylesheet reduces animation durations in that state.
 
+## Browse window stylesheet
+
+The Catalog opens in a separate Browse window. Its layout is app-owned, but it
+inherits the active skin theme through custom properties. Cadence reads those
+tokens from the skin theme and applies them to the `.cadence-browse` root:
+
+```text
+--bg --surface --surface-2 --surface-3 --panel --text --muted --faint
+--line --line-strong --accent --accent-2 --danger
+--font-ui --font-mono --ease-out --ease-spring
+```
+
+`styles.css` is **never** injected into the Browse window. A skin that wants to
+style the Browse subtree declares an optional `browse.css`:
+
+```json
+"browse": {
+  "css": "browse.css"
+}
+```
+
+```css
+/* browse.css */
+.cadence-browse {
+  background:
+    radial-gradient(60% 50% at 0% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent),
+    var(--bg);
+}
+
+.cadence-browse .topbar {
+  border-bottom-color: color-mix(in srgb, var(--accent) 18%, var(--line));
+}
+```
+
+Rules:
+
+- `browse.css` must exist at the package root, is limited to 1 MB and goes
+  through the same CSS validation and asset checks as `styles.css`.
+- Scope every rule to `.cadence-browse` (or a descendant). The file loads only
+  in the dedicated Browse window.
+- Use theme tokens instead of hardcoded colors so light themes (for example
+  Vanta bionic) remain readable.
+- Skins without `browse` remain valid and receive Cadence's default Browse
+  styling plus their theme tokens.
+
 ## Shaped windows
 
 The native window uses a transparent background, so a declarative skin can leave `.cad-runtime` transparent and clip a full-size shell to an irregular silhouette:
@@ -253,13 +303,13 @@ The native window uses a transparent background, so a declarative skin can leave
 }
 ```
 
-Set `window.height` to the square or tall logical canvas the silhouette needs. Keep the titlebar inside the visible shape so the window can be moved. Interactive primitives remain native buttons; do not put controls outside the opaque silhouette. Overlays such as the Library and Skin Manager are always rectangular and opaque, and expand the window vertically when opened.
+Set `window.height` to the square or tall logical canvas the silhouette needs. Keep the titlebar inside the visible shape so the window can be moved. Interactive primitives remain native buttons; do not put controls outside the opaque silhouette. App-owned surfaces such as the Browse window remain rectangular and opaque; opening Browse hides the compact window instead of expanding it.
 
 The bundled **Nightstar** skin uses this approach with a four-blade star chassis, a custom sigil image, decorative boxes, text labels and custom arm buttons. It is a concrete example of primitives and a shaped window.
 
 ## CSS rules
 
-All CSS is loaded inside a Shadow DOM. It cannot style the app chrome, the skin library or any element outside the skin host.
+Compact skin CSS (`styles.css` and `themes/*.css`) is loaded inside a Shadow DOM. It cannot style the app chrome, the skin library or any element outside the skin host. The optional `browse.css` is the only skin stylesheet loaded into the Browse document, and it targets the `.cadence-browse` subtree directly.
 
 Allowed at-rules:
 

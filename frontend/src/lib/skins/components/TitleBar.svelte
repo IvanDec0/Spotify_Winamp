@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Window } from "@wailsio/runtime";
+  import { appWindow } from "../../../shared/api";
+  import { t } from "../../../shared/i18n";
   import Icon from "../../components/Icon.svelte";
   import { player } from "../../player.svelte";
   import { skins } from "../../skins.svelte";
@@ -24,15 +25,14 @@
     compact = false,
   }: Props = $props();
 
-  let providerLabel = $derived(player.state.provider === "demo" ? "DEMO" : "LOCAL");
-  let deviceLabel = $derived(player.state.device.name || "No device");
+  let deviceLabel = $derived(player.state.device.name || t("device.noDevice"));
 
   function minimise(): void {
-    void Window.Minimise().catch(() => {});
+    void appWindow.minimise().catch(() => {});
   }
 
   function closeWindow(): void {
-    void Window.Close().catch(() => {});
+    void appWindow.close().catch(() => {});
   }
 </script>
 
@@ -55,11 +55,11 @@
       <button
         class="cad-provider"
         type="button"
-        title="Music library"
-        aria-label="Open music library"
+        title={t("browse.openWindow")}
+        aria-label={t("browse.openWindow")}
         onclick={() => skins.openMusic()}
       >
-        {providerLabel}
+        {t("browse.open")}
       </button>
     {/if}
   </div>
@@ -70,8 +70,8 @@
     <button
       class="cad-device"
       type="button"
-      title="Choose a playback device"
-      aria-label={`Playback device: ${deviceLabel}. Choose a device`}
+      title={t("device.choose")}
+      aria-label={t("device.chooseLabel", { name: deviceLabel })}
       onclick={() => skins.openDevices()}
     >
       <Icon name="device" size={11} />
@@ -83,8 +83,8 @@
   <button
     class="cad-title-button"
     type="button"
-    title="Skins and appearance"
-    aria-label="Open skin settings"
+    title={t("browse.settings")}
+    aria-label={t("browse.settings")}
     onclick={() => skins.openSettings()}
   >
     <Icon name="settings" size={14} />
@@ -95,8 +95,8 @@
       class="cad-title-button"
       class:is-active={skins.queueOpen}
       type="button"
-      title={skins.queueOpen ? "Hide queue" : "Show queue"}
-      aria-label={skins.queueOpen ? "Hide queue" : "Show queue"}
+      title={skins.queueOpen ? t("titlebar.hideQueue") : t("titlebar.showQueue")}
+      aria-label={skins.queueOpen ? t("titlebar.hideQueue") : t("titlebar.showQueue")}
       aria-pressed={skins.queueOpen}
       onclick={() => skins.toggleQueue()}
     >
@@ -109,8 +109,8 @@
     <button
       class="cad-title-button cad-window-button"
       type="button"
-      title="Minimise"
-      aria-label="Minimise window"
+      title={t("titlebar.minimise")}
+      aria-label={t("titlebar.minimiseWindow")}
       onclick={minimise}
     >
       <Icon name="minimise" size={12} />
@@ -118,8 +118,8 @@
     <button
       class="cad-title-button cad-window-button close"
       type="button"
-      title="Close"
-      aria-label="Close window"
+      title={t("ui.close")}
+      aria-label={t("titlebar.closeWindow")}
       onclick={closeWindow}
     >
       <Icon name="close" size={12} />

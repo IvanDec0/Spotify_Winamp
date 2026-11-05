@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { RepeatMode } from "../../../bindings/cadence/internal/player/models";
+  import { RepeatMode } from "../../shared/api/types";
+  import { t } from "../../shared/i18n";
   import Icon from "./Icon.svelte";
 
   interface Props {
@@ -28,22 +29,22 @@
 
   let repeatLabel = $derived(
     repeat === RepeatMode.RepeatTrack
-      ? "Repeat one track"
+      ? t("transport.repeatTrack")
       : repeat === RepeatMode.RepeatContext
-        ? "Repeat queue"
-        : "Repeat off",
+        ? t("transport.repeatContext")
+        : t("transport.repeatOff"),
   );
 </script>
 
-<div class="transport" aria-label="Playback controls">
+<div class="transport" aria-label={t("transport.controls")}>
   <button
     class="control"
     class:is-active={shuffle}
     type="button"
     disabled={!canControl}
-    aria-label={shuffle ? "Turn shuffle off" : "Turn shuffle on"}
+    aria-label={shuffle ? t("transport.shuffleOff") : t("transport.shuffleOn")}
     aria-pressed={shuffle}
-    title="Shuffle (S)"
+    title={t("transport.shuffleShortcut")}
     onclick={onShuffle}
   >
     <Icon name="shuffle" size={13} />
@@ -53,8 +54,8 @@
     class="control"
     type="button"
     disabled={!canControl}
-    aria-label="Previous track"
-    title="Previous (Shift+←)"
+    aria-label={t("transport.previousTrack")}
+    title={t("transport.previousShortcut")}
     onclick={onPrevious}
   >
     <Icon name="previous" size={14} />
@@ -65,8 +66,8 @@
     class:is-playing={playing}
     type="button"
     disabled={!canControl}
-    aria-label={playing ? "Pause" : "Play"}
-    title={playing ? "Pause (Space)" : "Play (Space)"}
+    aria-label={playing ? t("transport.pause") : t("transport.play")}
+    title={playing ? t("transport.pauseShortcut") : t("transport.playShortcut")}
     onclick={onToggle}
   >
     <Icon name={playing ? "pause" : "play"} size={14} />
@@ -76,8 +77,8 @@
     class="control"
     type="button"
     disabled={!canControl}
-    aria-label="Next track"
-    title="Next (Shift+→)"
+    aria-label={t("transport.nextTrack")}
+    title={t("transport.nextShortcut")}
     onclick={onNext}
   >
     <Icon name="next" size={14} />
@@ -90,7 +91,7 @@
     disabled={!canControl}
     aria-label={repeatLabel}
     aria-pressed={repeat !== RepeatMode.RepeatOff}
-    title={`${repeatLabel} (R)`}
+    title={t("transport.repeatShortcut", { label: repeatLabel })}
     onclick={onRepeat}
   >
     <Icon name="repeat" size={13} />

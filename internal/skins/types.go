@@ -29,6 +29,13 @@ type Manifest struct {
 	DefaultTheme  string             `json:"defaultTheme"`
 	Visualizer    VisualizerManifest `json:"visualizer"`
 	Window        WindowSpec         `json:"window"`
+	Browse        *BrowseSpec        `json:"browse,omitempty"`
+}
+
+// BrowseSpec opts a skin into an optional stylesheet for the dedicated Browse
+// window. The compact styles.css is never injected into Browse.
+type BrowseSpec struct {
+	CSS string `json:"css"`
 }
 
 // Entry points at the layout and stylesheet inside the skin package.
@@ -106,23 +113,24 @@ type SkinCatalog struct {
 // The stylesheet is served by the application asset handler so relative asset
 // URLs resolve inside the installed skin directory.
 type SkinRuntime struct {
-	ID                string            `json:"id"`
-	Name              string            `json:"name"`
-	Version           string            `json:"version"`
-	Author            string            `json:"author"`
-	License           string            `json:"license"`
-	Description       string            `json:"description"`
-	Builtin           bool              `json:"builtin"`
-	Themes            []string          `json:"themes"`
-	DefaultTheme      string            `json:"defaultTheme"`
-	VisualizerModes   []string          `json:"visualizerModes"`
-	DefaultVisualizer string            `json:"defaultVisualizer"`
-	Intensity         float64           `json:"intensity"`
-	Layout            Layout            `json:"layout"`
-	StylesheetURL     string            `json:"stylesheetUrl"`
-	ThemeStylesheets  map[string]string `json:"themeStylesheets"`
-	BaseHeight        int               `json:"baseHeight"`
-	QueueHeight       int               `json:"queueHeight"`
+	ID                  string            `json:"id"`
+	Name                string            `json:"name"`
+	Version             string            `json:"version"`
+	Author              string            `json:"author"`
+	License             string            `json:"license"`
+	Description         string            `json:"description"`
+	Builtin             bool              `json:"builtin"`
+	Themes              []string          `json:"themes"`
+	DefaultTheme        string            `json:"defaultTheme"`
+	VisualizerModes     []string          `json:"visualizerModes"`
+	DefaultVisualizer   string            `json:"defaultVisualizer"`
+	Intensity           float64           `json:"intensity"`
+	Layout              Layout            `json:"layout"`
+	StylesheetURL       string            `json:"stylesheetUrl"`
+	BrowseStylesheetURL string            `json:"browseStylesheetUrl"`
+	ThemeStylesheets    map[string]string `json:"themeStylesheets"`
+	BaseHeight          int               `json:"baseHeight"`
+	QueueHeight         int               `json:"queueHeight"`
 }
 
 // InstallResult reports a successful package installation. Installation does

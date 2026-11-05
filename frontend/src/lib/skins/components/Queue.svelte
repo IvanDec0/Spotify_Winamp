@@ -1,5 +1,8 @@
 <script lang="ts">
+  import { coverURL } from "../../artwork";
   import { player } from "../../player.svelte";
+  import { skins } from "../../skins.svelte";
+  import { t } from "../../../shared/i18n";
   import { formatTime } from "../../format";
 
   interface Props {
@@ -7,25 +10,47 @@
     showHeader?: boolean;
     showArt?: boolean;
     showTime?: boolean;
+    loading?: boolean;
   }
 
-  let { maxItems = 20, showHeader = true, showArt = true, showTime = true }: Props = $props();
+  let {
+    maxItems = 20,
+    showHeader = true,
+    showArt = true,
+    showTime = true,
+    loading,
+  }: Props = $props();
 
-  let items = $derived((player.state.queue ?? []).slice(0, Math.max(1, maxItems)));
+  let items = $derived(player.queue.slice(0, Math.max(1, maxItems)));
+  let isLoading = $derived(loading ?? player.queueLoading);
+  let trackUri = $derived(player.state.track.uri);
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
-  let queueNote = $derived(player.state.provider === "demo" ? "Demo queue" : "Local queue");
+  let queueNote = $derived(
+    player.state.provider === "demo" ? t("queue.demo") : t("queue.playback"),
+  );
   let failedCovers = $state<string[]>([]);
+
+  $effect(() => {
+    if (!skins.queueOpen) return;
+    if (!trackUri) return;
+    void player.loadQueue();
+  });
 
   function markCoverFailed(cover: string): void {
     failedCovers = [...failedCovers, cover];
   }
 </script>
 
-<section class="cad-queue" aria-label="Playback queue" data-component="queue">
+<section
+  class="cad-queue"
+  aria-label={t("queue.playback")}
+  data-component="queue"
+  aria-busy={isLoading}
+>
   {#if showHeader}
     <header class="cad-queue-head">
       <div>
-        <span class="cad-queue-title">Up next</span>
+        <span class="cad-queue-title">{t("queue.upNext")}</span>
         <span class="cad-queue-count">{countLabel}</span>
       </div>
       <span class="cad-queue-note">{queueNote}</span>
@@ -33,7 +58,11 @@
   {/if}
 
   {#if items.length === 0}
-    <p class="cad-queue-empty">Nothing queued. Start a track in the Library.</p>
+    {#if isLoading}
+      <p class="cad-queue-empty" role="status">{t("ui.loading")}</p>
+    {:else}
+      <p class="cad-queue-empty">{t("queue.empty")}</p>
+    {/if}
   {:else}
     <ol class="cad-queue-list">
       {#each items as item (item.index)}
@@ -45,7 +74,7 @@
         >
           <span class="cad-queue-index">
             {#if item.isCurrent}
-              <span aria-label="Currently playing">▶</span>
+              <span aria-label={t("queue.currentlyPlaying")}>▶</span>
             {:else}
               {String(item.index + 1).padStart(2, "0")}
             {/if}
@@ -59,7 +88,11 @@
             >
               {#if item.track.cover.startsWith("/art/") && !failedCovers.includes(item.track.cover)}
                 <img
-                  src={item.track.cover}
+                  src={coverURL(item.track.cover, 24)}
+                  loading="lazy"
+                  decoding="async"
+                  width={24}
+                  height={24}
                   alt=""
                   draggable="false"
                   onerror={() => markCoverFailed(item.track.cover)}
@@ -83,7 +116,7 @@
           <span class="cad-queue-copy">
             <span class="cad-queue-title" title={item.track.title}>{item.track.title}</span>
             <span class="cad-queue-artist" title={item.track.artists?.join(", ") ?? ""}>
-              {item.track.artists?.join(", ") || "Unknown artist"}
+              {item.track.artists?.join(", ") || t("player.unknownArtist")}
             </span>
           </span>
 

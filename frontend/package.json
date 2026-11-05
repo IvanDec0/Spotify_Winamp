@@ -1,7 +1,7 @@
 {
   "name": "cadence-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,10 +13,12 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --check .",
+    "i18n:check": "node scripts/check-i18n.mjs",
     "format:write": "prettier --write ."
   },
   "dependencies": {
-    "@wailsio/runtime": "3.0.0"
+    "@wailsio/runtime": "3.0.0",
+    "intl-messageformat": "12.1.4"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

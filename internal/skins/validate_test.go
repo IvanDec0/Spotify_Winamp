@@ -2,6 +2,7 @@ package skins
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,6 +117,92 @@ func TestValidateDirAcceptsThemeStylesheet(t *testing.T) {
 
 	if _, _, err := ValidateDir(directory); err != nil {
 		t.Fatalf("ValidateDir() with theme stylesheet error = %v", err)
+	}
+}
+
+func manifestWithBrowse(css string) string {
+	manifest := strings.Replace(validManifestTemplate, "%s", "afterglow", 1)
+	return strings.Replace(
+		manifest,
+		`"window":`,
+		fmt.Sprintf(`"browse": {"css": %q}, "window":`, css),
+		1,
+	)
+}
+
+func TestDevSkinsValidate(t *testing.T) {
+	root := filepath.Join("..", "..", "skins-dev")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Skipf("development skins directory unavailable: %v", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		t.Run(entry.Name(), func(t *testing.T) {
+			if _, _, err := ValidateDir(filepath.Join(root, entry.Name())); err != nil {
+				t.Fatalf("ValidateDir() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateDirAcceptsBrowseStylesheet(t *testing.T) {
+	for _, name := range []string{"browse.css", "browse.min.css"} {
+		t.Run(name, func(t *testing.T) {
+			directory := t.TempDir()
+			writeSkinPackage(t, directory, "afterglow")
+			writeFile(t, filepath.Join(directory, "manifest.json"), manifestWithBrowse(name))
+			writeFile(t, filepath.Join(directory, name), ".cadence-browse { background: url(assets/bg.png); }\n")
+
+			manifest, _, err := ValidateDir(directory)
+			if err != nil {
+				t.Fatalf("ValidateDir() with browse stylesheet error = %v", err)
+			}
+			if manifest.Browse == nil || manifest.Browse.CSS != name {
+				t.Fatalf("browse manifest = %#v", manifest.Browse)
+			}
+		})
+	}
+}
+
+func TestValidateDirChecksBrowseStylesheet(t *testing.T) {
+	tests := []struct {
+		name   string
+		css    string
+		write  bool
+		source string
+		want   string
+	}{
+		{name: "missing file", css: "browse.css", want: "declared browse stylesheet is missing"},
+		{name: "path outside root", css: "../browse.css", want: "manifest.json does not match schema"},
+		{name: "nested path", css: "themes/browse.css", want: "manifest.json does not match schema"},
+		{name: "reuses compact stylesheet", css: "styles.css", want: "separate stylesheet"},
+		{
+			name:   "missing asset",
+			css:    "browse.css",
+			write:  true,
+			source: ".cadence-browse { background: url(assets/missing.png); }",
+			want:   "references a missing asset",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			directory := t.TempDir()
+			writeSkinPackage(t, directory, "afterglow")
+			writeFile(t, filepath.Join(directory, "manifest.json"), manifestWithBrowse(test.css))
+			if test.write {
+				writeFile(t, filepath.Join(directory, "browse.css"), test.source)
+			}
+			_, _, err := ValidateDir(directory)
+			if err == nil {
+				t.Fatal("ValidateDir() error = nil")
+			}
+			if !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %q, want containing %q", err, test.want)
+			}
+		})
 	}
 }
 

@@ -1,0 +1,42 @@
+import { Events } from "@wailsio/runtime";
+import type { AudioState, PlayerState, SkinCatalog, VisualizerFrame } from "./types";
+
+type Handler<T> = (payload: T) => void;
+
+/**
+ * Subscribes to player snapshots. The generated binding only transports the
+ * Wails envelope; callers receive the payload.
+ */
+export function onPlayerState(handler: Handler<PlayerState>): () => void {
+  return Events.On("player:state", (event) => handler(event.data as PlayerState));
+}
+
+/**
+ * Subscribes to audio engine state changes.
+ */
+export function onAudioState(handler: Handler<AudioState>): () => void {
+  return Events.On("audio:state", (event) => handler(event.data as AudioState));
+}
+
+/**
+ * Subscribes to skin catalog changes.
+ */
+export function onSkinsChanged(handler: Handler<SkinCatalog>): () => void {
+  return Events.On("skins:changed", (event) => handler(event.data as SkinCatalog));
+}
+
+/**
+ * Subscribes to section changes requested by the compact window. The payload
+ * is the validated section name.
+ */
+export function onBrowseNavigate(handler: Handler<string>): () => void {
+  return Events.On("browse:navigate", (event) => handler(event.data as string));
+}
+
+/**
+ * Subscribes to analyzed audio frames from the system monitor. Frames are push
+ * events: there is no polling or engine request involved.
+ */
+export function onVisualizerFrame(handler: Handler<VisualizerFrame>): () => void {
+  return Events.On("visualizer:frame", (event) => handler(event.data as VisualizerFrame));
+}

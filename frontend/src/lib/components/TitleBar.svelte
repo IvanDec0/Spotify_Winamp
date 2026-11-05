@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { t } from "../../shared/i18n";
   import Icon from "./Icon.svelte";
 
   interface Props {
-    provider: string;
     deviceName: string;
     queueOpen: boolean;
     onToggleQueue: () => void;
@@ -14,7 +14,6 @@
   }
 
   let {
-    provider,
     deviceName,
     queueOpen,
     onToggleQueue,
@@ -25,11 +24,10 @@
     onClose,
   }: Props = $props();
 
-  let providerLabel = $derived(provider === "demo" ? "DEMO" : "LOCAL");
-  let deviceLabel = $derived(deviceName || "No device");
+  let deviceLabel = $derived(deviceName || t("device.noDevice"));
 </script>
 
-<header class="titlebar" aria-label="Window title bar">
+<header class="titlebar" aria-label={t("titlebar.label")}>
   <div class="brand">
     <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
       <path
@@ -45,11 +43,11 @@
     <button
       class="provider-badge"
       type="button"
-      title="Music library"
-      aria-label="Open music library"
+      title={t("browse.openWindow")}
+      aria-label={t("browse.openWindow")}
       onclick={onOpenMusic}
     >
-      {providerLabel}
+      {t("browse.open")}
     </button>
   </div>
 
@@ -58,8 +56,8 @@
   <button
     class="device-chip"
     type="button"
-    title="Choose a playback device"
-    aria-label={`Playback device: ${deviceLabel}. Choose a device`}
+    title={t("device.choose")}
+    aria-label={t("device.chooseLabel", { name: deviceLabel })}
     onclick={onOpenDevices}
   >
     <Icon name="device" size={11} />
@@ -70,8 +68,8 @@
   <button
     class="title-button"
     type="button"
-    title="Appearance and motion"
-    aria-label="Open appearance settings"
+    title={t("browse.settings")}
+    aria-label={t("browse.settings")}
     onclick={onOpenSettings}
   >
     <Icon name="settings" size={14} />
@@ -81,8 +79,8 @@
     class="title-button"
     class:is-active={queueOpen}
     type="button"
-    title={queueOpen ? "Hide queue" : "Show queue"}
-    aria-label={queueOpen ? "Hide queue" : "Show queue"}
+    title={queueOpen ? t("titlebar.hideQueue") : t("titlebar.showQueue")}
+    aria-label={queueOpen ? t("titlebar.hideQueue") : t("titlebar.showQueue")}
     aria-pressed={queueOpen}
     onclick={onToggleQueue}
   >
@@ -94,8 +92,8 @@
   <button
     class="title-button window-button"
     type="button"
-    title="Minimise"
-    aria-label="Minimise window"
+    title={t("titlebar.minimise")}
+    aria-label={t("titlebar.minimiseWindow")}
     onclick={onMinimise}
   >
     <Icon name="minimise" size={12} />
@@ -104,8 +102,8 @@
   <button
     class="title-button window-button close-button"
     type="button"
-    title="Close"
-    aria-label="Close window"
+    title={t("ui.close")}
+    aria-label={t("titlebar.closeWindow")}
     onclick={onClose}
   >
     <Icon name="close" size={12} />

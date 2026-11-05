@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/svelte";
 import { describe, expect, it } from "vitest";
-import type { QueueItem } from "../../../bindings/cadence/internal/player/models";
+import type { QueueItem } from "../../shared/api/types";
 import Queue from "./Queue.svelte";
 
 const items: QueueItem[] = [
@@ -52,5 +52,13 @@ describe("Queue", () => {
   it("shows a useful empty state", () => {
     render(Queue, { props: { items: [] } });
     expect(screen.getByText(/Nothing queued/)).not.toBeNull();
+  });
+
+  it("shows a loading placeholder instead of a false empty state", () => {
+    render(Queue, { props: { items: [], loading: true } });
+
+    expect(screen.getByRole("status").textContent).toContain("Loading");
+    expect(screen.queryByText(/Nothing queued/)).toBeNull();
+    expect(document.querySelector(".queue")?.getAttribute("aria-busy")).toBe("true");
   });
 });

@@ -1,16 +1,15 @@
-import { Events } from "@wailsio/runtime";
-import { Service as PlayerService } from "../../bindings/cadence/internal/player";
+import { onPlayerState, player as playerApi, toApiError } from "../shared/api";
 import {
   RepeatMode,
   Status,
   type PlayerState,
   type QueueItem,
   type Track,
-} from "../../bindings/cadence/internal/player/models";
+} from "../shared/api/types";
 
 const fallbackTrack: Track = {
   id: "loading",
-  title: "Loading playback",
+  title: "",
   artists: [],
   album: "",
   cover: "meridian",
@@ -29,7 +28,7 @@ const fallbackState: PlayerState = {
   repeat: RepeatMode.RepeatOff,
   device: {
     id: "",
-    name: "No device",
+    name: "",
     type: "",
     active: true,
     volumePercent: 0,
@@ -40,6 +39,7 @@ const fallbackState: PlayerState = {
   canSeek: false,
   canControl: false,
   revision: 0,
+  capturedAt: 0,
 };
 
 function normalizeTrack(track: Track): Track {
@@ -59,32 +59,48 @@ function normalizeState(state: PlayerState): PlayerState {
   };
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 class PlayerStore {
   state = $state<PlayerState>(fallbackState);
+  queue = $state<QueueItem[]>([]);
   ready = $state(false);
   busy = $state(false);
+  queueLoading = $state(false);
   error = $state<string | null>(null);
 
   #unsubscribe: (() => void) | null = null;
   #starting = false;
   #pending = 0;
+  #queueRequest: Promise<void> | null = null;
+
+  /**
+   * Interpolated playback position. The engine only sends progress on state
+   * changes, so the frontend advances it from the capture timestamp.
+   */
+  get positionMs(): number {
+    const { status, progressMs, capturedAt, durationMs } = this.state;
+    let position = progressMs;
+    if (status === Status.StatusPlaying && capturedAt > 0) {
+      position += Math.max(0, Date.now() - capturedAt);
+    }
+    return durationMs > 0 ? Math.min(position, durationMs) : position;
+  }
 
   async start(): Promise<void> {
     if (this.ready || this.#starting) return;
     this.#starting = true;
-    try {
-      this.apply(await PlayerService.GetState());
-      this.#unsubscribe = Events.On("player:state", (event) => {
-        this.apply(event.data as PlayerState);
+    // Subscribe before the first fetch: a transient RPC failure must not leave
+    // the store blind to streamed state changes.
+    if (!this.#unsubscribe) {
+      this.#unsubscribe = onPlayerState((state) => {
+        this.apply(state);
       });
+    }
+    try {
+      this.apply(await playerApi.getState());
       this.ready = true;
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.#starting = false;
     }
@@ -101,36 +117,36 @@ class PlayerStore {
   }
 
   async play(): Promise<void> {
-    await this.#action(() => PlayerService.Play());
+    await this.#action(() => playerApi.play());
   }
 
   async pause(): Promise<void> {
-    await this.#action(() => PlayerService.Pause());
+    await this.#action(() => playerApi.pause());
   }
 
   async toggle(): Promise<void> {
-    await this.#action(() => PlayerService.TogglePlay());
+    await this.#action(() => playerApi.togglePlay());
   }
 
   async next(): Promise<void> {
-    await this.#action(() => PlayerService.Next());
+    await this.#action(() => playerApi.next());
   }
 
   async previous(): Promise<void> {
-    await this.#action(() => PlayerService.Previous());
+    await this.#action(() => playerApi.previous());
   }
 
   async seek(positionMs: number): Promise<void> {
-    await this.#action(() => PlayerService.Seek(Math.round(positionMs)));
+    await this.#action(() => playerApi.seek(positionMs));
   }
 
   async setVolume(volume: number): Promise<void> {
-    await this.#action(() => PlayerService.SetVolume(Math.round(volume)));
+    await this.#action(() => playerApi.setVolume(volume));
   }
 
   async toggleShuffle(): Promise<void> {
     const next = !this.state.shuffle;
-    await this.#action(() => PlayerService.SetShuffle(next));
+    await this.#action(() => playerApi.setShuffle(next));
   }
 
   async cycleRepeat(): Promise<void> {
@@ -140,11 +156,34 @@ class PlayerStore {
         : this.state.repeat === RepeatMode.RepeatContext
           ? RepeatMode.RepeatTrack
           : RepeatMode.RepeatOff;
-    await this.#action(() => PlayerService.SetRepeat(next));
+    await this.#action(() => playerApi.setRepeat(next));
   }
 
   async transfer(deviceId: string): Promise<void> {
-    await this.#action(() => PlayerService.Transfer(deviceId));
+    await this.#action(() => playerApi.transfer(deviceId));
+  }
+
+  /**
+   * Loads the playback queue on demand. Concurrent callers share one request
+   * so opening the queue twice does not hit the engine twice.
+   */
+  loadQueue(): Promise<void> {
+    if (this.#queueRequest) return this.#queueRequest;
+    this.queueLoading = true;
+    this.#queueRequest = this.#fetchQueue().finally(() => {
+      this.#queueRequest = null;
+      this.queueLoading = false;
+    });
+    return this.#queueRequest;
+  }
+
+  async #fetchQueue(): Promise<void> {
+    try {
+      this.queue = normalizeQueue(await playerApi.getQueue());
+      this.error = null;
+    } catch (error) {
+      this.error = toApiError(error).message;
+    }
   }
 
   async #action(action: () => Promise<PlayerState>): Promise<void> {
@@ -154,7 +193,7 @@ class PlayerStore {
       this.apply(await action());
       this.error = null;
     } catch (error) {
-      this.error = errorMessage(error);
+      this.error = toApiError(error).message;
     } finally {
       this.#pending -= 1;
       this.busy = this.#pending > 0;
@@ -162,6 +201,9 @@ class PlayerStore {
   }
 
   apply(state: PlayerState): void {
+    // States arrive from the action response and the engine stream; a slower
+    // response must not overwrite a newer snapshot.
+    if (state.revision > 0 && state.revision < this.state.revision) return;
     this.state = normalizeState(state);
   }
 }

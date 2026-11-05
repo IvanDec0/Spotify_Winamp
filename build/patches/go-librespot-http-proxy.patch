@@ -1,0 +1,147 @@
+--- a/ap/ap.go	2026-11-04 07:49:02.555927126 -0300
++++ b/ap/ap.go	2026-11-04 07:49:02.558030179 -0300
+@@ -22,7 +22,6 @@
+ 	pb "github.com/devgianlu/go-librespot/proto/spotify"
+ 	"golang.org/x/crypto/pbkdf2"
+ 	"golang.org/x/exp/slices"
+-	"golang.org/x/net/proxy"
+ 	"google.golang.org/protobuf/proto"
+ )
+ 
+@@ -107,7 +106,7 @@
+ 		attempts++
+ 		ctx_, cancel := context.WithTimeout(ctx, time.Second*30)
+ 		addr := ap.addr(ctx_)
+-		conn, err := proxy.Dial(ctx_, "tcp", addr)
++		conn, err := dialAP(ctx_, addr)
+ 		cancel()
+ 		if err == nil {
+ 			// close previous connection if any
+--- /dev/null	2026-11-04 07:08:08.706851809 -0300
++++ b/ap/proxy.go	2026-11-04 07:49:02.559985145 -0300
+@@ -0,0 +1,125 @@
++package ap
++
++import (
++	"bufio"
++	"context"
++	"encoding/base64"
++	"fmt"
++	"io"
++	"net"
++	"net/http"
++	"net/url"
++	"os"
++	"strings"
++	"time"
++
++	xproxy "golang.org/x/net/proxy"
++)
++
++func dialAP(ctx context.Context, addr string) (net.Conn, error) {
++	raw := proxyEnv()
++	if raw == "" || bypassProxy(addr) {
++		var d net.Dialer
++		return d.DialContext(ctx, "tcp", addr)
++	}
++	u, err := url.Parse(raw)
++	if err != nil {
++		var d net.Dialer
++		return d.DialContext(ctx, "tcp", addr)
++	}
++	switch strings.ToLower(u.Scheme) {
++	case "http", "https":
++		return dialHTTPConnect(ctx, u, addr)
++	case "socks5", "socks5h":
++		d, err := xproxy.FromURL(u, xproxy.Direct)
++		if err != nil {
++			var nd net.Dialer
++			return nd.DialContext(ctx, "tcp", addr)
++		}
++		if cd, ok := d.(xproxy.ContextDialer); ok {
++			return cd.DialContext(ctx, "tcp", addr)
++		}
++		return d.Dial("tcp", addr)
++	default:
++		var d net.Dialer
++		return d.DialContext(ctx, "tcp", addr)
++	}
++}
++
++func proxyEnv() string {
++	for _, key := range []string{"ALL_PROXY", "all_proxy", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"} {
++		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
++			return value
++		}
++	}
++	return ""
++}
++
++func bypassProxy(addr string) bool {
++	host, _, err := net.SplitHostPort(addr)
++	if err != nil {
++		host = addr
++	}
++	for _, entry := range strings.Split(os.Getenv("NO_PROXY"), ",") {
++		entry = strings.TrimSpace(entry)
++		if entry == "" {
++			continue
++		}
++		entry = strings.TrimPrefix(entry, ".")
++		if host == entry || strings.HasSuffix(host, "."+entry) {
++			return true
++		}
++	}
++	return false
++}
++
++func dialHTTPConnect(ctx context.Context, proxyURL *url.URL, addr string) (net.Conn, error) {
++	host := proxyURL.Host
++	if !strings.Contains(host, ":") {
++		if strings.EqualFold(proxyURL.Scheme, "https") {
++			host += ":443"
++		} else {
++			host += ":80"
++		}
++	}
++	var d net.Dialer
++	conn, err := d.DialContext(ctx, "tcp", host)
++	if err != nil {
++		return nil, err
++	}
++	if deadline, ok := ctx.Deadline(); ok {
++		_ = conn.SetDeadline(deadline)
++	}
++	request := fmt.Sprintf("CONNECT %s HTTP/1.1\r\nHost: %s\r\n", addr, addr)
++	if proxyURL.User != nil {
++		password, _ := proxyURL.User.Password()
++		token := base64.StdEncoding.EncodeToString([]byte(proxyURL.User.Username() + ":" + password))
++		request += "Proxy-Authorization: Basic " + token + "\r\n"
++	}
++	request += "\r\n"
++	if _, err := io.WriteString(conn, request); err != nil {
++		_ = conn.Close()
++		return nil, err
++	}
++	reader := bufio.NewReader(conn)
++	response, err := http.ReadResponse(reader, &http.Request{Method: http.MethodConnect})
++	if err != nil {
++		_ = conn.Close()
++		return nil, err
++	}
++	if response.StatusCode != http.StatusOK {
++		_ = conn.Close()
++		return nil, fmt.Errorf("proxy CONNECT %s: %s", addr, response.Status)
++	}
++	_ = conn.SetDeadline(time.Time{})
++	return &bufferedConn{Conn: conn, reader: reader}, nil
++}
++
++type bufferedConn struct {
++	net.Conn
++	reader *bufio.Reader
++}
++
++func (c *bufferedConn) Read(p []byte) (int, error) {
++	return c.reader.Read(p)
++}

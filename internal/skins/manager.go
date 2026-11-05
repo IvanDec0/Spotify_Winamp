@@ -686,24 +686,35 @@ func runtimeFor(skin *managedSkin) SkinRuntime {
 	for theme, url := range skin.stylesheets {
 		stylesheets[theme] = url
 	}
+
+	browseStylesheetURL := ""
+	if skin.manifest.Browse != nil && skin.manifest.Browse.CSS != "" {
+		relative := skin.manifest.Browse.CSS
+		target := filepath.Join(skin.root, filepath.FromSlash(relative))
+		if info, err := os.Lstat(target); err == nil && info.Mode().IsRegular() {
+			browseStylesheetURL = "/skins/" + skin.manifest.ID + "/" + relative
+		}
+	}
+
 	return SkinRuntime{
-		ID:                skin.manifest.ID,
-		Name:              skin.manifest.Name,
-		Version:           skin.manifest.Version,
-		Author:            skin.manifest.Author,
-		License:           skin.manifest.License,
-		Description:       skin.manifest.Description,
-		Builtin:           false,
-		Themes:            append([]string(nil), skin.manifest.Themes...),
-		DefaultTheme:      skin.manifest.DefaultTheme,
-		VisualizerModes:   append([]string(nil), skin.manifest.Visualizer.Modes...),
-		DefaultVisualizer: skin.manifest.Visualizer.Default,
-		Intensity:         skin.manifest.Visualizer.Intensity,
-		Layout:            skin.layout,
-		StylesheetURL:     "/skins/" + skin.manifest.ID + "/styles.css",
-		ThemeStylesheets:  stylesheets,
-		BaseHeight:        skin.manifest.Window.Height,
-		QueueHeight:       skin.manifest.Window.QueueHeight,
+		ID:                  skin.manifest.ID,
+		Name:                skin.manifest.Name,
+		Version:             skin.manifest.Version,
+		Author:              skin.manifest.Author,
+		License:             skin.manifest.License,
+		Description:         skin.manifest.Description,
+		Builtin:             false,
+		Themes:              append([]string(nil), skin.manifest.Themes...),
+		DefaultTheme:        skin.manifest.DefaultTheme,
+		VisualizerModes:     append([]string(nil), skin.manifest.Visualizer.Modes...),
+		DefaultVisualizer:   skin.manifest.Visualizer.Default,
+		Intensity:           skin.manifest.Visualizer.Intensity,
+		Layout:              skin.layout,
+		StylesheetURL:       "/skins/" + skin.manifest.ID + "/styles.css",
+		BrowseStylesheetURL: browseStylesheetURL,
+		ThemeStylesheets:    stylesheets,
+		BaseHeight:          skin.manifest.Window.Height,
+		QueueHeight:         skin.manifest.Window.QueueHeight,
 	}
 }
 

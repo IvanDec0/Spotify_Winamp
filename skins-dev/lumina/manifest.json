@@ -31,5 +31,8 @@
     "minHeight": 200,
     "queueHeight": 460,
     "resizable": true
+  },
+  "browse": {
+    "css": "browse.css"
   }
 }

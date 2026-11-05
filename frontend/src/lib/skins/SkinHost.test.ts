@@ -1,6 +1,6 @@
 import { render, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SkinRuntime } from "../../../bindings/cadence/internal/skins";
+import type { SkinRuntime } from "../../shared/api/types";
 import SkinHost from "./SkinHost.svelte";
 
 const mocks = vi.hoisted(() => {
@@ -54,7 +54,7 @@ vi.mock("@wailsio/runtime", () => ({
 
 vi.mock("../player.svelte", () => ({ player: mocks.player }));
 
-vi.mock("../../../bindings/cadence/internal/skins", () => ({
+vi.mock("../../../bindings/cadence/internal/wailsapi/skins", () => ({
   Service: {
     ReportRuntimeReady: mocks.reportReady,
     ReportRuntimeFailure: mocks.reportFailure,
@@ -74,6 +74,7 @@ vi.mock("../../../bindings/cadence/internal/skins", () => ({
         intensity: 0.7,
         layout: { schemaVersion: 1, root: { type: "column", children: [] } },
         stylesheetUrl: "",
+        browseStylesheetUrl: "",
         themeStylesheets: {},
         baseHeight: 220,
         queueHeight: 460,
@@ -106,6 +107,7 @@ const runtime: SkinRuntime = {
     },
   },
   stylesheetUrl: "/skins/afterglow/styles.css",
+  browseStylesheetUrl: "",
   themeStylesheets: {},
   baseHeight: 220,
   queueHeight: 460,

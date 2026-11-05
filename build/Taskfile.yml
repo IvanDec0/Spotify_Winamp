@@ -82,6 +82,7 @@ tasks:
       - npm run check
       - npm run format
       - npm run lint
+      - npm run i18n:check
 
   lint:frontend:
     summary: Runs lint and formatting checks
@@ -89,6 +90,7 @@ tasks:
     cmds:
       - npm run lint
       - npm run format
+      - npm run i18n:check
 
   format:frontend:
     summary: Checks frontend formatting

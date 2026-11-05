@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "../../../shared/i18n";
   import Icon from "../../components/Icon.svelte";
   import { skins } from "../../skins.svelte";
 
@@ -12,11 +13,11 @@
 <button
   class="cad-settings-button"
   type="button"
-  title="Skins and appearance"
-  aria-label="Open skin settings"
+  title={t("browse.settings")}
+  aria-label={t("browse.settings")}
   data-component="settings-button"
   onclick={() => skins.openSettings()}
 >
   <Icon name="settings" size={13} />
-  {#if showLabel}<span>Skins</span>{/if}
+  {#if showLabel}<span>{t("browse.skins.title")}</span>{/if}
 </button>

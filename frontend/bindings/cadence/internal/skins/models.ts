@@ -67,6 +67,7 @@ export interface SkinRuntime {
     "intensity": number;
     "layout": Layout;
     "stylesheetUrl": string;
+    "browseStylesheetUrl": string;
     "themeStylesheets": { [_ in string]?: string } | null;
     "baseHeight": number;
     "queueHeight": number;

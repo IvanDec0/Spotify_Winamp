@@ -38,6 +38,8 @@ func TestManagerInstallActivateThemeAndUninstall(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(source, "themes", "ember.css"), ":host { --accent: #ffb347; }\n")
+	writeFile(t, filepath.Join(source, "manifest.json"), manifestWithBrowse("browse.css"))
+	writeFile(t, filepath.Join(source, "browse.css"), ".cadence-browse { color: var(--text); }\n")
 
 	catalog := manager.Catalog()
 	if len(catalog.Skins) != 1 || !catalog.Skins[0].Builtin {
@@ -75,6 +77,9 @@ func TestManagerInstallActivateThemeAndUninstall(t *testing.T) {
 	}
 	if runtime.ThemeStylesheets["ember"] != "/skins/afterglow/themes/ember.css" {
 		t.Fatalf("theme stylesheets = %#v", runtime.ThemeStylesheets)
+	}
+	if runtime.BrowseStylesheetURL != "/skins/afterglow/browse.css" {
+		t.Fatalf("browse stylesheet URL = %q", runtime.BrowseStylesheetURL)
 	}
 
 	if _, err := manager.SetTheme("violet"); err == nil {
@@ -227,6 +232,9 @@ func TestManagerSafeMode(t *testing.T) {
 	runtime, err := manager.ActiveRuntime()
 	if err != nil || !runtime.Builtin {
 		t.Fatalf("ActiveRuntime() = %#v, %v", runtime, err)
+	}
+	if runtime.BrowseStylesheetURL != "" {
+		t.Fatalf("builtin browse stylesheet URL = %q", runtime.BrowseStylesheetURL)
 	}
 	persisted, err := store.Load()
 	if err != nil {

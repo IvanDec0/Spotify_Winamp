@@ -7,20 +7,25 @@ import type { Events } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import type * as golibrespot$0 from "../../../../../cadence/internal/golibrespot/models.js";
+import type * as engine$0 from "../../../../../cadence/internal/engine/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import type * as player$0 from "../../../../../cadence/internal/player/models.js";
+import type * as playback$0 from "../../../../../cadence/internal/playback/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import type * as skins$0 from "../../../../../cadence/internal/skins/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as visualizer$0 from "../../../../../cadence/internal/visualizer/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
-            "audio:state": golibrespot$0.AudioState;
-            "player:state": player$0.PlayerState;
+            "audio:state": engine$0.AudioState;
+            "browse:navigate": string;
+            "player:state": playback$0.PlayerState;
             "skins:changed": skins$0.SkinCatalog;
+            "visualizer:frame": visualizer$0.Frame;
         }
     }
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
+  import { t } from "../../shared/i18n";
   import { formatTime } from "../format";
   import { clamp } from "../visualizer";
 
@@ -16,6 +17,7 @@
   let dragging = $state(false);
   let dragValue = $state(0);
   let displayMs = $state(0);
+  let visible = $state(true);
 
   let anchorMs = 0;
   let anchorAt = 0;
@@ -44,6 +46,29 @@
     }
   });
 
+  // The frame loop only runs while playing, visible and not dragging. Pausing
+  // or hiding cancels it and freezes the display at the anchored position.
+  $effect(() => {
+    const animate = playing && visible && !dragging;
+    const total = Math.max(0, durationMs);
+    if (!animate) {
+      const frozen = playing ? anchorMs + (performance.now() - anchorAt) : anchorMs;
+      displayMs = clamp(frozen, 0, total);
+      return;
+    }
+
+    let active = true;
+    let frame = requestAnimationFrame(function tick(now) {
+      if (!active) return;
+      displayMs = clamp(anchorMs + (now - anchorAt), 0, total);
+      frame = requestAnimationFrame(tick);
+    });
+    return () => {
+      active = false;
+      cancelAnimationFrame(frame);
+    };
+  });
+
   let shownMs = $derived(dragging ? dragValue : displayMs);
   let percent = $derived(durationMs > 0 ? clamp((shownMs / durationMs) * 100, 0, 100) : 0);
 
@@ -69,19 +94,16 @@
   }
 
   onMount(() => {
-    anchorMs = untrack(() => positionMs);
+    anchorMs = untrack(() => clamp(positionMs, 0, Math.max(0, durationMs)));
     anchorAt = performance.now();
     displayMs = anchorMs;
 
-    let frame = 0;
-    const tick = (): void => {
-      if (!dragging && playing) {
-        displayMs = clamp(anchorMs + (performance.now() - anchorAt), 0, durationMs);
-      }
-      frame = requestAnimationFrame(tick);
+    const updateVisibility = (): void => {
+      visible = !document.hidden;
     };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
   });
 </script>
 
@@ -97,8 +119,11 @@
       step="100"
       value={shownMs}
       disabled={!canSeek}
-      aria-label="Playback position"
-      aria-valuetext={`${formatTime(shownMs / 1000)} of ${formatTime(durationMs / 1000)}`}
+      aria-label={t("progress.label")}
+      aria-valuetext={t("progress.value", {
+        position: formatTime(shownMs / 1000),
+        duration: formatTime(durationMs / 1000),
+      })}
       onpointerdown={() => {
         dragging = true;
         dragValue = shownMs;

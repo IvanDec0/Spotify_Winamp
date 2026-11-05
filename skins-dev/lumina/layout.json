@@ -115,17 +115,6 @@
                   "orientation": "horizontal",
                   "showIcon": true
                 }
-              },
-              {
-                "type": "component",
-                "component": "device-picker",
-                "props": {
-                  "compact": true
-                }
-              },
-              {
-                "type": "component",
-                "component": "settings-button"
               }
             ]
           },

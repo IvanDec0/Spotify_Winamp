@@ -23,7 +23,7 @@ The demo player remains available for development and for machines without Spoti
 | Area | Decision |
 |---|---|
 | Product | Local Spotify player, library and queue inside Cadence |
-| Audio engine | go-librespot pinned to `v0.10.6-0.20261102145552-522adcae8d65`, managed as a separate process |
+| Audio engine | go-librespot pinned to `v0.10.6-0.20261104085532-16b65bb4cd2b`, managed as a separate process |
 | Engine control | Loopback HTTP REST API on `127.0.0.1` with a random port |
 | Auth | Spotify device pairing (`spotify.com/pair`); credentials stored by the engine |
 | Library | go-librespot endpoints for playlists, saved albums, followed artists, Liked Songs and context tracks |

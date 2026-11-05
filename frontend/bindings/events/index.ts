@@ -14,6 +14,11 @@ import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 export const AudioState = "audio:state";
 
 /**
+ * Name of the custom event "browse:navigate".
+ */
+export const BrowseNavigate = "browse:navigate";
+
+/**
  * Name of the custom event "player:state".
  */
 export const PlayerState = "player:state";
@@ -22,4 +27,9 @@ export const PlayerState = "player:state";
  * Name of the custom event "skins:changed".
  */
 export const SkinsChanged = "skins:changed";
+
+/**
+ * Name of the custom event "visualizer:frame".
+ */
+export const VisualizerFrame = "visualizer:frame";
 

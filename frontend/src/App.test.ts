@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { music } from "./lib/music.svelte";
 import { preferences } from "./lib/preferences.svelte";
 import { skins } from "./lib/skins.svelte";
+import { createPlayerState, playerMock } from "./lib/testing/player-mock.svelte";
 
 const mocks = vi.hoisted(() => {
   const setSize = vi.fn(() => Promise.resolve());
@@ -10,99 +11,9 @@ const mocks = vi.hoisted(() => {
   const getZoom = vi.fn(() => Promise.resolve(2));
   const setZoom = vi.fn(() => Promise.resolve());
   const size = vi.fn(() => Promise.resolve({ width: 840, height: 440 }));
-  const search = vi.fn(() =>
-    Promise.resolve({
-      tracks: { hits: [], total: 0 },
-      albums: { hits: [], total: 0 },
-      artists: { hits: [], total: 0 },
-      playlists: { hits: [], total: 0 },
-    }),
-  );
-  const startRadio = vi.fn(() => Promise.resolve());
   const minimise = vi.fn(() => Promise.resolve());
   const close = vi.fn(() => Promise.resolve());
-
-  const state = {
-    provider: "demo",
-    status: "playing",
-    track: {
-      id: "neon-meridian",
-      title: "Neon Meridian",
-      artists: ["Aster Vale"],
-      album: "Night Cartography",
-      cover: "meridian",
-      uri: "",
-      durationMs: 252_000,
-    },
-    progressMs: 38_000,
-    durationMs: 252_000,
-    volume: 64,
-    shuffle: false,
-    repeat: "off",
-    device: {
-      id: "studio",
-      name: "Studio monitors",
-      type: "speaker",
-      active: true,
-      volumePercent: 64,
-      restricted: false,
-    },
-    devices: [
-      {
-        id: "studio",
-        name: "Studio monitors",
-        type: "speaker",
-        active: true,
-        volumePercent: 64,
-        restricted: false,
-      },
-      {
-        id: "living-room",
-        name: "Living room",
-        type: "speaker",
-        active: false,
-        volumePercent: 38,
-        restricted: false,
-      },
-    ],
-    queue: [
-      {
-        track: {
-          id: "neon-meridian",
-          title: "Neon Meridian",
-          artists: ["Aster Vale"],
-          album: "Night Cartography",
-          cover: "meridian",
-          uri: "",
-          durationMs: 252_000,
-        },
-        index: 0,
-        isCurrent: true,
-        isNext: false,
-      },
-    ],
-    canSeek: true,
-    canControl: true,
-    revision: 3,
-  };
-
-  const player = {
-    state,
-    error: null as string | null,
-    start: vi.fn(() => Promise.resolve()),
-    stop: vi.fn(),
-    toggle: vi.fn(() => Promise.resolve()),
-    play: vi.fn(() => Promise.resolve()),
-    pause: vi.fn(() => Promise.resolve()),
-    next: vi.fn(() => Promise.resolve()),
-    previous: vi.fn(() => Promise.resolve()),
-    seek: vi.fn(() => Promise.resolve()),
-    setVolume: vi.fn(() => Promise.resolve()),
-    toggleShuffle: vi.fn(() => Promise.resolve()),
-    cycleRepeat: vi.fn(() => Promise.resolve()),
-    transfer: vi.fn(() => Promise.resolve()),
-    dismissError: vi.fn(),
-  };
+  const openBrowse = vi.fn(() => Promise.resolve());
 
   const catalog = {
     skins: [
@@ -152,21 +63,6 @@ const mocks = vi.hoisted(() => {
     queueHeight: 460,
   };
 
-  const audio = {
-    available: true,
-    running: true,
-    authenticated: false,
-    engine: "go-librespot",
-    engineVersion: "",
-    deviceName: "Cadence",
-    deviceType: "",
-    pairing: null,
-    error: "",
-    binaryPath: "/tmp/go-librespot",
-    configDirectory: "/tmp/cadence-audio",
-    audioBackend: "pulseaudio",
-  };
-
   const on = vi.fn(() => () => {});
 
   return {
@@ -175,14 +71,11 @@ const mocks = vi.hoisted(() => {
     getZoom,
     setZoom,
     size,
-    search,
-    startRadio,
     minimise,
     close,
-    player,
+    openBrowse,
     catalog,
     runtime,
-    audio,
     on,
   };
 });
@@ -209,33 +102,16 @@ vi.mock("@wailsio/runtime", () => ({
   System: { invoke: vi.fn() },
 }));
 
-vi.mock("./lib/player.svelte", () => ({ player: mocks.player }));
+vi.mock("./lib/player.svelte", async () => {
+  const { playerMock: player } = await import("./lib/testing/player-mock.svelte");
+  return { player };
+});
 
 vi.mock("../bindings/cadence/internal/platform", () => ({
-  WindowService: { SetSize: mocks.setSize },
+  WindowService: { SetSize: mocks.setSize, OpenBrowse: mocks.openBrowse },
 }));
 
-vi.mock("../bindings/cadence/internal/golibrespot", () => ({
-  Service: {
-    GetState: vi.fn(() => Promise.resolve(mocks.audio)),
-    OpenPairing: vi.fn(() => Promise.resolve()),
-    ResetSession: vi.fn(() => Promise.resolve(mocks.audio)),
-    Restart: vi.fn(() => Promise.resolve(mocks.audio)),
-    Playlists: vi.fn(() => Promise.resolve({ total: 0, offset: 0, limit: 100, items: [] })),
-    Albums: vi.fn(() => Promise.resolve({ total: 0, offset: 0, limit: 100, items: [] })),
-    Artists: vi.fn(() => Promise.resolve({ total: 0, offset: 0, limit: 100, items: [] })),
-    ContextTracks: vi.fn(() =>
-      Promise.resolve({ uri: "", ready: true, length: 0, cached: 0, items: [] }),
-    ),
-    Search: mocks.search,
-    StartRadio: mocks.startRadio,
-    PlayContext: vi.fn(() => Promise.resolve()),
-    PlayTrack: vi.fn(() => Promise.resolve()),
-    AddToQueue: vi.fn(() => Promise.resolve()),
-  },
-}));
-
-vi.mock("../bindings/cadence/internal/skins", () => ({
+vi.mock("../bindings/cadence/internal/wailsapi/skins", () => ({
   Service: {
     GetCatalog: vi.fn(() => Promise.resolve(mocks.catalog)),
     GetRuntime: vi.fn(() => Promise.resolve(mocks.runtime)),
@@ -256,18 +132,19 @@ import App from "./App.svelte";
 describe("App shell", () => {
   beforeEach(() => {
     mocks.setSize.mockClear();
-    mocks.player.toggle.mockClear();
-    mocks.player.transfer.mockClear();
+    playerMock.state = createPlayerState();
+    playerMock.queue = [];
+    playerMock.queueLoading = false;
+    playerMock.loadQueue.mockClear();
+    playerMock.toggle.mockClear();
+    playerMock.transfer.mockClear();
     preferences.setTheme("graphite");
     preferences.setMotion("system");
     skins.queueOpen = false;
     skins.error = null;
+    skins.errorKey = null;
     skins.notice = null;
-    music.error = null;
-    music.notice = null;
-    music.clearSearch();
-    mocks.search.mockClear();
-    mocks.startRadio.mockClear();
+    mocks.openBrowse.mockClear();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   });
 
@@ -290,17 +167,36 @@ describe("App shell", () => {
     expect(screen.queryByLabelText("Playback queue")).toBeNull();
   });
 
-  it("opens appearance settings, changes the theme and closes with Escape", async () => {
+  it("loads the queue on open and only again when the track URI changes", async () => {
+    render(App);
+    await tick();
+    expect(playerMock.loadQueue).not.toHaveBeenCalled();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Show queue" }));
+    await waitFor(() => expect(playerMock.loadQueue).toHaveBeenCalledTimes(1));
+
+    // Applied states with the same track must not reload the queue.
+    playerMock.state = { ...playerMock.state, volume: 70 };
+    await tick();
+    playerMock.state = { ...playerMock.state, progressMs: 40_000 };
+    await tick();
+    expect(playerMock.loadQueue).toHaveBeenCalledTimes(1);
+
+    playerMock.state = {
+      ...playerMock.state,
+      track: { ...playerMock.state.track, uri: "spotify:track:2" },
+    };
+    await waitFor(() => expect(playerMock.loadQueue).toHaveBeenCalledTimes(2));
+  });
+
+  it("opens Browse Settings from the compact settings button", async () => {
     render(App);
 
-    await fireEvent.click(screen.getByRole("button", { name: "Open appearance settings" }));
-    expect(screen.getByRole("dialog", { name: "Appearance settings" })).not.toBeNull();
+    await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
 
-    await fireEvent.click(screen.getByRole("button", { name: "Ice theme" }));
-    expect(document.querySelector('[data-theme="ice"]')).not.toBeNull();
-
-    await fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(mocks.openBrowse).toHaveBeenCalledWith("settings"));
     expect(screen.queryByRole("dialog", { name: "Appearance settings" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Skin library" })).toBeNull();
   });
 
   it("transfers playback to another device", async () => {
@@ -314,7 +210,7 @@ describe("App shell", () => {
     expect(screen.getByRole("dialog", { name: "Playback devices" })).not.toBeNull();
 
     await fireEvent.click(screen.getByRole("button", { name: "Living room" }));
-    expect(mocks.player.transfer).toHaveBeenCalledWith("living-room");
+    expect(playerMock.transfer).toHaveBeenCalledWith("living-room");
     expect(screen.queryByRole("dialog", { name: "Playback devices" })).toBeNull();
   });
 
@@ -322,49 +218,43 @@ describe("App shell", () => {
     render(App);
 
     await fireEvent.keyDown(window, { key: " " });
-    expect(mocks.player.toggle).toHaveBeenCalledOnce();
+    expect(playerMock.toggle).toHaveBeenCalledOnce();
 
     await fireEvent.keyDown(window, { key: "ArrowRight" });
-    expect(mocks.player.seek).toHaveBeenCalledWith(43_000);
+    expect(playerMock.seek).toHaveBeenCalledWith(43_000);
 
-    mocks.player.toggle.mockClear();
+    playerMock.toggle.mockClear();
     await fireEvent.keyDown(screen.getByRole("slider", { name: "Playback position" }), {
       key: " ",
     });
-    expect(mocks.player.toggle).not.toHaveBeenCalled();
+    expect(playerMock.toggle).not.toHaveBeenCalled();
   });
 
-  it("opens the skin library from appearance settings", async () => {
+  it("ignores shortcuts when another handler already prevented the default", () => {
     render(App);
+    playerMock.toggle.mockClear();
 
-    await fireEvent.click(screen.getByRole("button", { name: "Open appearance settings" }));
-    await fireEvent.click(screen.getByRole("button", { name: "Skins" }));
+    const event = new KeyboardEvent("keydown", {
+      key: " ",
+      bubbles: true,
+      cancelable: true,
+    });
+    event.preventDefault();
+    window.dispatchEvent(event);
 
-    expect(screen.getByRole("dialog", { name: "Skin library" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Close skin library" })).not.toBeNull();
-    await waitFor(() => expect(mocks.setSize).toHaveBeenCalledWith(840, 920));
+    expect(playerMock.toggle).not.toHaveBeenCalled();
   });
 
-  it("opens the music library from the provider badge", async () => {
+  it("opens the Browse window directly from the provider badge", async () => {
     render(App);
 
-    await fireEvent.click(screen.getByRole("button", { name: "Open music library" }));
+    const browseBadge = screen.getByRole("button", { name: "Open Browse" });
+    expect(browseBadge.textContent).toContain("Browse");
+    await fireEvent.click(browseBadge);
 
-    expect(screen.getByRole("dialog", { name: "Music library" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Close music library" })).not.toBeNull();
-    await waitFor(() => expect(mocks.setSize).toHaveBeenCalledWith(840, 920));
-  });
-
-  it("searches the Spotify catalog from the library", async () => {
-    render(App);
-
-    await fireEvent.click(screen.getByRole("button", { name: "Open music library" }));
-    const input = screen.getByRole("searchbox", { name: "Search Spotify" });
-    await fireEvent.input(input, { target: { value: "daft punk" } });
-    await fireEvent.click(screen.getByRole("button", { name: "Search" }));
-
-    await waitFor(() => expect(mocks.search).toHaveBeenCalledWith("daft punk", 20));
-    expect(screen.getByText("No results in this category.")).not.toBeNull();
+    await waitFor(() => expect(mocks.openBrowse).toHaveBeenCalledWith("library"));
+    expect(screen.queryByRole("dialog", { name: "Music library" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close music library" })).toBeNull();
   });
 
   it("applies the reduced-motion preference to the shell", async () => {

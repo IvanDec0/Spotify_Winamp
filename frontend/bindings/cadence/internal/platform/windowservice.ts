@@ -14,8 +14,41 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 /**
- * SetSize resizes the main window in physical pixels. It must run on the GTK
- * main thread, hence the InvokeSyncWithError wrapper.
+ * BrowseOpen reports whether the Browse window currently exists.
+ */
+export function BrowseOpen(): $CancellablePromise<boolean> {
+    return $Call.ByID(4092845533);
+}
+
+/**
+ * CloseBrowse closes the Browse window and restores the compact player. The
+ * explicit restore covers close paths where the WindowClosing listener does
+ * not fire.
+ */
+export function CloseBrowse(): $CancellablePromise<void> {
+    return $Call.ByID(3772327875);
+}
+
+/**
+ * OpenBrowse opens the dedicated Browse window, or focuses it when it already
+ * exists. An existing window receives a navigation event instead of a reload.
+ * Window creation runs on the GTK main thread through Wails; the window is
+ * opaque and frameless so Browse owns its draggable topbar and resize grip.
+ */
+export function OpenBrowse(section: string): $CancellablePromise<void> {
+    return $Call.ByID(828243989, section);
+}
+
+/**
+ * SetBrowseSize resizes the frameless Browse window in physical pixels. The
+ * custom chrome calls it from the resize grip.
+ */
+export function SetBrowseSize(width: number, height: number): $CancellablePromise<void> {
+    return $Call.ByID(3454484538, width, height);
+}
+
+/**
+ * SetSize resizes the main window in physical pixels.
  */
 export function SetSize(width: number, height: number): $CancellablePromise<void> {
     return $Call.ByID(1940891616, width, height);

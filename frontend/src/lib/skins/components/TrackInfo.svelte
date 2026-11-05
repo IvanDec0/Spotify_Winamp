@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { Status } from "../../../../bindings/cadence/internal/player/models";
+  import { Status } from "../../../shared/api/types";
+  import { t } from "../../../shared/i18n";
+  import { playerErrorCopy } from "../../player-error";
   import { player } from "../../player.svelte";
 
   interface Props {
@@ -11,23 +13,23 @@
   let { showAlbum = true, showStatus = true, align = "left" }: Props = $props();
 
   let playing = $derived(player.state.status === Status.StatusPlaying);
-  let stateError = $derived(player.state.error?.message ?? "");
+  let errorCopy = $derived(playerErrorCopy(player.state.error));
+  let statusLabel = $derived(
+    player.state.status === Status.StatusPlaying
+      ? t("browse.nowPlaying")
+      : player.state.status === Status.StatusPaused
+        ? t("player.paused")
+        : t("player.stopped"),
+  );
+  let statusText = $derived(errorCopy.statusKey ? t(errorCopy.statusKey) : statusLabel);
+  let statusDetail = $derived(errorCopy.detail || statusText);
   let artists = $derived(
     player.state.track.artists?.join(", ") ||
-      (player.state.error?.code === "no_active_device"
-        ? "Pair Spotify in the Library"
-        : "Unknown artist"),
+      (errorCopy.hintKey ? t(errorCopy.hintKey) : t("player.unknownArtist")),
   );
   let displayTitle = $derived(
     player.state.track.title ||
-      (player.state.error?.code === "no_active_device" ? "No active device" : "Nothing playing"),
-  );
-  let statusLabel = $derived(
-    player.state.status === Status.StatusPlaying
-      ? "Now playing"
-      : player.state.status === Status.StatusPaused
-        ? "Paused"
-        : "Stopped",
+      (errorCopy.titleKey ? t(errorCopy.titleKey) : t("browse.nothingPlaying")),
   );
 </script>
 
@@ -40,10 +42,10 @@
         class:is-error={Boolean(player.state.error)}
         aria-hidden="true"
       ></span>
-      <span class:is-error={Boolean(player.state.error)} title={stateError || statusLabel}>
-        {stateError || statusLabel}
+      <span class:is-error={Boolean(player.state.error)} title={statusDetail}>
+        {statusText}
       </span>
-      {#if player.state.shuffle}<span class="cad-mode-tag">SHUF</span>{/if}
+      {#if player.state.shuffle}<span class="cad-mode-tag">{t("player.shuffleShort")}</span>{/if}
     </div>
   {/if}
 
