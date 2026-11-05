@@ -2,10 +2,10 @@
 
 > **Design source:** [`../plan/cadence-v2.md`](../plan/cadence-v2.md)
 > **Branch:** `feat/cadence-v2`
-> **Authorized scope:** Phase 6 (user approved on 2026-11-05) after Phases 0-5.
-> D1 is resolved: a **separate Browse window**, skin-aware through the active
-> skin's theme tokens plus an optional `browse.css`; the layout stays app-owned
-> and responsive, not a second pixel layout.
+> **Authorized scope:** Phase 7 (user approved on 2026-11-05) after Phases 0-6.
+> Scope: remove dead compact code, complete the frontend i18n sweep (compact,
+> skins, Browse), add a language selector with cross-window sync, map the known
+> engine/player error states to typed catalog keys, and finish the docs/tests.
 > **TDD:** off — no project or session TDD configuration exists. Ordinary functional
 > checks apply (`go test`, `go vet`, `gofmt`, frontend checks when touched).
 > **Delivery:** one work-unit commit per task on the feature branch. Push, PRs and
@@ -1182,6 +1182,67 @@ the compact settings/skin overlays are no longer reachable.
 
 Live GTK behavior is not claimed; the user will verify the Browse badge label,
 the compact settings redirect and the appearance/skin controls.
+
+## Phase 7 tasks
+
+### T7.1 — Dead code removal and i18n guard
+
+- [ ] Delete the unreachable compact components: `MusicBrowser.svelte`,
+      `SearchRow.svelte`, `LibrarySkeleton.svelte`, `MediaCover.svelte`,
+      `SettingsPopover.svelte`, `skins/SkinManager.svelte` (and any tests that
+      only cover them). Remove the unused imports/mocks.
+- [ ] Trim `music.svelte.ts` to the engine/pairing state used by Browse's
+      EngineGate (audio, pairing, bus, refresh/reset/restart); remove the
+      library/search/context methods that only the deleted MusicBrowser used.
+- [ ] Add `frontend/scripts/check-i18n.mjs` (Svelte compiler AST walk: literal
+      text nodes and literal `title`/`aria-label`/`placeholder`/`alt` values,
+      with a small brand/symbol allowlist). Add `npm run i18n:check` and run it
+      in the Taskfile/CI frontend checks.
+- [ ] Add a language selector to Browse Settings (English/Español) using
+      `i18n.setLocale`; add cross-window locale sync on the `cadence.locale`
+      storage key without write loops; both windows update.
+- Commit: `chore(i18n): remove dead UI and add the translation guard`
+
+### T7.2 — Compact and skin i18n sweep
+
+- [ ] Migrate every user-facing literal in the live compact and declarative-skin
+      components (TitleBar, Player, TrackInfo, Transport, Progress, Volume,
+      Queue, DevicePopover, DevicePicker, Repeat, Shuffle, SettingsButton,
+      AlbumArt, Visualizer, App error/notice copy) to `t()` keys.
+- [ ] Localize the visualizer mode labels and any remaining compact copy; keep
+      brand names (`CADENCE`, `Clarity`, `Spotify`) as proper nouns.
+- [ ] Complete `es.ts` with neutral Spanish for every key; keep `en.ts` as the
+      typed source. Add the language selector labels.
+- [ ] Error copy: map the existing `PlayerError` codes (`not_authenticated`,
+      `audio_unavailable`, etc.) through catalog keys; keep unknown raw errors
+      as a diagnostic detail.
+- [ ] Tests: locale switch in compact components, key parity, ICU syntax, the
+      i18n guard script, and the language selector.
+- Commit: `feat(i18n): translate the compact player and skin UI`
+
+### T7.3 — Error codes, docs and verification
+
+- [ ] Add a typed `ErrorCode` to `engine.AudioState` for the known engine
+      states (not installed, start failed, not ready, disabled in demo, not
+      running) and set it at the source; expose it through the bindings and map
+      it in the frontend. Keep the raw `Error` string as a detail.
+- [ ] Add `docs/i18n.md` (catalog workflow, key groups, locale sync, guard,
+      backend error policy) and update `docs/README.md`, `docs/architecture.md`,
+      `docs/development.md` and the README feature list.
+- [ ] Run the full gates: Go tests/race/vet/gofmt, all four engine patches,
+      bindings no diff, `npm run check/lint/format/i18n:check/test/build`,
+      `task build`, `git diff --check`.
+- Commit: `docs: record the i18n and Phase 7 verification`
+
+### Phase 7 acceptance
+
+- No user-facing literal remains in the live `.svelte` UI outside the catalogs;
+  the guard script enforces it.
+- The language selector switches English/Spanish in both windows and persists.
+- The compact player, declarative skins and Browse are fully translated.
+- Known engine/player error states use catalog keys; unexpected errors keep a
+  raw diagnostic detail.
+- The dead compact Library/Settings/SkinManager code is gone.
 
 ## Progress log
 
