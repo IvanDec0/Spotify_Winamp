@@ -757,8 +757,10 @@ four original groups, so the new groups are lost before the HTTP response.
       episode hits, including artwork rewriting.
 - [x] Add `shows`/`episodes` to the frontend `SearchResultsView` mapping; the
       tabs land in Phase 6.
-- [ ] Live-verify the patched `/search` returns non-empty `shows` and `episodes`
-      (parent-run with copied credentials; no secrets in output).
+- [x] Live-verify the patched `/search` returns non-empty `shows` and `episodes`
+      (parent-run with copied credentials; no secrets in output). Verified:
+      `q=podcast&limit=5` returned shows=5, episodes=5, tracks=5, playlists=5;
+      show hits expose `showType`/`musicAndTalk`, episode hits `explicit`.
 - Commit: `feat(search): expose podcast shows and episodes`
 
 ### T5.2 — Library collection writes and podcasts
@@ -851,3 +853,5 @@ four original groups, so the new groups are lost before the HTTP response.
 | 2026-11-04 | Phase 4 verification | `e301b99` | Static gates green; idle structure is 0.067 req/s; after-baseline pending reference-machine run |
 | 2026-11-04 | T4.4 after-baseline | `docs: record the Phase 4 after-baseline` | Measured 0.067 req/s (4/60 s), 541 B/event, 0 idle events; CPU/RSS caveats recorded; Phase 5 not started |
 | 2026-11-05 | T5.1 | `feat(search): expose podcast shows and episodes` | Third engine patch maps `audioepisodes` to `episodes` and adds show/episode hit fields; search DTOs, artwork rewriting, catalog test and frontend mapping extended; `audio:check`/`audio:build`, Go and frontend gates green; live `/search` verification pending parent |
+
+| 2026-11-05 | T5.1 | `ed74d9d` | Search-groups patch exposes shows/episodes (raw `audioepisodes` mapped to `episodes`), new hit fields, catalog artwork rewriting, frontend store mapping; live `/search` returned 5 shows + 5 episodes |
