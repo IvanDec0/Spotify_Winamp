@@ -2,9 +2,10 @@
 
 > **Design source:** [`../plan/cadence-v2.md`](../plan/cadence-v2.md)
 > **Branch:** `feat/cadence-v2`
-> **Authorized scope:** Phase 5 (user approved on 2026-11-05) after Phases 0-4.
-> Phase 4 is closed with the after-baseline recorded; Phase 5 starts from
-> `e05297b`.
+> **Authorized scope:** Phase 6 (user approved on 2026-11-05) after Phases 0-5.
+> D1 is resolved: a **separate Browse window**, skin-aware through the active
+> skin's theme tokens plus an optional `browse.css`; the layout stays app-owned
+> and responsive, not a second pixel layout.
 > **TDD:** off — no project or session TDD configuration exists. Ordinary functional
 > checks apply (`go test`, `go vet`, `gofmt`, frontend checks when touched).
 > **Delivery:** one work-unit commit per task on the feature branch. Push, PRs and
@@ -860,6 +861,87 @@ printed):
   account, and the saved-shows listing. The UI for all new surfaces is Phase 6.
 - **Next:** Phase 6 (Browse UI) after the user decides D1 (separate Browse
   window vs expanded compact window).
+
+## Phase 6 tasks
+
+### D1 decision — 2026-11-05
+
+Separate Browse window (~960×640, opaque, normal frame) that mounts a dedicated
+`BrowseApp` through `/?surface=browse`. The window is created on demand and
+focuses an existing instance. It is skin-aware: a hidden shadow/light probe
+extracts the active skin theme's custom properties (or Clarity's
+`.clarity[data-theme]` tokens) and applies them to the Browse root. An optional
+`browse.css` in the skin manifest lets a skin restyle the Browse subtree; the
+compact pixel layout and the skin's `styles.css` are never injected into Browse.
+
+### T6.1 — Browse window host and skin theme bridge
+
+- [ ] `platform.WindowService`: `OpenBrowse`, `CloseBrowse`, `BrowseOpen`.
+      Create an opaque 960×640 (min 720×480) window named `browse` with
+      `URL:"/?surface=browse"`, `Zoom:1`, and a normal frame; focus an existing
+      one instead of duplicating.
+- [ ] `main.ts`: branch on `?surface=browse` with a dynamic import so the
+      compact window does not load the Browse chunk.
+- [ ] `app/browse/BrowseApp.svelte` + shell: sidebar, top bar, content area and
+      now-playing bar placeholders using `shared/ui`, i18n and the theme tokens.
+      No full search/library yet (T6.2).
+- [ ] Compact app: a Browse button/shortcut that calls `openBrowse` through
+      `shared/api/window`.
+- [ ] Theme bridge: hidden shadow probe for declarative skins (load
+      `stylesheetUrl` + theme stylesheet, read the token list) and a hidden
+      `.clarity[data-theme]` probe for the built-in skin. Apply tokens as inline
+      custom properties on `.cadence-browse`; re-apply on `skins:changed`,
+      theme changes and cross-window `storage` changes.
+- [ ] Optional skin `browse.css`: manifest schema `browse:{css}`, Go
+      `Manifest.Browse`/validation/allowed-stylesheet handling, `SkinRuntime`
+      `browseStylesheetUrl`, and a Browse `<link>` loaded after the base style.
+      Existing skins stay valid; Clarity uses the default Browse styling.
+- [ ] Tests: manifest validation for `browse.css`, token extraction helper,
+      theme re-application, Browse shell render, window-service compile.
+- Commit: `feat(browse): add the separate skin-aware Browse window`
+
+### T6.2 — Search, library, entities and podcasts
+
+- [ ] Browse store/API: search with tracks/albums/artists/playlists/shows/
+      episodes; library pages for playlists/albums/artists/shows/Your Episodes;
+      entity pages via `contextTracks`; navigation back stack.
+- [ ] Use `VirtualList` for long context lists (the Browse window owns the scroll
+      container, so this also closes the 800-row gate).
+- [ ] Entity actions: play, add to queue, like/save/follow/remove using the
+      Phase 5 APIs; playlist add/remove; show save/remove.
+- [ ] Podcast show pages and Your Episodes; now-playing bar controls.
+- [ ] Use `t()` for all new strings and add the `browse.*` keys to `en`/`es`.
+- [ ] Tests for the browse store, search mapping, entity actions and the
+      virtualized list.
+- Commit: `feat(browse): add search, library and podcast surfaces`
+
+### T6.3 — Settings, accessibility and polish
+
+- [ ] Settings panel for bitrate, crossfade, normalization, audio cache, FLAC,
+      MPRIS, device group and image size; save + explicit restart confirmation.
+- [ ] Keyboard navigation, focus management, ARIA labels, empty/error/loading
+      states; responsive at 960×640 and 720×480.
+- [ ] Visual polish with tokens only; no hardcoded dark colors that break light
+      skin themes.
+- Commit: `feat(browse): add settings and accessibility polish`
+
+### T6.4 — Verification
+
+- [ ] Go tests/race/vet/gofmt, all four engine patches, bindings no diff,
+      frontend check/lint/format/test/build.
+- [ ] Live UI smoke: open Browse from compact, search podcasts, play, save/
+      follow, change skin/theme, restart engine settings.
+- Commit: `docs: record Phase 6 verification`
+
+### Phase 6 acceptance
+
+- Browse opens as a separate window, focuses instead of duplicating, and does
+  not disturb the compact skin window.
+- The Browse window follows the active skin theme tokens; `browse.css` is
+  optional and isolated to the Browse subtree.
+- Search exposes shows/episodes; library pages, entity pages, podcasts and
+  actions work; long lists are virtualized.
+- Existing compact window behavior and performance are unchanged.
 
 ## Progress log
 
