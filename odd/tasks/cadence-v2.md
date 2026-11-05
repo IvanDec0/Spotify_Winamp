@@ -2,10 +2,9 @@
 
 > **Design source:** [`../plan/cadence-v2.md`](../plan/cadence-v2.md)
 > **Branch:** `feat/cadence-v2`
-> **Authorized scope:** Phase 7 (user approved on 2026-11-05) after Phases 0-6.
-> Scope: remove dead compact code, complete the frontend i18n sweep (compact,
-> skins, Browse), add a language selector with cross-window sync, map the known
-> engine/player error states to typed catalog keys, and finish the docs/tests.
+> **Authorized scope:** Phase 8 (user approved on 2026-11-05) after Phases 0-7.
+> Scope: version stamping, release artifacts, changelog and installation docs
+> for v0.2.0.
 > **TDD:** off — no project or session TDD configuration exists. Ordinary functional
 > checks apply (`go test`, `go vet`, `gofmt`, frontend checks when touched).
 > **Delivery:** one work-unit commit per task on the feature branch. Push, PRs and
@@ -1345,6 +1344,68 @@ codes. No live-process readiness test was added.
   raw diagnostic detail.
 - The dead compact Library/Settings/SkinManager code is gone.
 
+## Phase 8 tasks
+
+### R1-R4 — Release v0.2.0
+
+- [x] Version stamping: `APP_VERSION` and `build/config.yml` at `0.2.0`,
+      frontend package at `0.2.0`, `internal/buildinfo` and `--version`, with
+      `-X` version/commit injection through the `GIT_COMMIT` Taskfile variable.
+- [x] `CHANGELOG.md` with the v0.2.0 entry and packaging contents updated so
+      both artifacts include the changelog and `docs/`.
+- [x] Documentation: installation (Browse pairing flow, v2 UI, `parec`
+      fallback, XDG paths, clean-machine checklist), README, development,
+      docs index and architecture fixes.
+- [x] `task package` produced the AppImage, tarball and SHA-256 checksums;
+      both version commands print `Cadence 0.2.0 (77225f1)` and checksums
+      verify. The tarball engine is byte-identical to `bin/go-librespot`; the
+      AppImage engine differs only by linuxdeploy's ELF RPATH adjustment (same
+      BuildID and the same four-patch markers).
+
+#### Phase 8 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `task package` | exit 0; AppImage, tarball and checksums in `bin/` |
+| `sha256sum -c cadence-0.2.0-SHA256SUMS` | both artifacts `OK` |
+| AppImage `--appimage-extract-and-run --version` | `Cadence 0.2.0 (77225f1)`, exit 0 |
+| Extracted tarball `./cadence --version` | `Cadence 0.2.0 (77225f1)`, exit 0 |
+| Artifact inspection | tarball: binary, engine, docs, changelog, licenses, four skins; AppImage: `usr/bin/go-librespot`, docs and changelog |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `go test -race ./internal/visualizer/... ./internal/wailsapi/visualizer/... ./internal/buildinfo/...` | exit 0 |
+| `go vet` / `gofmt -l` | exit 0, no findings |
+| `task audio:check` | exit 0; all four patches apply to the pinned source |
+| Bindings regeneration | up to date, no diff |
+| `npm run i18n:check` | exit 0, 0 findings |
+| `npm run check/lint/format/test/build` | exit 0; 0 errors, 43 files / 239 tests |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+## Phase 8 status
+
+- **Code, docs and artifacts:** complete on `feat/cadence-v2`; v0.2.0
+  AppImage, tarball and checksums built locally.
+- **Verification:** full Go, engine patch, binding, frontend, build and
+  packaging gates green; both artifacts report `0.2.0` and the checksums
+  verify.
+- **Known limitations:** the visualizer captures the system-wide default
+  monitor (other apps can affect it) and needs `parec`; without it the
+  simulated fallback is used. The AppImage assumes FUSE or
+  `--appimage-extract-and-run`.
+- **Pending user verification:** live Browse drag/resize, language switch and
+  real-audio visualizer; the clean Arch VM installation checklist (documented
+  in `docs/installation.md`).
+- **Next:** the local tag, push, PR and release publication remain the user's
+  decisions.
+
+### Phase 8 acceptance
+
+- Artifacts are named 0.2.0, contain the patched engine and docs, and their
+  checksums verify.
+- `--version` reports 0.2.0 from both the AppImage and the tarball.
+- The installation docs match the v2 UI, paths and visualizer behavior.
+- No source, binding or i18n gate regressions.
+
 ## Progress log
 
 | Date | Task | Commit | Result |
@@ -1400,3 +1461,6 @@ codes. No live-process readiness test was added.
 | 2026-11-05 | T7.1 | `chore(i18n): remove dead UI and add the translation guard` | Deleted the 6 unreachable compact components, trimmed `music.svelte.ts` to engine/pairing, added the AST i18n guard (60 findings for T7.2), Browse language selector and `cadence.locale` cross-window sync; frontend/Go/build gates green |
 | 2026-11-05 | T7.2 | `feat(i18n): translate the compact player and skin UI` | Swept compact and declarative-skin literals to typed `en`/`es` keys, localized visualizer labels and player error codes, structured music/skins notices, added Spanish locale coverage and wired `i18n:check` into Taskfile/CI; guard 0 findings and all gates green |
 | 2026-11-05 | T7.3 | `feat(i18n): add typed engine error states and the i18n guide` | `AudioState.errorCode` with seven stable engine codes set in supervisor/catalog and cleared when healthy, regenerated bindings, translated EngineGate headline plus raw detail, Go code tests, `docs/i18n.md` and final docs/ADR/tracker; all gates green, live GTK/locale smoke pending user |
+| 2026-11-05 | Phase 8 R1/R2 | `8da22dc` | Version stamped 0.2.0 in the Taskfiles/config/frontend package; `internal/buildinfo` and `--version`; `-X` version/commit injection; `CHANGELOG.md`; AppImage/tarball include the changelog and docs; release workflow asserts the artifact version |
+| 2026-11-05 | Phase 8 R3 | `77225f1` | Installation, README, development, docs index and architecture updated for the v2 Browse UI, `parec` visualizer paths, XDG state and the 0.2.0 release flow |
+| 2026-11-05 | Phase 8 R4 | this commit | `task package` built the AppImage, tarball and checksums; both artifacts print `Cadence 0.2.0 (77225f1)`; `sha256sum -c` OK; engine contents verified; full Go/engine/binding/frontend/build/diff gates green; live Arch VM checklist pending user |

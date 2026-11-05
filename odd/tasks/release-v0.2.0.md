@@ -1,6 +1,7 @@
 # Release v0.2.0 — Phase 8
 
-> **Status:** In progress.
+> **Status:** Complete — v0.2.0 artifacts built and verified locally; the live
+> clean Arch VM install remains pending user verification.
 > **Branch:** `feat/cadence-v2`
 > **Scope:** close the v2 plan with a versioned, reproducible release.
 
@@ -14,9 +15,8 @@
       `--version` flag in `main.go` that prints and exits before Wails starts.
 - [x] Inject `-X cadence/internal/buildinfo.Version` and `.Commit` in the Linux
       build flags, with a `GIT_COMMIT` task variable.
-- [ ] Update the artifact/version references in README, docs/installation and
-      the release workflow expectations. The release workflow is updated in
-      this slice; README and docs/installation are owned by the docs slice.
+- [x] Update the artifact/version references in README, docs/installation and
+      the release workflow expectations.
 
 ### R2 — Packaging contents
 
@@ -25,9 +25,11 @@
 - [x] Add `CHANGELOG.md` with a 0.2.0 entry covering the v2 work (modular Go,
       event-driven state, catalog/podcasts, Browse window, i18n, real
       visualizer, settings, engine patches).
-- [ ] Verify the AppImage's `usr/bin/go-librespot` and the tarball engine are the
-      rebuilt four-patch binary. The orchestrator runs `task package` and
-      inspects both artifacts after this commit.
+- [x] Verify the AppImage's `usr/bin/go-librespot` and the tarball engine are the
+      rebuilt four-patch binary. The tarball engine is byte-identical to
+      `bin/go-librespot`; linuxdeploy adjusts the AppImage copy's ELF RPATH
+      (different SHA-256, same BuildID and the same patch marker count), so the
+      four patches are present in both.
 
 ### R3 — Docs and installation
 
@@ -42,14 +44,14 @@
 
 ### R4 — Build and verify
 
-- [ ] `task package` (AppImage, tarball, checksums) and inspect both artifacts.
-- [ ] `./bin/cadence-0.2.0-linux-x86_64.AppImage --appimage-extract-and-run
+- [x] `task package` (AppImage, tarball, checksums) and inspect both artifacts.
+- [x] `./bin/cadence-0.2.0-linux-x86_64.AppImage --appimage-extract-and-run
       --version` and the extracted tarball `./cadence --version` print 0.2.0.
-- [ ] `sha256sum -c cadence-0.2.0-SHA256SUMS`.
-- [ ] Full gates: Go tests/race/vet/gofmt, four engine patches, bindings no
+- [x] `sha256sum -c cadence-0.2.0-SHA256SUMS`.
+- [x] Full gates: Go tests/race/vet/gofmt, four engine patches, bindings no
       diff, `npm run i18n:check`, frontend check/lint/format/test/build,
       `task build`, `git diff --check`.
-- [ ] Clean-machine install checklist documented; live Arch VM test pending the
+- [x] Clean-machine install checklist documented; live Arch VM test pending the
       user if unavailable here.
 - Commit: `chore(release): prepare v0.2.0`
 
@@ -57,12 +59,13 @@
 
 | Work unit | Status | Verification | Commit |
 |---|---|---|---|
-| Version stamping: `APP_VERSION`/`info.version` 0.2.0, frontend package 0.2.0, `internal/buildinfo`, `--version` flag, `GIT_COMMIT` and `-X` ldflags | Done | `go test ./internal/buildinfo`, `task build`, `./bin/cadence --version` prints `0.2.0 (<short hash>)` | reported in session |
-| `CHANGELOG.md` 0.2.0 entry covering the v2 work | Done | Reviewed against `git log` and `plan/cadence-v2.md` | reported in session |
-| Packaging contents: AppImage `usr/share/doc/cadence` and tarball include `CHANGELOG.md` and `docs/` | Done | Taskfile diff; artifact inspection deferred to the orchestrator's `task package` | reported in session |
-| Release workflow: assert `./bin/cadence --version` matches `build/config.yml` before checksums | Done | `release.yml` diff | reported in session |
-| Docs: 0.2.0 installation/Browse tour/visualizer paths, README v2 architecture/features, development release flow, docs index and architecture badge fixes | Done | `rg` consistency checks, `git diff --check` | reported in session |
-| Tracker update for R1/R2 | Done | This file | reported in session |
+| Version stamping: `APP_VERSION`/`info.version` 0.2.0, frontend package 0.2.0, `internal/buildinfo`, `--version` flag, `GIT_COMMIT` and `-X` ldflags | Done | `go test ./internal/buildinfo`, `task build`, `./bin/cadence --version` prints `0.2.0 (<short hash>)` | `8da22dc` |
+| `CHANGELOG.md` 0.2.0 entry covering the v2 work | Done | Reviewed against `git log` and `plan/cadence-v2.md` | `8da22dc` |
+| Packaging contents: AppImage `usr/share/doc/cadence` and tarball include `CHANGELOG.md` and `docs/` | Done | `task package`; both artifacts contain the docs and changelog | `8da22dc` |
+| Release workflow: assert `./bin/cadence --version` matches `build/config.yml` before checksums | Done | `release.yml` diff | `8da22dc` |
+| Docs: 0.2.0 installation/Browse tour/visualizer paths, README v2 architecture/features, development release flow, docs index and architecture badge fixes | Done | `rg` consistency checks, `git diff --check` | `77225f1` |
+| Tracker update for R1/R2 | Done | This file | `8da22dc` |
+| Packaging and artifact verification | Done | `task package` exit 0; `sha256sum -c` OK; AppImage and tarball print `Cadence 0.2.0 (77225f1)`; tarball engine byte-identical to `bin/go-librespot`; AppImage engine has the same BuildID and patch markers; Go tests/race/vet/gofmt, `audio:check`, bindings, frontend gates, `task build` and `git diff --check` green | this commit |
 
 ## Acceptance
 
