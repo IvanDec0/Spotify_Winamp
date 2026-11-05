@@ -159,9 +159,10 @@ Other static properties that affect the baseline:
 - The artwork cache is memory-only: 96 entries, 48 MiB total, 3 MiB per image,
   with no size variants, no single-flight and no disk cache
   (`internal/artwork/cache.go`).
-- Context lists can reach 800 rows (`metadata.max_tracks: 800` in
-  `internal/engine/supervisor.go`) and are rendered without virtualization
-  (`frontend/src/lib/MusicBrowser.svelte`).
+- At the Phase 0 baseline, context lists could reach 800 rows
+  (`metadata.max_tracks: 800` in `internal/engine/supervisor.go`) and were
+  rendered without virtualization in the old `MusicBrowser.svelte` (removed in
+  Phase 7). The current Browse entity views use `VirtualList` at a 44 px pitch.
 
 ## Baseline and after comparison (reference machine)
 

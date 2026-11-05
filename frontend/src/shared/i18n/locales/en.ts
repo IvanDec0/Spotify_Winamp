@@ -49,6 +49,8 @@ export const en = {
     "Engine changes apply only after an explicit restart. Appearance and skins apply immediately.",
   "browse.appearance.title": "Appearance",
   "browse.appearance.immediate": "Appearance changes apply immediately.",
+  "browse.appearance.language": "Language",
+  "browse.appearance.languageHelp": "Changes the language in both windows immediately.",
   "browse.appearance.theme": "Theme",
   "browse.appearance.visualizer": "Visualizer",
   "browse.appearance.motion": "Motion",

@@ -9,7 +9,7 @@
     type VisualizerMode,
   } from "../../lib/preferences.svelte";
   import { skins } from "../../lib/skins.svelte";
-  import { t } from "../../shared/i18n";
+  import { i18n, t, type Locale } from "../../shared/i18n";
   import Button from "../../shared/ui/Button.svelte";
   import Dialog from "../../shared/ui/Dialog.svelte";
   import Skeleton from "../../shared/ui/Skeleton.svelte";
@@ -23,6 +23,11 @@
     { id: "system", label: "browse.appearance.motionSystem" },
     { id: "reduced", label: "browse.appearance.motionReduced" },
   ] as const;
+  // Language names stay in their own language; they are proper names.
+  const LANGUAGE_OPTIONS: Array<{ id: Locale; label: string }> = [
+    { id: "en", label: "English" },
+    { id: "es", label: "Español" },
+  ];
 
   let confirmRestart = $state(false);
   let form = $derived(browseSettings.settings);
@@ -474,6 +479,28 @@
     <fieldset class="settings-section is-wide">
       <legend>{t("browse.appearance.title")}</legend>
       <p class="settings-help is-lead">{t("browse.appearance.immediate")}</p>
+
+      <div class="settings-row">
+        <label class="settings-label" for="settings-language">
+          {t("browse.appearance.language")}
+        </label>
+        <div class="settings-control">
+          <select
+            id="settings-language"
+            value={i18n.locale}
+            aria-describedby="settings-language-help"
+            onchange={(event) =>
+              void i18n.setLocale((event.currentTarget as HTMLSelectElement).value as Locale)}
+          >
+            {#each LANGUAGE_OPTIONS as option (option.id)}
+              <option value={option.id}>{option.label}</option>
+            {/each}
+          </select>
+        </div>
+        <p class="settings-help" id="settings-language-help">
+          {t("browse.appearance.languageHelp")}
+        </p>
+      </div>
 
       <div class="settings-row">
         <label class="settings-label" for="settings-theme">

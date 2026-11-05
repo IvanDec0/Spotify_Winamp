@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/svelte";
 import IntlMessageFormat from "intl-messageformat";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   en,
   I18n,
@@ -143,6 +143,47 @@ describe("i18n runtime", () => {
     await expect(first).resolves.toBeUndefined();
     expect(instance.locale).toBe("en");
     expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("en");
+  });
+
+  it("applies locale changes from another window without writing back", async () => {
+    const instance = new I18n();
+    await initI18n(instance);
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+
+    window.dispatchEvent(new StorageEvent("storage", { key: LOCALE_STORAGE_KEY, newValue: "es" }));
+
+    await waitFor(() => expect(instance.locale).toBe("es"));
+    expect(document.documentElement.lang).toBe("es");
+    expect(setItem).not.toHaveBeenCalled();
+    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("en");
+  });
+
+  it("ignores storage events for the active locale and invalid values", async () => {
+    const loadEs = vi.fn(async () => es);
+    const instance = new I18n({ loaders: { es: loadEs } });
+    await initI18n(instance);
+    loadEs.mockClear();
+
+    window.dispatchEvent(new StorageEvent("storage", { key: LOCALE_STORAGE_KEY, newValue: "en" }));
+    window.dispatchEvent(new StorageEvent("storage", { key: LOCALE_STORAGE_KEY, newValue: "de" }));
+    window.dispatchEvent(new StorageEvent("storage", { key: "other.key", newValue: "es" }));
+
+    await Promise.resolve();
+    expect(loadEs).not.toHaveBeenCalled();
+    expect(instance.locale).toBe("en");
+  });
+
+  it("installs the storage listener once per instance", async () => {
+    const loadEs = vi.fn(async () => es);
+    const instance = new I18n({ loaders: { es: loadEs } });
+    await initI18n(instance);
+    await initI18n(instance);
+    loadEs.mockClear();
+
+    window.dispatchEvent(new StorageEvent("storage", { key: LOCALE_STORAGE_KEY, newValue: "es" }));
+
+    await waitFor(() => expect(instance.locale).toBe("es"));
+    expect(loadEs).toHaveBeenCalledOnce();
   });
 
   it("reacts to locale changes in Svelte templates", async () => {

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EngineSettings } from "../../shared/api/types";
+import { i18n } from "../../shared/i18n";
 import { browseSettings } from "./settings.svelte";
 import SettingsView from "./SettingsView.svelte";
 
@@ -173,6 +174,7 @@ describe("SettingsView", () => {
     expect(screen.getByLabelText("MPRIS")).not.toBeNull();
     expect(screen.getByLabelText("Advertise as a speaker group")).not.toBeNull();
     expect(screen.getByLabelText("Image size")).not.toBeNull();
+    expect(screen.getByLabelText("Language")).not.toBeNull();
     expect(screen.getByLabelText("Theme")).not.toBeNull();
     expect(screen.getByLabelText("Visualizer")).not.toBeNull();
     expect(screen.getByLabelText("Motion")).not.toBeNull();
@@ -205,6 +207,15 @@ describe("SettingsView", () => {
     await waitFor(() => expect(mocks.restart).toHaveBeenCalledOnce());
     expect(browseSettings.restartRequired).toBe(false);
     expect(screen.getByText("Audio engine restarted.")).not.toBeNull();
+  });
+
+  it("switches the language from the appearance section", async () => {
+    const setLocale = vi.spyOn(i18n, "setLocale").mockResolvedValue();
+    await renderSettings();
+
+    await fireEvent.change(screen.getByLabelText("Language"), { target: { value: "es" } });
+
+    expect(setLocale).toHaveBeenCalledWith("es");
   });
 
   it("applies appearance changes immediately", async () => {

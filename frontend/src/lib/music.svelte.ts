@@ -1,21 +1,5 @@
 import { audio as audioApi, onAudioState, toApiError } from "../shared/api";
-import type {
-  AlbumPage,
-  ArtistPage,
-  AudioState,
-  LibraryContext,
-  PlaylistPage,
-  SearchHit,
-} from "../shared/api/types";
-
-export type SearchResultsView = {
-  tracks: SearchHit[];
-  albums: SearchHit[];
-  artists: SearchHit[];
-  playlists: SearchHit[];
-  shows: SearchHit[];
-  episodes: SearchHit[];
-};
+import type { AudioState } from "../shared/api/types";
 
 function normalizeAudio(state: AudioState): AudioState {
   return {
@@ -53,6 +37,11 @@ const initialState: AudioState = {
 // user still has to pair the device.
 const pairingPollInterval = 5000;
 
+/**
+ * Engine and pairing state shared by Browse's `EngineGate`. Library, search
+ * and context data live in the Browse store; this store only tracks whether
+ * the local engine is available, running and authenticated.
+ */
 class MusicStore {
   audio = $state<AudioState>(initialState);
   loading = $state(true);
@@ -60,21 +49,9 @@ class MusicStore {
   error = $state<string | null>(null);
   notice = $state<string | null>(null);
 
-  playlists = $state<NonNullable<PlaylistPage["items"]>>([]);
-  albums = $state<NonNullable<AlbumPage["items"]>>([]);
-  artists = $state<NonNullable<ArtistPage["items"]>>([]);
-  context = $state<(LibraryContext & { items: NonNullable<LibraryContext["items"]> }) | null>(null);
-  contextLoading = $state(false);
-  searchQuery = $state("");
-  searchResults = $state<SearchResultsView | null>(null);
-  searching = $state(false);
-  searchError = $state<string | null>(null);
-
   #unsubscribe: (() => void) | null = null;
   #started = false;
   #pollTimer: ReturnType<typeof setInterval> | null = null;
-  #contextTimer: ReturnType<typeof setTimeout> | null = null;
-  #contextURI = "";
 
   get authenticated(): boolean {
     return this.audio.authenticated;
@@ -99,10 +76,6 @@ class MusicStore {
     this.#unsubscribe = null;
     this.#started = false;
     this.#stopPoll();
-    if (this.#contextTimer) {
-      clearTimeout(this.#contextTimer);
-      this.#contextTimer = null;
-    }
   }
 
   async refresh(): Promise<void> {
@@ -149,7 +122,6 @@ class MusicStore {
     try {
       this.audio = normalizeAudio(await audioApi.resetSession());
       this.#syncPoll();
-      this.clearLibrary();
       this.error = null;
       this.notice = "Pairing reset. Use the new code to connect Spotify.";
     } catch (error) {
@@ -164,169 +136,6 @@ class MusicStore {
     try {
       this.audio = normalizeAudio(await audioApi.restart());
       this.#syncPoll();
-      this.error = null;
-    } catch (error) {
-      this.error = toApiError(error).message;
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  async loadPlaylists(): Promise<void> {
-    await this.#loadLibrary(async () => {
-      const page = await audioApi.playlists(0, 100);
-      this.playlists = page.items ?? [];
-    });
-  }
-
-  async loadAlbums(): Promise<void> {
-    await this.#loadLibrary(async () => {
-      const page = await audioApi.albums(0, 100);
-      this.albums = page.items ?? [];
-    });
-  }
-
-  async loadArtists(): Promise<void> {
-    await this.#loadLibrary(async () => {
-      const page = await audioApi.artists(0, 100);
-      this.artists = page.items ?? [];
-    });
-  }
-
-  async #loadLibrary(action: () => Promise<void>): Promise<void> {
-    this.busy = true;
-    try {
-      await action();
-      this.error = null;
-    } catch (error) {
-      this.error = toApiError(error).message;
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  async loadContext(uri: string): Promise<void> {
-    if (this.#contextTimer) {
-      clearTimeout(this.#contextTimer);
-      this.#contextTimer = null;
-    }
-    this.#contextURI = uri;
-    this.contextLoading = true;
-    try {
-      const context = await audioApi.contextTracks(uri);
-      if (this.#contextURI !== uri) return;
-      this.context = {
-        ...context,
-        items: context.items ?? [],
-      };
-      this.error = null;
-      if (!context.ready) {
-        this.#contextTimer = setTimeout(() => {
-          this.#contextTimer = null;
-          void this.loadContext(uri);
-        }, 1000);
-      }
-    } catch (error) {
-      this.error = toApiError(error).message;
-    } finally {
-      this.contextLoading = false;
-    }
-  }
-
-  clearContext(): void {
-    if (this.#contextTimer) {
-      clearTimeout(this.#contextTimer);
-      this.#contextTimer = null;
-    }
-    this.#contextURI = "";
-    this.context = null;
-  }
-
-  clearLibrary(): void {
-    this.playlists = [];
-    this.albums = [];
-    this.artists = [];
-    this.clearContext();
-    this.clearSearch();
-  }
-
-  async search(query: string): Promise<void> {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      this.clearSearch();
-      return;
-    }
-    this.searchQuery = trimmed;
-    this.searching = true;
-    this.searchError = null;
-    try {
-      const results = await audioApi.search(trimmed, 20);
-      this.searchResults = {
-        tracks: results.tracks?.hits ?? [],
-        albums: results.albums?.hits ?? [],
-        artists: results.artists?.hits ?? [],
-        playlists: results.playlists?.hits ?? [],
-        shows: results.shows?.hits ?? [],
-        episodes: results.episodes?.hits ?? [],
-      };
-    } catch (error) {
-      this.searchError = toApiError(error).message;
-      this.searchResults = null;
-    } finally {
-      this.searching = false;
-    }
-  }
-
-  clearSearch(): void {
-    this.searchQuery = "";
-    this.searchResults = null;
-    this.searching = false;
-    this.searchError = null;
-  }
-
-  async startRadio(uri: string): Promise<void> {
-    if (!uri) return;
-    this.busy = true;
-    try {
-      await audioApi.startRadio(uri);
-      this.notice = "Radio started.";
-      this.error = null;
-    } catch (error) {
-      this.error = toApiError(error).message;
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  async playContext(uri: string, skipToURI = ""): Promise<void> {
-    this.busy = true;
-    try {
-      await audioApi.playContext(uri, skipToURI);
-      this.error = null;
-    } catch (error) {
-      this.error = toApiError(error).message;
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  async playTrack(uri: string): Promise<void> {
-    this.busy = true;
-    try {
-      await audioApi.playTrack(uri);
-      this.error = null;
-    } catch (error) {
-      this.error = toApiError(error).message;
-    } finally {
-      this.busy = false;
-    }
-  }
-
-  async addToQueue(uri: string): Promise<void> {
-    this.busy = true;
-    try {
-      await audioApi.addToQueue(uri);
-      this.notice = "Added to the play queue.";
       this.error = null;
     } catch (error) {
       this.error = toApiError(error).message;

@@ -68,7 +68,9 @@ The app uses a single compact window. The default skins use a 420×220 logical d
 - `internal/catalog/service.go` implements library, search, context and playback selection; `internal/wailsapi/audio/service.go` exposes it to the frontend.
 - `internal/artwork/cache.go` proxies and bounds album art.
 - `internal/wailsapi/{audio,player,skins}` are the only Wails service adapters; `internal/platform` is the native window exception.
-- `frontend/src/lib/MusicBrowser.svelte` and `music.svelte.ts` implement the Library panel.
+- `frontend/src/app/browse/` implements the dedicated Browse window (search,
+  library, podcasts, entities and settings); `frontend/src/lib/music.svelte.ts`
+  only tracks the local engine and pairing state.
 - Package graph, dependency rule and event flow: [`docs/architecture.md`](docs/architecture.md).
 
 The engine binds only to `127.0.0.1` on a random port and stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json`. The frontend receives token-free state.

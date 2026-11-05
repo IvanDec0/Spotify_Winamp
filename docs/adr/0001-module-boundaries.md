@@ -10,9 +10,11 @@
 
 `internal/golibrespot` used to mix process supervision, HTTP transport, domain
 mapping and Wails RPC in one package, while `internal/player` mixed the
-provider-neutral player model with the Wails ticker service. `MusicBrowser.svelte`
-carries browsing UI that the v2 catalog needs to grow. The plan requires
-behavior-preserving modularization before new features land.
+provider-neutral player model with the Wails ticker service. The legacy
+`MusicBrowser.svelte` panel carried browsing UI that the v2 catalog needed to
+grow; the dedicated Browse window replaced it in Phase 6 and the dead file was
+removed in Phase 7. The plan requires behavior-preserving modularization before
+new features land.
 
 ## Decision
 

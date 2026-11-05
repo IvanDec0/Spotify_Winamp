@@ -53,6 +53,8 @@ export const es: Record<MessageKey, string> = {
     "Los cambios del motor se aplican solo tras un reinicio explícito. La apariencia y las máscaras se aplican de inmediato.",
   "browse.appearance.title": "Apariencia",
   "browse.appearance.immediate": "Los cambios de apariencia se aplican de inmediato.",
+  "browse.appearance.language": "Idioma",
+  "browse.appearance.languageHelp": "Cambia el idioma en ambas ventanas de inmediato.",
   "browse.appearance.theme": "Tema",
   "browse.appearance.visualizer": "Visualizador",
   "browse.appearance.motion": "Movimiento",

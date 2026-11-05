@@ -71,6 +71,7 @@ export class I18n {
   #loaders: Record<Locale, CatalogLoader>;
   #formatters: Record<string, IntlMessageFormat> = {};
   #request = 0;
+  #storageSyncStarted = false;
 
   constructor(options: I18nOptions = {}) {
     this.#base = options.base ?? en;
@@ -88,6 +89,36 @@ export class I18n {
    * Calls are latest-wins: a slow loader cannot overwrite a newer selection.
    */
   async setLocale(locale: Locale): Promise<void> {
+    await this.#applyLocale(locale, true);
+  }
+
+  /**
+   * Applies a locale received from another webview. Matches `setLocale`'s
+   * latest-wins behavior but never persists, so a storage event cannot echo
+   * back a write and start a loop.
+   */
+  async syncLocale(locale: Locale): Promise<void> {
+    await this.#applyLocale(locale, false);
+  }
+
+  /**
+   * Mirrors `cadence.locale` writes made by other windows. The listener is
+   * installed once per webview; `storage` events only fire in other documents,
+   * and `syncLocale` does not write, so updates stay one-way.
+   */
+  startStorageSync(): void {
+    if (this.#storageSyncStarted || typeof window === "undefined") return;
+    this.#storageSyncStarted = true;
+    window.addEventListener("storage", (event) => {
+      if (event.key !== LOCALE_STORAGE_KEY || !event.newValue) return;
+      if (!isLocale(event.newValue) || event.newValue === this.locale) return;
+      void this.syncLocale(event.newValue).catch(() => {
+        // Keep the current catalog when another window's locale chunk fails.
+      });
+    });
+  }
+
+  async #applyLocale(locale: Locale, persist: boolean): Promise<void> {
     const request = ++this.#request;
     let catalog: Catalog;
     try {
@@ -102,7 +133,7 @@ export class I18n {
     this.#catalog = catalog;
     this.#formatters = {};
     this.locale = locale;
-    persistLocale(locale);
+    if (persist) persistLocale(locale);
     setDocumentLang(locale);
   }
 
@@ -157,6 +188,7 @@ export function t(key: MessageKey, params?: MessageParams): string {
  * A failing catalog loader falls back to English so startup never blocks mount.
  */
 export async function initI18n(instance: I18n = i18n): Promise<Locale> {
+  instance.startStorageSync();
   const stored = readStoredLocale();
   const locale = isLocale(stored) ? stored : detectLocale();
   try {

@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --check .",
+    "i18n:check": "node scripts/check-i18n.mjs",
     "format:write": "prettier --write ."
   },
   "dependencies": {

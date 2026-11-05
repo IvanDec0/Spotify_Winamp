@@ -1187,21 +1187,54 @@ the compact settings redirect and the appearance/skin controls.
 
 ### T7.1 — Dead code removal and i18n guard
 
-- [ ] Delete the unreachable compact components: `MusicBrowser.svelte`,
+- [x] Delete the unreachable compact components: `MusicBrowser.svelte`,
       `SearchRow.svelte`, `LibrarySkeleton.svelte`, `MediaCover.svelte`,
-      `SettingsPopover.svelte`, `skins/SkinManager.svelte` (and any tests that
-      only cover them). Remove the unused imports/mocks.
-- [ ] Trim `music.svelte.ts` to the engine/pairing state used by Browse's
-      EngineGate (audio, pairing, bus, refresh/reset/restart); remove the
-      library/search/context methods that only the deleted MusicBrowser used.
-- [ ] Add `frontend/scripts/check-i18n.mjs` (Svelte compiler AST walk: literal
-      text nodes and literal `title`/`aria-label`/`placeholder`/`alt` values,
-      with a small brand/symbol allowlist). Add `npm run i18n:check` and run it
-      in the Taskfile/CI frontend checks.
-- [ ] Add a language selector to Browse Settings (English/Español) using
-      `i18n.setLocale`; add cross-window locale sync on the `cadence.locale`
-      storage key without write loops; both windows update.
+      `SettingsPopover.svelte`, `skins/SkinManager.svelte`. No live importer
+      remained (`rg` found only references among the deleted files) and no test
+      covered them exclusively; no App/test imports or mocks needed removal.
+- [x] Trim `music.svelte.ts` to the engine/pairing state used by Browse's
+      EngineGate (`audio`, `pairing`, `authenticated`, `loading`, `busy`,
+      `error`, `notice`, `start`/`stop`/`refresh`/`openPairing`/`resetSession`/
+      `restart` and the pairing-only poll). Library, search, context and
+      playback methods are gone; Browse owns them in `browse.svelte.ts`.
+- [x] Add `frontend/scripts/check-i18n.mjs` (Svelte compiler AST walk over
+      template nodes: literal text and literal `title`/`aria-label`/
+      `placeholder`/`alt` values, with the brand/symbol/unit allowlist) and
+      `npm run i18n:check`. CI/Taskfile wiring is deferred to T7.2 so the guard
+      can land before the sweep; the current inventory is **60 findings**.
+- [x] Add a language selector to Browse Settings (English/Español) using
+      `i18n.setLocale`; add `I18n.syncLocale`/`startStorageSync` on the
+      `cadence.locale` storage key without write loops; `initI18n()` installs
+      the listener once per webview and both windows update reactively.
+- [x] T7.1 verification (table below).
 - Commit: `chore(i18n): remove dead UI and add the translation guard`
+
+#### T7.1 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0 |
+| `npm run test` | exit 0, 38 files / 192 tests |
+| `npm run build` | exit 0, 248 modules |
+| `node frontend/scripts/check-i18n.mjs` | exit 1 as expected; **60 findings** for T7.2 |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+The guard walk covers `Text`, `Attribute` values, `TitleElement`,
+`SvelteElement`, components, snippets and boundary fragments; no node shape was
+missed in the synthetic checks. The guard is intentionally not wired into the
+Taskfile/CI yet because it is red until the T7.2 sweep.
+
+### Phase 7 commit map
+
+| Task | Commit |
+|---|---|
+| T7.1 | `chore(i18n): remove dead UI and add the translation guard` (hash recorded in T7.3) |
+| T7.2 | pending |
+| T7.3 | pending |
 
 ### T7.2 — Compact and skin i18n sweep
 
@@ -1296,3 +1329,4 @@ the compact settings redirect and the appearance/skin controls.
 | 2026-11-05 | Correction: LOCAL opens Browse | `fix(browse): route LOCAL directly to the Browse window` | `OpenBrowse(section)` + `browse:navigate`, compact App redirect without the MusicBrowser panel, Browse-owned music/pairing `EngineGate`, initial section parsing, provider/pair copy and tests; Go/frontend gates green; live GTK flow pending user |
 | 2026-11-05 | Correction: one visible window | `fix(browse): show one window at a time` | Opening Browse hides the non-destroyed compact window; Browse close (native or `Back to player`) restores/focuses it, with an explicit `CloseBrowse` fallback; docs/tests updated; live GTK swap pending user |
 | 2026-11-05 | Correction: one settings surface | `fix(settings): unify appearance and engine settings in Browse` | Compact badge says Browse; queue notes localized; compact settings/skin overlays replaced by `openBrowse("settings")`; Browse Settings adds appearance and skins management; cross-window preference storage sync; tests updated; live GTK redirect pending user |
+| 2026-11-05 | T7.1 | `chore(i18n): remove dead UI and add the translation guard` | Deleted the 6 unreachable compact components, trimmed `music.svelte.ts` to engine/pairing, added the AST i18n guard (60 findings for T7.2), Browse language selector and `cadence.locale` cross-window sync; frontend/Go/build gates green |
