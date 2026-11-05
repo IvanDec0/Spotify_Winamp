@@ -112,6 +112,19 @@ func main() {
 	}
 
 	settingsStore := settings.NewStore(filepath.Join(xdg.ConfigHome, "cadence", "config.json"))
+	savedSettings, err := settingsStore.Load()
+	if err != nil {
+		log.Printf("load settings: %v; using defaults", err)
+	}
+	engineSettings := savedSettings.Engine
+	if engineSettings == nil {
+		defaults := settings.Default()
+		engineSettings = defaults.Engine
+	}
+	audioCacheDir := engineSettings.CacheDir
+	if audioCacheDir == "" {
+		audioCacheDir = filepath.Join(xdg.CacheHome, "cadence", "audio-cache")
+	}
 	skinManager, err := skins.NewManager(skins.Options{
 		SkinsDir: filepath.Join(xdg.DataHome, "cadence", "skins"),
 		DevDir:   devDir,
@@ -140,15 +153,25 @@ func main() {
 	}
 
 	audioRuntime := engine.NewSupervisor(engine.Options{
-		ConfigDir:    filepath.Join(xdg.ConfigHome, "cadence", "audio"),
-		LogPath:      filepath.Join(xdg.CacheHome, "cadence", "logs", "go-librespot.log"),
-		DeviceName:   "Cadence",
-		AudioBackend: "pulseaudio",
-		AudioDevice:  "default",
-		Bitrate:      320,
-		// DeviceIsGroup is off by default: it only changes the Spotify group
-		// icon, not Jam participation, which uses the engine's Connect mode.
-		DeviceIsGroup: false,
+		ConfigDir:                 filepath.Join(xdg.ConfigHome, "cadence", "audio"),
+		LogPath:                   filepath.Join(xdg.CacheHome, "cadence", "logs", "go-librespot.log"),
+		DeviceName:                "Cadence",
+		AudioBackend:              "pulseaudio",
+		AudioDevice:               "default",
+		Bitrate:                   engineSettings.Bitrate,
+		CrossfadeDurationMS:       engineSettings.CrossfadeDurationMS,
+		NormalisationDisabled:     engineSettings.NormalisationDisabled,
+		NormalisationUseAlbumGain: engineSettings.NormalisationUseAlbumGain,
+		NormalisationPregain:      engineSettings.NormalisationPregain,
+		CacheEnabled:              engineSettings.CacheEnabled,
+		CacheDir:                  audioCacheDir,
+		CacheSizeLimit:            engineSettings.CacheSizeLimit,
+		FlacEnabled:               engineSettings.FlacEnabled,
+		MPRISEnabled:              engineSettings.MPRISEnabled,
+		// DeviceIsGroup only changes the Spotify group icon, not Jam
+		// participation, which uses the engine's Connect mode.
+		DeviceIsGroup: engineSettings.DeviceIsGroup,
+		ImageSize:     engineSettings.ImageSize,
 		HTTPClient:    engineHTTPClient,
 	})
 	var provider playback.Provider = demoProvider
@@ -168,6 +191,7 @@ func main() {
 	audioService := audioapi.NewService(audioapi.Options{
 		Catalog:    catalogService,
 		Supervisor: audioRuntime,
+		Settings:   settingsStore,
 		Enabled:    !*demoMode,
 	})
 

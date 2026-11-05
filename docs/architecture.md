@@ -57,6 +57,7 @@ directly because they are the same frontend-facing shape; it owns the compact
 | `internal/playback` | `provider.go` (`Provider` interface), `state.go` (`PlayerState`, `Track`, `Device`, `QueueItem`, `PlayerError`), `demo.go` (`DemoProvider`), `engine_provider.go` (`EngineProvider`) |
 | `internal/artwork` | `cache.go` (memory 256 entries / 64 MiB, disk LRU of resized variants, single-flight per `key@size`, diagnostics counters, `GET /art/{key}?size=64\|128\|240\|640`) |
 | `internal/skins` | domain only: `manager.go`, `types.go`, `validate.go`, `css.go`, `layout.go`, `zip.go`, `asset.go` |
+| `internal/settings` | `settings.go` (schema version, skins and engine sections, atomic store) |
 | `internal/wailsapi/audio` | `service.go` (startup/shutdown/emitter/browser + delegated catalog methods), `types.go` aliases |
 | `internal/wailsapi/player` | `service.go` (500 ms ticker, mutations, emit), `types.go` aliases |
 | `internal/wailsapi/skins` | `service.go` (dialogs/events/manager calls), `types.go` aliases |
@@ -117,13 +118,23 @@ and playlist routes keep their behavior. Saved shows use the `show` set, while
 liked tracks and saved albums use `collection` and followed artists use
 `artist`. The saved-shows listing UI is Phase 6.
 
+## Engine settings
+
+Engine playback and cache options persist in `settings.Config.Engine` under
+`$XDG_CONFIG_HOME/cadence/config.json`. The audio adapter validates and saves
+them through `Store.UpdateEngine`, then calls
+`Supervisor.ApplyPlaybackConfig`; the running engine is never restarted
+implicitly. New values are used by the next `Start`, or after the UI calls
+`Restart` following an explicit confirmation.
+
 ## Generated bindings
 
 The generator writes services and models under
 `frontend/bindings/cadence/internal/`:
 
 - `wailsapi/audio` — `Service` plus alias models for `AudioState`,
-  `PlaylistPage`, `AlbumPage`, `ArtistPage`, `SearchResults`, `LibraryContext`
+  `EngineSettings`, `PlaylistPage`, `AlbumPage`, `ArtistPage`,
+  `SearchResults`, `LibraryContext`
 - `wailsapi/player` — `Service` plus alias models for `PlayerState`, `Device`,
   `QueueItem`
 - `wailsapi/skins` — `Service` plus alias models for `SkinCatalog`,

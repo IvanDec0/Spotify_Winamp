@@ -10,6 +10,7 @@ export type {
     AlbumPage,
     ArtistPage,
     AudioState,
+    EngineSettings,
     LibraryContext,
     PlaylistPage,
     SearchResults

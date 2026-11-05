@@ -35,6 +35,17 @@ type Options struct {
 	AudioBackend string
 	AudioDevice  string
 	Bitrate      int
+	// CrossfadeDurationMS is the crossfade between tracks; 0 disables it.
+	CrossfadeDurationMS int
+	// NormalisationDisabled disables track/album normalisation.
+	NormalisationDisabled     bool
+	NormalisationUseAlbumGain bool
+	NormalisationPregain      float32
+	CacheEnabled              bool
+	CacheDir                  string
+	CacheSizeLimit            string
+	FlacEnabled               bool
+	MPRISEnabled              bool
 	// DeviceIsGroup advertises a speaker-group icon; it does not enable Jam.
 	DeviceIsGroup bool
 	ImageSize     string
@@ -49,19 +60,28 @@ type Options struct {
 type Supervisor struct {
 	mu sync.Mutex
 
-	binaryPath     string
-	configDir      string
-	logPath        string
-	deviceName     string
-	audioBackend   string
-	audioDevice    string
-	bitrate        int
-	deviceIsGroup  bool
-	imageSize      string
-	engineVersion  string
-	versionAttempt time.Time
-	httpClient     *http.Client
-	emit           func(AudioState)
+	binaryPath                string
+	configDir                 string
+	logPath                   string
+	deviceName                string
+	audioBackend              string
+	audioDevice               string
+	bitrate                   int
+	crossfadeDurationMS       int
+	normalisationDisabled     bool
+	normalisationUseAlbumGain bool
+	normalisationPregain      float32
+	cacheEnabled              bool
+	cacheDir                  string
+	cacheSizeLimit            string
+	flacEnabled               bool
+	mprisEnabled              bool
+	deviceIsGroup             bool
+	imageSize                 string
+	engineVersion             string
+	versionAttempt            time.Time
+	httpClient                *http.Client
+	emit                      func(AudioState)
 
 	client    *Client
 	cmd       *exec.Cmd
@@ -86,24 +106,43 @@ func NewSupervisor(options Options) *Supervisor {
 	if device == "" {
 		device = "default"
 	}
-	bitrate := options.Bitrate
-	if bitrate != 96 && bitrate != 160 && bitrate != 320 {
-		bitrate = 320
-	}
+	playback := NormalizePlaybackConfig(PlaybackConfig{
+		Bitrate:                   options.Bitrate,
+		CrossfadeDurationMS:       options.CrossfadeDurationMS,
+		NormalisationDisabled:     options.NormalisationDisabled,
+		NormalisationUseAlbumGain: options.NormalisationUseAlbumGain,
+		NormalisationPregain:      options.NormalisationPregain,
+		CacheEnabled:              options.CacheEnabled,
+		CacheDir:                  options.CacheDir,
+		CacheSizeLimit:            options.CacheSizeLimit,
+		FlacEnabled:               options.FlacEnabled,
+		MPRISEnabled:              options.MPRISEnabled,
+		DeviceIsGroup:             options.DeviceIsGroup,
+		ImageSize:                 options.ImageSize,
+	})
 	return &Supervisor{
-		binaryPath:    binary,
-		configDir:     options.ConfigDir,
-		logPath:       options.LogPath,
-		deviceName:    deviceName,
-		audioBackend:  backend,
-		audioDevice:   device,
-		bitrate:       bitrate,
-		deviceIsGroup: options.DeviceIsGroup,
-		imageSize:     normalizeImageSize(options.ImageSize),
-		httpClient:    options.HTTPClient,
-		emit:          options.Emit,
-		client:        options.Client,
-		available:     binary != "",
+		binaryPath:                binary,
+		configDir:                 options.ConfigDir,
+		logPath:                   options.LogPath,
+		deviceName:                deviceName,
+		audioBackend:              backend,
+		audioDevice:               device,
+		bitrate:                   playback.Bitrate,
+		crossfadeDurationMS:       playback.CrossfadeDurationMS,
+		normalisationDisabled:     playback.NormalisationDisabled,
+		normalisationUseAlbumGain: playback.NormalisationUseAlbumGain,
+		normalisationPregain:      playback.NormalisationPregain,
+		cacheEnabled:              playback.CacheEnabled,
+		cacheDir:                  playback.CacheDir,
+		cacheSizeLimit:            playback.CacheSizeLimit,
+		flacEnabled:               playback.FlacEnabled,
+		mprisEnabled:              playback.MPRISEnabled,
+		deviceIsGroup:             playback.DeviceIsGroup,
+		imageSize:                 playback.ImageSize,
+		httpClient:                options.HTTPClient,
+		emit:                      options.Emit,
+		client:                    options.Client,
+		available:                 binary != "",
 	}
 }
 
@@ -500,6 +539,11 @@ device_name: %q
 device_type: computer
 device_is_group: %t
 bitrate: %d
+crossfade_duration: %d
+normalisation_disabled: %t
+normalisation_use_album_gain: %t
+normalisation_pregain: %g
+flac_enabled: %t
 # Prefer 443/80 access points; 4070 is blocked on some corporate networks.
 prefer_firewall_friendly_ports: true
 audio_backend: %s
@@ -516,8 +560,29 @@ metadata:
   enabled: true
   context_sweep: true
   max_tracks: 800
-mpris_enabled: false
-`, r.deviceName, r.deviceIsGroup, r.bitrate, r.audioBackend, r.audioDevice, port, normalizeImageSize(r.imageSize))
+mpris_enabled: %t
+cache:
+  enabled: %t
+  dir: %q
+  size_limit: %q
+`,
+		r.deviceName,
+		r.deviceIsGroup,
+		r.bitrate,
+		r.crossfadeDurationMS,
+		r.normalisationDisabled,
+		r.normalisationUseAlbumGain,
+		r.normalisationPregain,
+		r.flacEnabled,
+		r.audioBackend,
+		r.audioDevice,
+		port,
+		r.imageSize,
+		r.mprisEnabled,
+		r.cacheEnabled,
+		r.cacheDir,
+		r.cacheSizeLimit,
+	)
 	return os.WriteFile(filepath.Join(configDir, "config.yml"), []byte(config), 0o600)
 }
 

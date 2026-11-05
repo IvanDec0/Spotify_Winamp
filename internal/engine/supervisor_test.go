@@ -91,6 +91,178 @@ func yamlSection(t *testing.T, config, name string) string {
 	return section.String()
 }
 
+func TestWriteConfigPlaybackAndCacheOptions(t *testing.T) {
+	runtime := NewSupervisor(Options{
+		Bitrate:                   160,
+		CrossfadeDurationMS:       3000,
+		NormalisationDisabled:     true,
+		NormalisationUseAlbumGain: true,
+		NormalisationPregain:      -3.5,
+		CacheEnabled:              true,
+		CacheDir:                  "/tmp/cadence-audio-cache",
+		CacheSizeLimit:            "2GB",
+		FlacEnabled:               true,
+		MPRISEnabled:              true,
+	})
+	dir := t.TempDir()
+	if err := runtime.writeConfig(12345, dir); err != nil {
+		t.Fatalf("writeConfig: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "config.yml"))
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	config := string(data)
+
+	scalars := map[string]string{
+		"bitrate":                      "160",
+		"crossfade_duration":           "3000",
+		"normalisation_disabled":       "true",
+		"normalisation_use_album_gain": "true",
+		"normalisation_pregain":        "-3.5",
+		"flac_enabled":                 "true",
+		"mpris_enabled":                "true",
+	}
+	for key, want := range scalars {
+		if got := yamlScalar(t, config, key); got != want {
+			t.Fatalf("%s = %q, want %q:\n%s", key, got, want, config)
+		}
+	}
+	cache := yamlSection(t, config, "cache")
+	for _, want := range []string{`enabled: true`, `dir: "/tmp/cadence-audio-cache"`, `size_limit: "2GB"`} {
+		if !strings.Contains(cache, want) {
+			t.Fatalf("cache section missing %q:\n%s", want, cache)
+		}
+	}
+}
+
+func TestNormalizePlaybackConfig(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         PlaybackConfig
+		wantBitrate   int
+		wantCrossfade int
+		wantPregain   float32
+		wantImageSize string
+		wantCacheSize string
+	}{
+		{
+			name:          "defaults",
+			input:         PlaybackConfig{},
+			wantBitrate:   320,
+			wantImageSize: "default",
+		},
+		{
+			name:          "valid",
+			input:         PlaybackConfig{Bitrate: 96, CrossfadeDurationMS: 12000, NormalisationPregain: -20, ImageSize: "xlarge", CacheSizeLimit: "8GB"},
+			wantBitrate:   96,
+			wantCrossfade: 12000,
+			wantPregain:   -20,
+			wantImageSize: "xlarge",
+			wantCacheSize: "8GB",
+		},
+		{
+			name:          "invalid bitrate",
+			input:         PlaybackConfig{Bitrate: 128, ImageSize: "default", CacheSizeLimit: "1GB"},
+			wantBitrate:   320,
+			wantImageSize: "default",
+			wantCacheSize: "1GB",
+		},
+		{
+			name:          "negative crossfade",
+			input:         PlaybackConfig{Bitrate: 320, CrossfadeDurationMS: -1, ImageSize: "default", CacheSizeLimit: "1GB"},
+			wantBitrate:   320,
+			wantCrossfade: 0,
+			wantImageSize: "default",
+			wantCacheSize: "1GB",
+		},
+		{
+			name:          "too long crossfade",
+			input:         PlaybackConfig{Bitrate: 320, CrossfadeDurationMS: 12001, ImageSize: "default", CacheSizeLimit: "1GB"},
+			wantBitrate:   320,
+			wantCrossfade: 0,
+			wantImageSize: "default",
+			wantCacheSize: "1GB",
+		},
+		{
+			name:          "pregain below range",
+			input:         PlaybackConfig{Bitrate: 320, NormalisationPregain: -21, ImageSize: "default", CacheSizeLimit: "1GB"},
+			wantBitrate:   320,
+			wantPregain:   0,
+			wantImageSize: "default",
+			wantCacheSize: "1GB",
+		},
+		{
+			name:          "pregain above range",
+			input:         PlaybackConfig{Bitrate: 320, NormalisationPregain: 21, ImageSize: "default", CacheSizeLimit: "1GB"},
+			wantBitrate:   320,
+			wantPregain:   0,
+			wantImageSize: "default",
+			wantCacheSize: "1GB",
+		},
+		{
+			name:          "invalid image size",
+			input:         PlaybackConfig{Bitrate: 320, ImageSize: "huge", CacheSizeLimit: "1GB"},
+			wantBitrate:   320,
+			wantImageSize: "default",
+			wantCacheSize: "1GB",
+		},
+		{
+			name:          "invalid cache size",
+			input:         PlaybackConfig{Bitrate: 320, ImageSize: "default", CacheSizeLimit: "3GB"},
+			wantBitrate:   320,
+			wantImageSize: "default",
+			wantCacheSize: "1GB",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := NormalizePlaybackConfig(test.input)
+			if got.Bitrate != test.wantBitrate || got.CrossfadeDurationMS != test.wantCrossfade ||
+				got.NormalisationPregain != test.wantPregain || got.ImageSize != test.wantImageSize ||
+				got.CacheSizeLimit != test.wantCacheSize {
+				t.Fatalf("NormalizePlaybackConfig(%#v) = %#v", test.input, got)
+			}
+		})
+	}
+}
+
+func TestApplyPlaybackConfigUpdatesPlaybackFields(t *testing.T) {
+	client := NewClient("http://127.0.0.1:1", nil)
+	runtime := NewSupervisor(Options{
+		BinaryPath: "/bin/true",
+		ConfigDir:  "/config",
+		LogPath:    "/log",
+		Client:     client,
+	})
+	runtime.ApplyPlaybackConfig(PlaybackConfig{
+		Bitrate:                   96,
+		CrossfadeDurationMS:       12000,
+		NormalisationDisabled:     true,
+		NormalisationUseAlbumGain: true,
+		NormalisationPregain:      -20,
+		CacheEnabled:              true,
+		CacheDir:                  "/cache",
+		CacheSizeLimit:            "8GB",
+		FlacEnabled:               true,
+		MPRISEnabled:              true,
+		DeviceIsGroup:             true,
+		ImageSize:                 "xlarge",
+	})
+
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	if runtime.bitrate != 96 || runtime.crossfadeDurationMS != 12000 || !runtime.normalisationDisabled ||
+		!runtime.normalisationUseAlbumGain || runtime.normalisationPregain != -20 || !runtime.cacheEnabled ||
+		runtime.cacheDir != "/cache" || runtime.cacheSizeLimit != "8GB" || !runtime.flacEnabled ||
+		!runtime.mprisEnabled || !runtime.deviceIsGroup || runtime.imageSize != "xlarge" {
+		t.Fatalf("playback fields were not applied: %#v", runtime)
+	}
+	if runtime.binaryPath != "/bin/true" || runtime.configDir != "/config" || runtime.logPath != "/log" || runtime.client != client {
+		t.Fatalf("ApplyPlaybackConfig touched non-playback fields: %#v", runtime)
+	}
+}
+
 func TestNewSupervisorValidatesImageSize(t *testing.T) {
 	tests := []struct {
 		name  string

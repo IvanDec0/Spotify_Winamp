@@ -73,13 +73,26 @@ endpoints. Audio output uses the configured PulseAudio device (`default` in v1).
 ## Engine version and options
 
 Cadence generates `$XDG_CONFIG_HOME/cadence/audio/config.yml` on every start;
-manual edits to that file are overwritten.
+manual edits to that file are overwritten. The playback and cache options below
+are persisted in `$XDG_CONFIG_HOME/cadence/config.json` under `engine`. Changes
+are validated and saved immediately but only take effect after an explicit
+engine restart.
 
-| Option | Value and purpose |
+| Option | Default and purpose |
 |---|---|
+| `bitrate` | `320` kbps. Accepted values: `96`, `160`, `320`. |
+| `crossfade_duration` | `0` ms (disabled). Range: `0`-`12000` ms. |
+| `normalisation_disabled` | `false`; set to `true` to disable track/album normalisation. |
+| `normalisation_use_album_gain` | `false`; use album gain instead of track gain. |
+| `normalisation_pregain` | `0` dB. Range: `-20` to `20` dB. |
+| `cache.enabled` | `false`; cache downloaded audio files on disk. |
+| `cache.dir` | Empty in settings; Cadence resolves it to `$XDG_CACHE_HOME/cadence/audio-cache`. |
+| `cache.size_limit` | `1GB`. Accepted values: empty (engine default), `0` (unlimited), `512MB`, `1GB`, `2GB`, `4GB`, `8GB`. |
+| `flac_enabled` | `false`; prefer FLAC when Spotify offers it. |
+| `mpris_enabled` | `false`; expose MPRIS media controls on Linux. |
 | `device_is_group` | `false` by default. When enabled, Spotify can show a group icon for Cadence; it does not enable Spotify Jam. Jam participation uses the engine's Connect/Jam mode independently, and live Jam behavior is unverified. |
 | `accesspoint_ports` | Engine option not exposed by Cadence yet. It is not written to the generated file; `prefer_firewall_friendly_ports: true` is active instead. |
-| `server.image_size` | Cover-art source variant: `default`, `small`, `large` or `xlarge`. Cadence currently writes `default`; Phase 4 selects the variant after local resizing exists. |
+| `server.image_size` | Cover-art source variant: `default`, `small`, `large` or `xlarge`. Cadence writes `default` unless changed; Phase 4 selects the variant after local resizing exists. |
 
 The engine writes its running version as its first log line
 (`running go-librespot <version>`). Cadence parses it after startup and exposes it

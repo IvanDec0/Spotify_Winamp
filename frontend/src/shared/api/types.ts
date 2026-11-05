@@ -29,6 +29,8 @@ export type {
   SearchResults,
 } from "../../../bindings/cadence/internal/engine/models";
 
+export type { EngineSettings } from "../../../bindings/cadence/internal/wailsapi/audio/models";
+
 export type {
   InstallResult,
   Layout,

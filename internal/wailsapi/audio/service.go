@@ -9,6 +9,7 @@ import (
 
 	"cadence/internal/catalog"
 	"cadence/internal/engine"
+	"cadence/internal/settings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -21,6 +22,7 @@ const AudioEvent = "audio:state"
 type Options struct {
 	Catalog    *catalog.Service
 	Supervisor *engine.Supervisor
+	Settings   *settings.Store
 	Enabled    bool
 }
 
@@ -29,6 +31,7 @@ type Options struct {
 type Service struct {
 	catalog    *catalog.Service
 	supervisor *engine.Supervisor
+	settings   *settings.Store
 	enabled    bool
 
 	mu  sync.Mutex
@@ -39,6 +42,7 @@ func NewService(options Options) *Service {
 	return &Service{
 		catalog:    options.Catalog,
 		supervisor: options.Supervisor,
+		settings:   options.Settings,
 		enabled:    options.Enabled,
 	}
 }
@@ -99,6 +103,77 @@ func (s *Service) ResetSession() (AudioState, error) {
 // Restart restarts the engine while keeping the paired credentials.
 func (s *Service) Restart() (AudioState, error) {
 	return s.catalog.Restart()
+}
+
+// GetEngineSettings returns the persisted engine playback and cache options,
+// falling back to the defaults when the settings file has no engine section.
+func (s *Service) GetEngineSettings() (EngineSettings, error) {
+	if s.settings == nil {
+		return EngineSettings{}, errors.New("the settings store is not configured")
+	}
+	config, err := s.settings.Load()
+	if err != nil {
+		return EngineSettings{}, err
+	}
+	if config.Engine == nil {
+		defaults := settings.Default()
+		return *defaults.Engine, nil
+	}
+	return *config.Engine, nil
+}
+
+// SetEngineSettings validates and persists playback options and applies them
+// to the supervisor. It never restarts the engine: the new values take effect
+// on the next start, or after the caller invokes Restart following an explicit
+// user confirmation.
+func (s *Service) SetEngineSettings(value EngineSettings) (EngineSettings, error) {
+	if s.settings == nil {
+		return EngineSettings{}, errors.New("the settings store is not configured")
+	}
+	normalized := engine.NormalizePlaybackConfig(playbackConfig(value))
+	saved := engineState(normalized)
+	if err := s.settings.UpdateEngine(func(state *settings.EngineState) error {
+		*state = saved
+		return nil
+	}); err != nil {
+		return EngineSettings{}, err
+	}
+	s.supervisor.ApplyPlaybackConfig(normalized)
+	return saved, nil
+}
+
+func playbackConfig(state settings.EngineState) engine.PlaybackConfig {
+	return engine.PlaybackConfig{
+		Bitrate:                   state.Bitrate,
+		CrossfadeDurationMS:       state.CrossfadeDurationMS,
+		NormalisationDisabled:     state.NormalisationDisabled,
+		NormalisationUseAlbumGain: state.NormalisationUseAlbumGain,
+		NormalisationPregain:      state.NormalisationPregain,
+		CacheEnabled:              state.CacheEnabled,
+		CacheDir:                  state.CacheDir,
+		CacheSizeLimit:            state.CacheSizeLimit,
+		FlacEnabled:               state.FlacEnabled,
+		MPRISEnabled:              state.MPRISEnabled,
+		DeviceIsGroup:             state.DeviceIsGroup,
+		ImageSize:                 state.ImageSize,
+	}
+}
+
+func engineState(config engine.PlaybackConfig) settings.EngineState {
+	return settings.EngineState{
+		Bitrate:                   config.Bitrate,
+		CrossfadeDurationMS:       config.CrossfadeDurationMS,
+		NormalisationDisabled:     config.NormalisationDisabled,
+		NormalisationUseAlbumGain: config.NormalisationUseAlbumGain,
+		NormalisationPregain:      config.NormalisationPregain,
+		CacheEnabled:              config.CacheEnabled,
+		CacheDir:                  config.CacheDir,
+		CacheSizeLimit:            config.CacheSizeLimit,
+		FlacEnabled:               config.FlacEnabled,
+		MPRISEnabled:              config.MPRISEnabled,
+		DeviceIsGroup:             config.DeviceIsGroup,
+		ImageSize:                 config.ImageSize,
+	}
 }
 
 // Playlists returns a page of the user's library playlists.

@@ -7,6 +7,9 @@ import * as catalog$0 from "../../catalog/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as engine$0 from "../../engine/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as settings$0 from "../../settings/models.js";
 
 export type AlbumPage = engine$0.AlbumPage;
 
@@ -17,6 +20,8 @@ export type ArtistPage = engine$0.ArtistPage;
  * types stay owned by engine and catalog.
  */
 export type AudioState = engine$0.AudioState;
+
+export type EngineSettings = settings$0.EngineState;
 
 export type LibraryContext = catalog$0.LibraryContext;
 

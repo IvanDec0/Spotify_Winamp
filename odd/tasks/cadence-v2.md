@@ -781,13 +781,13 @@ four original groups, so the new groups are lost before the HTTP response.
 
 ### T5.3 — Engine settings surface
 
-- [ ] Extend `engine.Options`/`writeConfig` with bitrate, crossfade,
+- [x] Extend `engine.Options`/`writeConfig` with bitrate, crossfade,
       normalization (disabled/album gain/pregain), disk audio cache
       (enabled/dir/size), FLAC, MPRIS and device-group/image-size.
-- [ ] Persist engine settings in Cadence's settings store and expose
+- [x] Persist engine settings in Cadence's settings store and expose
       `GetEngineSettings`/`SetEngineSettings` through a Wails adapter; apply on
       an explicit engine restart, never silently mid-playback.
-- [ ] Tests for config generation, defaults and persistence. Defer the settings
+- [x] Tests for config generation, defaults and persistence. Defer the settings
       UI to Phase 6/7; the bindings and typed facade are ready.
 - Commit: `feat(settings): expose engine playback and cache options`
 
@@ -816,6 +816,7 @@ four original groups, so the new groups are lost before the HTTP response.
 | T5.1 | `ed74d9d` |
 | T5.2 | `feat(library): add collection writes and podcast helpers` |
 | T5.2 correction | `fix(library): use the show collection set for saved shows` |
+| T5.3 | `feat(settings): expose engine playback and cache options` |
 
 ## Progress log
 
@@ -859,3 +860,4 @@ four original groups, so the new groups are lost before the HTTP response.
 | 2026-11-05 | T5.1 | `ed74d9d` | Search-groups patch exposes shows/episodes (raw `audioepisodes` mapped to `episodes`), new hit fields, catalog artwork rewriting, frontend store mapping; live `/search` returned 5 shows + 5 episodes |
 | 2026-11-05 | T5.2 | `feat(library): add collection writes and podcast helpers` | Fourth engine patch adds generic `collection`/`artist`/`show` write and contains routes; engine client, catalog typed use cases (`SetLiked`, `SaveAlbum`, `SaveShow`, `FollowArtist`, playlist add/remove, `YourEpisodes`), adapter, bindings, fake-engine tests and docs; no live writes performed |
 | 2026-11-05 | T5.2 correction | `fix(library): use the show collection set for saved shows` | Live read-only `contains` check: `set:"show"` returned `true` for `spotify:show:5iKz9gAsyuQ1xLG6MFLtQg` (The Wild Project) and `false` for three other shows, while `set:"collection"` returned `false` for all four. `SaveShow`/`IsShowSaved` now use `show`; liked tracks/albums stay on `collection`, follows on `artist`; saved-shows listing stays Phase 6 |
+| 2026-11-05 | T5.3 | `feat(settings): expose engine playback and cache options` | `settings.EngineState` persists bitrate/crossfade/normalisation/cache/FLAC/MPRIS/device-group/image-size with defaults; engine `PlaybackConfig` normalizes and applies under the supervisor mutex; generated config emits the new keys; adapter `Get`/`SetEngineSettings` persists without restarting; bindings and typed facade ready; tests for defaults, round-trip, normalization, config generation and adapter persistence |

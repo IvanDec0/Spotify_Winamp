@@ -1,6 +1,6 @@
 // Package settings persists Cadence's small, user-editable configuration.
-// Skin state and Spotify state are written through section-specific updates so
-// concurrent features never overwrite each other's configuration.
+// Skin, engine and Spotify state are written through section-specific updates
+// so concurrent features never overwrite each other's configuration.
 package settings
 
 import (
@@ -24,16 +24,42 @@ type SkinState struct {
 	ThirdPartyDisabled bool   `json:"thirdPartyDisabled"`
 }
 
+// EngineState is the persisted engine playback and cache configuration.
+type EngineState struct {
+	Bitrate                   int     `json:"bitrate"`
+	CrossfadeDurationMS       int     `json:"crossfadeDurationMs"`
+	NormalisationDisabled     bool    `json:"normalisationDisabled"`
+	NormalisationUseAlbumGain bool    `json:"normalisationUseAlbumGain"`
+	NormalisationPregain      float32 `json:"normalisationPregain"`
+	CacheEnabled              bool    `json:"cacheEnabled"`
+	CacheDir                  string  `json:"cacheDir"`
+	CacheSizeLimit            string  `json:"cacheSizeLimit"`
+	FlacEnabled               bool    `json:"flacEnabled"`
+	MPRISEnabled              bool    `json:"mprisEnabled"`
+	DeviceIsGroup             bool    `json:"deviceIsGroup"`
+	ImageSize                 string  `json:"imageSize"`
+}
+
 // Config is the root configuration document. New top-level sections can be
 // added without changing the skin or Spotify stores.
 type Config struct {
-	SchemaVersion int       `json:"schemaVersion"`
-	Skins         SkinState `json:"skins"`
+	SchemaVersion int          `json:"schemaVersion"`
+	Skins         SkinState    `json:"skins"`
+	Engine        *EngineState `json:"engine,omitempty"`
 }
 
-// Default returns a configuration that always selects the built-in skin and
-// leaves Spotify unconfigured.
+func defaultEngine() EngineState {
+	return EngineState{
+		Bitrate:        320,
+		CacheSizeLimit: "1GB",
+		ImageSize:      "default",
+	}
+}
+
+// Default returns a configuration that always selects the built-in skin, uses
+// the current engine playback defaults and leaves Spotify unconfigured.
 func Default() Config {
+	engine := defaultEngine()
 	return Config{
 		SchemaVersion: SchemaVersion,
 		Skins: SkinState{
@@ -42,6 +68,7 @@ func Default() Config {
 			LastKnownGoodID:    "clarity",
 			LastKnownGoodTheme: "graphite",
 		},
+		Engine: &engine,
 	}
 }
 
@@ -91,6 +118,10 @@ func (s *Store) loadLocked() (Config, error) {
 	if config.SchemaVersion != SchemaVersion {
 		return Default(), fmt.Errorf("unsupported settings schema version %d", config.SchemaVersion)
 	}
+	if config.Engine == nil {
+		engine := defaultEngine()
+		config.Engine = &engine
+	}
 	return config, nil
 }
 
@@ -99,6 +130,18 @@ func (s *Store) loadLocked() (Config, error) {
 func (s *Store) UpdateSkins(mutate func(*SkinState) error) error {
 	return s.update(func(config *Config) error {
 		return mutate(&config.Skins)
+	})
+}
+
+// UpdateEngine atomically updates only the engine section while preserving the
+// latest skin settings on disk.
+func (s *Store) UpdateEngine(mutate func(*EngineState) error) error {
+	return s.update(func(config *Config) error {
+		if config.Engine == nil {
+			engine := defaultEngine()
+			config.Engine = &engine
+		}
+		return mutate(config.Engine)
 	})
 }
 
@@ -120,7 +163,7 @@ func (s *Store) update(mutate func(*Config) error) error {
 }
 
 // Save writes the complete configuration atomically with owner-only
-// permissions. Prefer UpdateSkins or UpdateSpotify for feature code.
+// permissions. Prefer UpdateSkins or UpdateEngine for feature code.
 func (s *Store) Save(config Config) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

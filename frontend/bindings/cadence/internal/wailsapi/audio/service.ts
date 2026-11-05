@@ -59,6 +59,14 @@ export function FollowArtist(uri: string, following: boolean): $CancellablePromi
 }
 
 /**
+ * GetEngineSettings returns the persisted engine playback and cache options,
+ * falling back to the defaults when the settings file has no engine section.
+ */
+export function GetEngineSettings(): $CancellablePromise<$models.EngineSettings> {
+    return $Call.ByID(3285338702);
+}
+
+/**
  * GetState returns the engine and pairing state.
  */
 export function GetState(): $CancellablePromise<$models.AudioState> {
@@ -164,6 +172,16 @@ export function SaveShow(uri: string, saved: boolean): $CancellablePromise<void>
  */
 export function Search(query: string, limit: number): $CancellablePromise<$models.SearchResults> {
     return $Call.ByID(1121661771, query, limit);
+}
+
+/**
+ * SetEngineSettings validates and persists playback options and applies them
+ * to the supervisor. It never restarts the engine: the new values take effect
+ * on the next start, or after the caller invokes Restart following an explicit
+ * user confirmation.
+ */
+export function SetEngineSettings(value: $models.EngineSettings): $CancellablePromise<$models.EngineSettings> {
+    return $Call.ByID(1735429218, value);
 }
 
 /**

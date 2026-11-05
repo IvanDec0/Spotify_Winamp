@@ -1,4 +1,5 @@
 import { Service } from "../../../bindings/cadence/internal/wailsapi/audio";
+import type { EngineSettings } from "./types";
 import { call } from "./client";
 
 /**
@@ -7,6 +8,8 @@ import { call } from "./client";
  */
 export const audio = {
   getState: () => call(() => Service.GetState()),
+  getEngineSettings: () => call(() => Service.GetEngineSettings()),
+  setEngineSettings: (settings: EngineSettings) => call(() => Service.SetEngineSettings(settings)),
   openPairing: () => call(() => Service.OpenPairing()),
   resetSession: () => call(() => Service.ResetSession()),
   restart: () => call(() => Service.Restart()),
