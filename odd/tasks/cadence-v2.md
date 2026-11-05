@@ -1384,7 +1384,9 @@ codes. No live-process readiness test was added.
 ## Phase 8 status
 
 - **Code, docs and artifacts:** complete on `feat/cadence-v2`; v0.2.0
-  AppImage, tarball and checksums built locally.
+  AppImage, tarball and checksums built locally. Follow-up packaging work
+  installed the AppImage icon/desktop entry, fixed the compact skins and cut
+  the AppImage from 171 MB to 110 MB (tarball 21 MB → 16 MB).
 - **Verification:** full Go, engine patch, binding, frontend, build and
   packaging gates green; both artifacts report `0.2.0` and the checksums
   verify. A follow-up rebuild after the AppImage icon and compact-skin fixes

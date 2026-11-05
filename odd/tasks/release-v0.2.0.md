@@ -66,7 +66,8 @@
 | Docs: 0.2.0 installation/Browse tour/visualizer paths, README v2 architecture/features, development release flow, docs index and architecture badge fixes | Done | `rg` consistency checks, `git diff --check` | `77225f1` |
 | Tracker update for R1/R2 | Done | This file | `8da22dc` |
 | Packaging and artifact verification | Done | `task package` exit 0; `sha256sum -c` OK; AppImage and tarball print `Cadence 0.2.0 (<short commit>)`; tarball engine byte-identical to `bin/go-librespot`; AppImage engine has the same BuildID and patch markers; Go tests/race/vet/gofmt, `audio:check`, bindings, frontend gates, `task build` and `git diff --check` green | `5e81c81` |
-| Follow-up rebuild after the AppImage icon and compact-skin fixes | Done | Icon/desktop entry installed in `usr/share`; Lumina/Afterglow duplicate controls removed; Vanta cockpit and display fixed; artifacts rebuilt and checksums re-verified | follow-up commit |
+| Follow-up rebuild after the AppImage icon and compact-skin fixes | Done | Icon/desktop entry installed in `usr/share`; Lumina/Afterglow duplicate controls removed; Vanta cockpit and display fixed; artifacts rebuilt and checksums re-verified | `23c30e3` |
+| AppImage size optimization | Done | Unused GTK3/WebKit2GTK 4.1 stack pruned; audio engine stripped; docs screenshots omitted from the AppImage. Size: AppImage 171 → 110 MB, tarball 21 → 16 MB; checksums and versions re-verified | `6f5ba1f` |
 
 ## Acceptance
 
