@@ -122,5 +122,7 @@ monitor captures system-wide output on Linux/PulseAudio-PipeWire.
 
 | Date | Task | Commit | Result |
 |---|---|---|---|
-| 2026-11-05 | P1 | `feat(browse): add player controls and queue` (hash reported in the session) | Browse shuffle/repeat/seek/mute, queue section with `QueueView`, i18n keys and tests; all frontend/Go/build gates green; live GTK verification pending user |
-| 2026-11-05 | V1 | `feat(audio): add a real monitor-driven visualizer` (hash reported in the session) | Monitor analyzer and `parec` capture, Wails client-set service/event, real-frame rendering in the compact, skin and Browse visualizers with simulated fallback; all gates green; live playback check pending user |
+| 2026-11-05 | P1 | `c3d4529` | Browse shuffle/repeat/seek/mute, queue section with `QueueView`, i18n keys and tests; all frontend/Go/build gates green; live GTK verification pending user |
+| 2026-11-05 | V1 | `f0fbceb` | Monitor analyzer and `parec` capture, Wails client-set service/event, real-frame rendering in the compact, skin and Browse visualizers with simulated fallback; all gates green; live playback check pending user |
+
+| 2026-11-05 | V1 correction | `fix(visualizer): release capture on pagehide` | Closing the Browse/compact webview releases its visualizer client via `pagehide`/`beforeunload`, so a stale client cannot keep the PulseAudio monitor capture alive; test added |

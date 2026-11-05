@@ -23,6 +23,17 @@ export class VisualizerDataStore {
   #unsubscribe: (() => void) | null = null;
   #active = false;
 
+  #release = (): void => {
+    this.stop();
+  };
+
+  constructor() {
+    if (typeof window !== "undefined") {
+      window.addEventListener("pagehide", this.#release);
+      window.addEventListener("beforeunload", this.#release);
+    }
+  }
+
   /** Registers or releases this window. Duplicate states are ignored. */
   setActive(active: boolean): void {
     if (active === this.#active) return;

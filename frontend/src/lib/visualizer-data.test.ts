@@ -70,4 +70,16 @@ describe("visualizer data store", () => {
     store.setActive(true);
     expect(mocks.onVisualizerFrame).toHaveBeenCalledTimes(2);
   });
+
+  it("releases the window on pagehide", () => {
+    const store = new VisualizerDataStore();
+    store.setActive(true);
+    store.frame = frame(Date.now());
+    mocks.setActive.mockClear();
+
+    window.dispatchEvent(new Event("pagehide"));
+
+    expect(mocks.setActive).toHaveBeenCalledWith(store.clientId, false);
+    expect(store.frame).toBeNull();
+  });
 });
