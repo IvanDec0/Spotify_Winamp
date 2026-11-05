@@ -1233,25 +1233,53 @@ Taskfile/CI yet because it is red until the T7.2 sweep.
 | Task | Commit |
 |---|---|
 | T7.1 | `chore(i18n): remove dead UI and add the translation guard` (hash recorded in T7.3) |
-| T7.2 | pending |
+| T7.2 | `feat(i18n): translate the compact player and skin UI` (hash recorded in T7.3) |
 | T7.3 | pending |
 
 ### T7.2 — Compact and skin i18n sweep
 
-- [ ] Migrate every user-facing literal in the live compact and declarative-skin
+- [x] Migrate every user-facing literal in the live compact and declarative-skin
       components (TitleBar, Player, TrackInfo, Transport, Progress, Volume,
       Queue, DevicePopover, DevicePicker, Repeat, Shuffle, SettingsButton,
-      AlbumArt, Visualizer, App error/notice copy) to `t()` keys.
-- [ ] Localize the visualizer mode labels and any remaining compact copy; keep
-      brand names (`CADENCE`, `Clarity`, `Spotify`) as proper nouns.
-- [ ] Complete `es.ts` with neutral Spanish for every key; keep `en.ts` as the
-      typed source. Add the language selector labels.
-- [ ] Error copy: map the existing `PlayerError` codes (`not_authenticated`,
-      `audio_unavailable`, etc.) through catalog keys; keep unknown raw errors
-      as a diagnostic detail.
-- [ ] Tests: locale switch in compact components, key parity, ICU syntax, the
-      i18n guard script, and the language selector.
+      AlbumArt, Visualizer, RuntimeRoot, App error/notice copy) to `t()` keys.
+      Brand names stay proper nouns. The guard is clean at **0 findings**.
+- [x] Localize the visualizer mode labels: `preferences.visualizerModes` now
+      carries `labelKey` (`visualizer.*`) and the compact chip uses `t()`.
+      Browse Settings keeps its own `browse.appearance.visualizer*` keys.
+- [x] Complete `es.ts` with neutral Spanish for every key; `en.ts` remains the
+      typed source and parity is compile-time. `es` keeps the same user-facing
+      English labels for the existing tests.
+- [x] Error copy: `frontend/src/lib/player-error.ts` maps
+      `not_authenticated`, `audio_unavailable` and `no_active_device` to
+      `errors.*`; unknown raw errors remain a diagnostic title/detail instead of
+      the headline.
+- [x] Stores: `music.notice` and `skins.notice` are structured keys/params
+      translated by EngineGate/SettingsView; safe-mode errors use an
+      `errorKey`. Settings/Browse notices already stored keys and stay so.
+- [x] Tests: Spanish Transport locale switch and restore, EngineGate notice,
+      existing key parity/ICU tests, language selector and guard run.
+- [x] Guard/CI: `npm run i18n:check` added to `build/Taskfile.yml`
+      `check:frontend`/`lint:frontend` and the CI frontend step; it now fails the
+      build on new literals.
 - Commit: `feat(i18n): translate the compact player and skin UI`
+
+#### T7.2 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `npm run i18n:check` | exit 0, **0 findings** |
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0 |
+| `npm run test` | exit 0, 38 files / 194 tests |
+| `npm run build` | exit 0 |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+No literal English copy required a guard-allowlist exemption; the remaining
+allowlisted values are brand names (`CADENCE`, `Cadence`, `Clarity`, `Spotify`,
+`Premium`, `JAM`), numbers, units and separator symbols.
 
 ### T7.3 — Error codes, docs and verification
 
@@ -1330,3 +1358,4 @@ Taskfile/CI yet because it is red until the T7.2 sweep.
 | 2026-11-05 | Correction: one visible window | `fix(browse): show one window at a time` | Opening Browse hides the non-destroyed compact window; Browse close (native or `Back to player`) restores/focuses it, with an explicit `CloseBrowse` fallback; docs/tests updated; live GTK swap pending user |
 | 2026-11-05 | Correction: one settings surface | `fix(settings): unify appearance and engine settings in Browse` | Compact badge says Browse; queue notes localized; compact settings/skin overlays replaced by `openBrowse("settings")`; Browse Settings adds appearance and skins management; cross-window preference storage sync; tests updated; live GTK redirect pending user |
 | 2026-11-05 | T7.1 | `chore(i18n): remove dead UI and add the translation guard` | Deleted the 6 unreachable compact components, trimmed `music.svelte.ts` to engine/pairing, added the AST i18n guard (60 findings for T7.2), Browse language selector and `cadence.locale` cross-window sync; frontend/Go/build gates green |
+| 2026-11-05 | T7.2 | `feat(i18n): translate the compact player and skin UI` | Swept compact and declarative-skin literals to typed `en`/`es` keys, localized visualizer labels and player error codes, structured music/skins notices, added Spanish locale coverage and wired `i18n:check` into Taskfile/CI; guard 0 findings and all gates green |

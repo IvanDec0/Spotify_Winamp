@@ -142,6 +142,7 @@ describe("App shell", () => {
     preferences.setMotion("system");
     skins.queueOpen = false;
     skins.error = null;
+    skins.errorKey = null;
     skins.notice = null;
     mocks.openBrowse.mockClear();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);

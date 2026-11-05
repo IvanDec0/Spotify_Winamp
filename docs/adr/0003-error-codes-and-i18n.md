@@ -29,12 +29,13 @@ are embedded in code and backend errors are opaque sentences.
   `localStorage` and updates `document.documentElement.lang`.
 - Skins may provide an optional `i18n` map in `manifest.json`; missing entries
   fall back to the raw label.
-- An ESLint rule for literal `aria-label`, `title`, `placeholder`, `alt` and
-  text nodes in `.svelte` files is planned for the Phase 7 sweep; it is not
-  active in Phase 2. Key parity is compile-time and a test asserts no empty
-  catalog values.
+- The Phase 7 translation guard is `frontend/scripts/check-i18n.mjs`: it walks
+  the Svelte compiler AST for literal text nodes and literal `title`,
+  `aria-label`, `placeholder` and `alt` values, with a small brand/symbol/unit
+  allowlist. `npm run i18n:check` runs in the Taskfile and CI and has no `--fix`
+  mode. Key parity is compile-time and tests assert no empty catalog values.
 - Migration is per module as modules are touched; new code uses `t()` from day
-  one. The final sweep lands in Phase 7.
+  one. The compact and declarative-skin sweep lands in Phase 7.
 
 ## Consequences
 

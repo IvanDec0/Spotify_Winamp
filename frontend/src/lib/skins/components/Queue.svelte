@@ -41,11 +41,16 @@
   }
 </script>
 
-<section class="cad-queue" aria-label="Playback queue" data-component="queue" aria-busy={isLoading}>
+<section
+  class="cad-queue"
+  aria-label={t("queue.playback")}
+  data-component="queue"
+  aria-busy={isLoading}
+>
   {#if showHeader}
     <header class="cad-queue-head">
       <div>
-        <span class="cad-queue-title">Up next</span>
+        <span class="cad-queue-title">{t("queue.upNext")}</span>
         <span class="cad-queue-count">{countLabel}</span>
       </div>
       <span class="cad-queue-note">{queueNote}</span>
@@ -56,7 +61,7 @@
     {#if isLoading}
       <p class="cad-queue-empty" role="status">{t("ui.loading")}</p>
     {:else}
-      <p class="cad-queue-empty">Nothing queued. Start a track in Browse.</p>
+      <p class="cad-queue-empty">{t("queue.empty")}</p>
     {/if}
   {:else}
     <ol class="cad-queue-list">
@@ -69,7 +74,7 @@
         >
           <span class="cad-queue-index">
             {#if item.isCurrent}
-              <span aria-label="Currently playing">▶</span>
+              <span aria-label={t("queue.currentlyPlaying")}>▶</span>
             {:else}
               {String(item.index + 1).padStart(2, "0")}
             {/if}
@@ -111,7 +116,7 @@
           <span class="cad-queue-copy">
             <span class="cad-queue-title" title={item.track.title}>{item.track.title}</span>
             <span class="cad-queue-artist" title={item.track.artists?.join(", ") ?? ""}>
-              {item.track.artists?.join(", ") || "Unknown artist"}
+              {item.track.artists?.join(", ") || t("player.unknownArtist")}
             </span>
           </span>
 

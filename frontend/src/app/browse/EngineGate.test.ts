@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
       binaryPath: "/tmp/go-librespot",
     },
     pairing: null as { code: string; url: string } | null,
+    notice: null as { key: string; params?: Record<string, string | number> } | null,
     openPairing: vi.fn(() => Promise.resolve()),
     resetSession: vi.fn(() => Promise.resolve()),
     restart: vi.fn(() => Promise.resolve()),
@@ -32,6 +33,7 @@ describe("EngineGate", () => {
     mocks.music.audio.available = true;
     mocks.music.audio.binaryPath = "/tmp/go-librespot";
     mocks.music.pairing = null;
+    mocks.music.notice = null;
   });
 
   it("offers an engine retry when the audio engine is unavailable", async () => {
@@ -71,6 +73,15 @@ describe("EngineGate", () => {
     expect(screen.getByRole("button", { name: "Confirm reset" })).not.toBeNull();
     await fireEvent.click(screen.getByRole("button", { name: "Confirm reset" }));
     expect(mocks.music.resetSession).toHaveBeenCalledOnce();
+  });
+
+  it("translates the pairing reset notice", () => {
+    mocks.music.pairing = { code: "ABCD-1234", url: "https://spotify.example/pair" };
+    mocks.music.notice = { key: "music.pairingReset" };
+
+    render(EngineGate);
+
+    expect(screen.getByText("Pairing reset. Use the new code to connect Spotify.")).not.toBeNull();
   });
 
   it("renders nothing once the engine is authenticated", () => {

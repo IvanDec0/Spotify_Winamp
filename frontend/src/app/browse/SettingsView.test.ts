@@ -22,7 +22,8 @@ const mocks = vi.hoisted(() => {
     catalog: null as unknown,
     loading: false,
     error: null as string | null,
-    notice: null as string | null,
+    errorKey: null as string | null,
+    notice: null as { key: string; params?: Record<string, string | number> } | null,
     setTheme: vi.fn(() => Promise.resolve()),
     activate: vi.fn(() => Promise.resolve()),
     installZip: vi.fn(() => Promise.resolve()),
@@ -157,6 +158,7 @@ describe("SettingsView", () => {
     mocks.skins.catalog = skinCatalog();
     mocks.skins.loading = false;
     mocks.skins.error = null;
+    mocks.skins.errorKey = null;
     mocks.skins.notice = null;
   });
 

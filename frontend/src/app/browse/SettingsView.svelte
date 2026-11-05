@@ -573,9 +573,9 @@
         {#if skins.catalog?.safeMode}
           <p class="settings-notice is-error" role="status">{t("browse.skins.safeMode")}</p>
         {/if}
-        {#if skins.error}
+        {#if skins.error || skins.errorKey}
           <div class="settings-notice is-error" role="alert" aria-live="assertive">
-            <span>{skins.error}</span>
+            <span>{skins.errorKey ? t(skins.errorKey) : skins.error}</span>
             <button
               class="settings-dismiss"
               type="button"
@@ -589,7 +589,7 @@
         {/if}
         {#if skins.notice}
           <div class="settings-notice is-success" role="status" aria-live="polite">
-            <span>{skins.notice}</span>
+            <span>{t(skins.notice.key, skins.notice.params)}</span>
             <button
               class="settings-dismiss"
               type="button"

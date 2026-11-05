@@ -1,6 +1,7 @@
 <script lang="ts">
   import { appWindow } from "../../shared/api";
   import type { LayoutNode, SkinRuntime } from "../../shared/api/types";
+  import { t } from "../../shared/i18n";
   import { player } from "../player.svelte";
   import { skins } from "../skins.svelte";
   import { componentRegistry } from "./registry";
@@ -132,7 +133,7 @@
       {#if Component}
         <Component {...node.props ?? {}} />
       {:else}
-        <div class="cad-missing-component">Unsupported component</div>
+        <div class="cad-missing-component">{t("skin.unsupportedComponent")}</div>
       {/if}
     </div>
   {:else if node.type === "box"}

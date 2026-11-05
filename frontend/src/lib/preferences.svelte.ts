@@ -10,10 +10,10 @@ export const themes = [
 export type ThemeId = (typeof themes)[number]["id"];
 
 export const visualizerModes = [
-  { id: "spectrum", label: "Spectrum", glyph: "▥" },
-  { id: "radial", label: "Radial", glyph: "◎" },
-  { id: "oscilloscope", label: "Scope", glyph: "∿" },
-  { id: "grid", label: "Grid", glyph: "⣿" },
+  { id: "spectrum", labelKey: "visualizer.spectrum", glyph: "▥" },
+  { id: "radial", labelKey: "visualizer.radial", glyph: "◎" },
+  { id: "oscilloscope", labelKey: "visualizer.oscilloscope", glyph: "∿" },
+  { id: "grid", labelKey: "visualizer.grid", glyph: "⣿" },
 ] as const;
 
 export type VisualizerMode = (typeof visualizerModes)[number]["id"];

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "../../shared/i18n";
   import { clamp } from "../visualizer";
   import Icon from "./Icon.svelte";
 
@@ -31,13 +32,13 @@
   }
 </script>
 
-<div class="volume" aria-label="Volume">
+<div class="volume" aria-label={t("volume.label")}>
   <button
     class="volume-button"
     type="button"
     disabled={!canControl}
-    aria-label={local > 0 ? "Mute" : "Unmute"}
-    title={local > 0 ? "Mute (M)" : "Unmute (M)"}
+    aria-label={local > 0 ? t("volume.mute") : t("volume.unmute")}
+    title={local > 0 ? t("volume.muteShortcut") : t("volume.unmuteShortcut")}
     onclick={toggleMute}
   >
     <Icon name={local > 0 ? "volume" : "volumeMute"} size={13} />
@@ -49,8 +50,8 @@
     step="1"
     value={local}
     disabled={!canControl}
-    aria-label="Volume level"
-    aria-valuetext={`${Math.round(local)} percent`}
+    aria-label={t("volume.level")}
+    aria-valuetext={t("volume.percent", { value: Math.round(local) })}
     style={`--volume: ${local}%`}
     oninput={(event) => update((event.currentTarget as HTMLInputElement).valueAsNumber)}
   />

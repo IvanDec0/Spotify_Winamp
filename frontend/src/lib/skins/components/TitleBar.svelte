@@ -25,7 +25,7 @@
     compact = false,
   }: Props = $props();
 
-  let deviceLabel = $derived(player.state.device.name || "No device");
+  let deviceLabel = $derived(player.state.device.name || t("device.noDevice"));
 
   function minimise(): void {
     void appWindow.minimise().catch(() => {});
@@ -70,8 +70,8 @@
     <button
       class="cad-device"
       type="button"
-      title="Choose a playback device"
-      aria-label={`Playback device: ${deviceLabel}. Choose a device`}
+      title={t("device.choose")}
+      aria-label={t("device.chooseLabel", { name: deviceLabel })}
       onclick={() => skins.openDevices()}
     >
       <Icon name="device" size={11} />
@@ -95,8 +95,8 @@
       class="cad-title-button"
       class:is-active={skins.queueOpen}
       type="button"
-      title={skins.queueOpen ? "Hide queue" : "Show queue"}
-      aria-label={skins.queueOpen ? "Hide queue" : "Show queue"}
+      title={skins.queueOpen ? t("titlebar.hideQueue") : t("titlebar.showQueue")}
+      aria-label={skins.queueOpen ? t("titlebar.hideQueue") : t("titlebar.showQueue")}
       aria-pressed={skins.queueOpen}
       onclick={() => skins.toggleQueue()}
     >
@@ -109,8 +109,8 @@
     <button
       class="cad-title-button cad-window-button"
       type="button"
-      title="Minimise"
-      aria-label="Minimise window"
+      title={t("titlebar.minimise")}
+      aria-label={t("titlebar.minimiseWindow")}
       onclick={minimise}
     >
       <Icon name="minimise" size={12} />
@@ -118,8 +118,8 @@
     <button
       class="cad-title-button cad-window-button close"
       type="button"
-      title="Close"
-      aria-label="Close window"
+      title={t("ui.close")}
+      aria-label={t("titlebar.closeWindow")}
       onclick={closeWindow}
     >
       <Icon name="close" size={12} />

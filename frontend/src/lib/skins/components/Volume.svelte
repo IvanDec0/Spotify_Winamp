@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "../../../shared/i18n";
   import Icon from "../../components/Icon.svelte";
   import { player } from "../../player.svelte";
   import { clamp } from "../../visualizer";
@@ -34,7 +35,7 @@
 <div
   class="cad-volume"
   class:is-vertical={orientation === "vertical"}
-  aria-label="Volume"
+  aria-label={t("volume.label")}
   data-component="volume"
 >
   {#if showIcon}
@@ -42,8 +43,8 @@
       class="cad-volume-button"
       type="button"
       disabled={!player.state.canControl}
-      aria-label={local > 0 ? "Mute" : "Unmute"}
-      title={local > 0 ? "Mute (M)" : "Unmute (M)"}
+      aria-label={local > 0 ? t("volume.mute") : t("volume.unmute")}
+      title={local > 0 ? t("volume.muteShortcut") : t("volume.unmuteShortcut")}
       onclick={toggleMute}
     >
       <Icon name={local > 0 ? "volume" : "volumeMute"} size={12} />
@@ -56,8 +57,8 @@
     step="1"
     value={local}
     disabled={!player.state.canControl}
-    aria-label="Volume level"
-    aria-valuetext={`${Math.round(local)} percent`}
+    aria-label={t("volume.level")}
+    aria-valuetext={t("volume.percent", { value: Math.round(local) })}
     style={`--progress: ${local}%`}
     oninput={(event) => update((event.currentTarget as HTMLInputElement).valueAsNumber)}
   />

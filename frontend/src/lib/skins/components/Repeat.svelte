@@ -1,5 +1,6 @@
 <script lang="ts">
   import { RepeatMode } from "../../../shared/api/types";
+  import { t } from "../../../shared/i18n";
   import Icon from "../../components/Icon.svelte";
   import { player } from "../../player.svelte";
 
@@ -12,10 +13,10 @@
   let active = $derived(player.state.repeat !== RepeatMode.RepeatOff);
   let label = $derived(
     player.state.repeat === RepeatMode.RepeatTrack
-      ? "Repeat one track"
+      ? t("transport.repeatTrack")
       : player.state.repeat === RepeatMode.RepeatContext
-        ? "Repeat queue"
-        : "Repeat off",
+        ? t("transport.repeatContext")
+        : t("transport.repeatOff"),
   );
 </script>
 
@@ -26,12 +27,12 @@
   disabled={!player.state.canControl}
   aria-label={label}
   aria-pressed={active}
-  title={`${label} (R)`}
+  title={t("transport.repeatShortcut", { label })}
   data-component="repeat"
   onclick={() => void player.cycleRepeat()}
 >
   <Icon name="repeat" size={12} />
-  {#if showLabel}<span>Repeat</span>{/if}
+  {#if showLabel}<span>{t("transport.repeat")}</span>{/if}
   {#if player.state.repeat === RepeatMode.RepeatTrack}
     <span class="cad-repeat-one" aria-hidden="true">1</span>
   {/if}

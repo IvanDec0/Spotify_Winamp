@@ -1,5 +1,11 @@
 import { audio as audioApi, onAudioState, toApiError } from "../shared/api";
 import type { AudioState } from "../shared/api/types";
+import type { MessageKey, MessageParams } from "../shared/i18n";
+
+export interface MusicNotice {
+  key: MessageKey;
+  params?: MessageParams;
+}
 
 function normalizeAudio(state: AudioState): AudioState {
   return {
@@ -47,7 +53,7 @@ class MusicStore {
   loading = $state(true);
   busy = $state(false);
   error = $state<string | null>(null);
-  notice = $state<string | null>(null);
+  notice = $state<MusicNotice | null>(null);
 
   #unsubscribe: (() => void) | null = null;
   #started = false;
@@ -123,7 +129,7 @@ class MusicStore {
       this.audio = normalizeAudio(await audioApi.resetSession());
       this.#syncPoll();
       this.error = null;
-      this.notice = "Pairing reset. Use the new code to connect Spotify.";
+      this.notice = { key: "music.pairingReset" };
     } catch (error) {
       this.error = toApiError(error).message;
     } finally {

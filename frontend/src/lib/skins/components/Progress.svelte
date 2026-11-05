@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Status } from "../../../shared/api/types";
+  import { t } from "../../../shared/i18n";
   import { formatTime } from "../../format";
   import { player } from "../../player.svelte";
   import { clamp } from "../../visualizer";
@@ -72,8 +73,11 @@
     step="100"
     value={shown}
     disabled={!player.state.canSeek}
-    aria-label="Playback position"
-    aria-valuetext={`${formatTime(shown / 1000)} of ${formatTime(duration / 1000)}`}
+    aria-label={t("progress.label")}
+    aria-valuetext={t("progress.value", {
+      position: formatTime(shown / 1000),
+      duration: formatTime(duration / 1000),
+    })}
     style={`--progress: ${percent}%`}
     onpointerdown={beginDrag}
     oninput={update}

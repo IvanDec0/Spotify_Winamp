@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/svelte";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RepeatMode } from "../../shared/api/types";
+import { i18n } from "../../shared/i18n";
 import Transport from "./Transport.svelte";
 
 const defaults = {
@@ -15,7 +16,21 @@ const defaults = {
   onRepeat: vi.fn(),
 };
 
+afterEach(async () => {
+  await i18n.setLocale("en");
+});
+
 describe("Transport", () => {
+  it("renders Spanish controls after a locale switch", async () => {
+    await i18n.setLocale("es");
+    render(Transport, { props: defaults });
+
+    expect(screen.getByRole("button", { name: "Reproducir" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Pista anterior" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Pista siguiente" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Activar aleatorio" })).not.toBeNull();
+  });
+
   it("exposes labelled controls and reports clicks", async () => {
     const props = { ...defaults, onToggle: vi.fn(), onShuffle: vi.fn() };
     render(Transport, { props });

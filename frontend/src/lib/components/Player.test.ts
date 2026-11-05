@@ -76,9 +76,9 @@ describe("Player error states", () => {
       }),
     );
 
-    expect(screen.getByText("Pair Spotify to start")).not.toBeNull();
+    expect(screen.getAllByText("Pair Spotify to start").length).toBeGreaterThan(0);
     expect(screen.getByText("Pair Spotify in Browse")).not.toBeNull();
-    expect(screen.getByText("Pair Cadence with Spotify to start playing music.")).not.toBeNull();
+    expect(screen.getByTitle("Pair Cadence with Spotify to start playing music.")).not.toBeNull();
   });
 
   it("renders a network error without losing the controls", () => {
@@ -95,8 +95,9 @@ describe("Player error states", () => {
     );
 
     expect(
-      screen.getByText("Cannot reach the local audio engine. Cadence will retry."),
+      screen.getByTitle("Cannot reach the local audio engine. Cadence will retry."),
     ).not.toBeNull();
+    expect(screen.getAllByText("Playback error").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
     expect((screen.getByRole("button", { name: "Play" }) as HTMLButtonElement).disabled).toBe(true);
   });

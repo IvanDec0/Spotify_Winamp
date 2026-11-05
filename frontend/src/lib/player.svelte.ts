@@ -9,7 +9,7 @@ import {
 
 const fallbackTrack: Track = {
   id: "loading",
-  title: "Loading playback",
+  title: "",
   artists: [],
   album: "",
   cover: "meridian",
@@ -28,7 +28,7 @@ const fallbackState: PlayerState = {
   repeat: RepeatMode.RepeatOff,
   device: {
     id: "",
-    name: "No device",
+    name: "",
     type: "",
     active: true,
     volumePercent: 0,

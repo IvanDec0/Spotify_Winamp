@@ -1,5 +1,6 @@
 import { onSkinsChanged, skins as skinsApi, toApiError } from "../shared/api";
 import type { InstallResult, LayoutNode, SkinCatalog, SkinRuntime } from "../shared/api/types";
+import type { MessageKey, MessageParams } from "../shared/i18n";
 
 const VISUALIZER_KEY = "cadence.skin.visualizer";
 
@@ -8,6 +9,11 @@ export interface SkinHandlers {
   openDevices: () => void;
   openSettings: () => void;
   openMusic: () => void;
+}
+
+export interface SkinsNotice {
+  key: MessageKey;
+  params?: MessageParams;
 }
 
 function normalizeCatalog(catalog: SkinCatalog): SkinCatalog {
@@ -83,7 +89,8 @@ class SkinsStore {
   runtime = $state<SkinRuntime | null>(null);
   loading = $state(true);
   error = $state<string | null>(null);
-  notice = $state<string | null>(null);
+  errorKey = $state<MessageKey | null>(null);
+  notice = $state<SkinsNotice | null>(null);
   queueOpen = $state(false);
   visualizer = $state("spectrum");
   colors = $state({ accent: "#5ef0ff", secondary: "#7d8cff" });
@@ -173,8 +180,10 @@ class SkinsStore {
       this.catalog = normalizeCatalog(catalog);
       this.#applyRuntime(normalizeRuntime(runtime));
       this.error = null;
+      this.errorKey = null;
     } catch (error) {
       this.error = toApiError(error).message;
+      this.errorKey = null;
     } finally {
       this.loading = false;
     }
@@ -190,6 +199,7 @@ class SkinsStore {
     } catch (error) {
       if (request === this.#runtimeRequest) {
         this.error = toApiError(error).message;
+        this.errorKey = null;
       }
     }
   }
@@ -229,8 +239,10 @@ class SkinsStore {
       this.catalog = normalizeCatalog(catalog);
       await this.#reloadRuntime();
       this.error = null;
+      this.errorKey = null;
     } catch (error) {
       this.error = toApiError(error).message;
+      this.errorKey = null;
     }
   }
 
@@ -238,8 +250,10 @@ class SkinsStore {
     try {
       this.catalog = normalizeCatalog(await skinsApi.setTheme(theme));
       this.error = null;
+      this.errorKey = null;
     } catch (error) {
       this.error = toApiError(error).message;
+      this.errorKey = null;
     }
   }
 
@@ -255,8 +269,10 @@ class SkinsStore {
       this.catalog = normalizeCatalog(await skinsApi.setThirdPartyDisabled(disabled));
       await this.#reloadRuntime();
       this.error = null;
+      this.errorKey = null;
     } catch (error) {
       this.error = toApiError(error).message;
+      this.errorKey = null;
     }
   }
 
@@ -265,8 +281,10 @@ class SkinsStore {
       this.catalog = normalizeCatalog(await skinsApi.reset());
       await this.#reloadRuntime();
       this.error = null;
+      this.errorKey = null;
     } catch (error) {
       this.error = toApiError(error).message;
+      this.errorKey = null;
     }
   }
 
@@ -274,10 +292,12 @@ class SkinsStore {
     try {
       this.catalog = normalizeCatalog(await skinsApi.uninstall(id));
       await this.#reloadRuntime();
-      this.notice = "Skin removed.";
+      this.notice = { key: "skins.noticeRemoved" };
       this.error = null;
+      this.errorKey = null;
     } catch (error) {
       this.error = toApiError(error).message;
+      this.errorKey = null;
     }
   }
 
@@ -293,14 +313,19 @@ class SkinsStore {
     try {
       const result = await action();
       if (result.canceled) {
-        this.notice = "Installation canceled.";
+        this.notice = { key: "skins.noticeInstallCanceled" };
         return;
       }
       this.catalog = normalizeCatalog(result.catalog);
-      this.notice = `${result.skin.name} ${result.skin.version} installed. Activate it when ready.`;
+      this.notice = {
+        key: "skins.noticeInstalled",
+        params: { name: result.skin.name, version: result.skin.version },
+      };
       this.error = null;
+      this.errorKey = null;
     } catch (error) {
       this.error = toApiError(error).message;
+      this.errorKey = null;
     }
   }
 
@@ -308,6 +333,7 @@ class SkinsStore {
     if (!id || this.runtime?.builtin) return;
     void skinsApi.reportRuntimeReady(id, theme).catch((error: unknown) => {
       this.error = toApiError(error).message;
+      this.errorKey = null;
     });
   }
 
@@ -317,9 +343,11 @@ class SkinsStore {
     try {
       this.catalog = normalizeCatalog(await skinsApi.reportRuntimeFailure(id, reason));
       await this.#reloadRuntime();
-      this.error = "The active skin could not be rendered. Cadence restored a safe skin.";
+      this.error = null;
+      this.errorKey = "skins.errorSafeMode";
     } catch (error) {
       this.error = toApiError(error).message;
+      this.errorKey = null;
     }
   }
 
@@ -333,6 +361,7 @@ class SkinsStore {
 
   dismissError(): void {
     this.error = null;
+    this.errorKey = null;
   }
 
   dismissNotice(): void {

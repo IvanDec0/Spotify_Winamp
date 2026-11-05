@@ -1,5 +1,7 @@
 <script lang="ts">
   import { Status, type PlayerState } from "../../shared/api/types";
+  import { t } from "../../shared/i18n";
+  import { playerErrorCopy } from "../player-error";
   import type { VisualizerMode } from "../preferences.svelte";
   import CoverArt from "./CoverArt.svelte";
   import Icon from "./Icon.svelte";
@@ -43,33 +45,26 @@
   }: Props = $props();
 
   let playing = $derived(state.status === Status.StatusPlaying);
-  let stateError = $derived(state.error?.message ?? "");
-  let artists = $derived(
-    state.track.artists?.join(", ") ||
-      (state.error?.code === "not_authenticated"
-        ? "Pair Spotify in Browse"
-        : state.error?.code === "audio_unavailable"
-          ? "Audio engine unavailable"
-          : "Unknown artist"),
-  );
-  let displayTitle = $derived(
-    state.track.title ||
-      (state.error?.code === "not_authenticated"
-        ? "Pair Spotify to start"
-        : state.error?.code === "audio_unavailable"
-          ? "Audio engine unavailable"
-          : "Nothing playing"),
-  );
+  let errorCopy = $derived(playerErrorCopy(state.error));
   let statusLabel = $derived(
     state.status === Status.StatusPlaying
-      ? "Now playing"
+      ? t("browse.nowPlaying")
       : state.status === Status.StatusPaused
-        ? "Paused"
-        : "Stopped",
+        ? t("player.paused")
+        : t("player.stopped"),
+  );
+  let statusText = $derived(errorCopy.statusKey ? t(errorCopy.statusKey) : statusLabel);
+  let statusDetail = $derived(errorCopy.detail || statusText);
+  let artists = $derived(
+    state.track.artists?.join(", ") ||
+      (errorCopy.hintKey ? t(errorCopy.hintKey) : t("player.unknownArtist")),
+  );
+  let displayTitle = $derived(
+    state.track.title || (errorCopy.titleKey ? t(errorCopy.titleKey) : t("browse.nothingPlaying")),
   );
 </script>
 
-<section class="player" class:is-playing={playing} aria-label="Player">
+<section class="player" class:is-playing={playing} aria-label={t("player.label")}>
   <Visualizer
     mode={visualizerMode}
     trackId={state.track.id}
@@ -92,15 +87,11 @@
               class:is-error={Boolean(state.error)}
               aria-hidden="true"
             ></span>
-            <span
-              class="eyebrow"
-              class:is-error={Boolean(state.error)}
-              title={stateError || statusLabel}
-            >
-              {stateError || statusLabel}
+            <span class="eyebrow" class:is-error={Boolean(state.error)} title={statusDetail}>
+              {statusText}
             </span>
             {#if state.shuffle}
-              <span class="mode-tag">SHUF</span>
+              <span class="mode-tag">{t("player.shuffleShort")}</span>
             {/if}
           </span>
 
@@ -130,8 +121,8 @@
         <button
           class="mode-chip"
           type="button"
-          aria-label={`Visualizer: ${visualizerLabel}. Change mode`}
-          title="Change visualizer (V)"
+          aria-label={t("player.visualizerControl", { label: visualizerLabel })}
+          title={t("player.changeVisualizer")}
           onclick={onCycleVisualizer}
         >
           <Icon name="visualizer" size={10} />

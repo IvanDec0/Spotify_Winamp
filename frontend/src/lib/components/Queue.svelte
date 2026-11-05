@@ -16,10 +16,10 @@
   let queueNote = $derived(provider === "demo" ? t("queue.demo") : t("queue.playback"));
 </script>
 
-<section class="queue" aria-label="Playback queue" aria-busy={loading}>
+<section class="queue" aria-label={t("queue.playback")} aria-busy={loading}>
   <header class="queue-head">
     <div class="queue-heading">
-      <span class="eyebrow">Up next</span>
+      <span class="eyebrow">{t("queue.upNext")}</span>
       <span class="queue-count mono">{countLabel}</span>
     </div>
     <span class="queue-note mono">{queueNote}</span>
@@ -29,7 +29,7 @@
     {#if loading}
       <p class="queue-empty" role="status">{t("ui.loading")}</p>
     {:else}
-      <p class="queue-empty">Nothing queued. Start a track in Browse.</p>
+      <p class="queue-empty">{t("queue.empty")}</p>
     {/if}
   {:else}
     <ol class="queue-list">
@@ -42,7 +42,7 @@
         >
           <span class="queue-index mono">
             {#if item.isCurrent}
-              <span class="playing-bars" aria-label="Currently playing">
+              <span class="playing-bars" aria-label={t("queue.currentlyPlaying")}>
                 <i></i><i></i><i></i>
               </span>
             {:else}
@@ -55,12 +55,12 @@
           <span class="queue-copy">
             <span class="queue-title" title={item.track.title}>{item.track.title}</span>
             <span class="queue-artist" title={item.track.artists?.join(", ") ?? ""}>
-              {item.track.artists?.join(", ") || "Unknown artist"}
+              {item.track.artists?.join(", ") || t("player.unknownArtist")}
             </span>
           </span>
 
           {#if item.isNext}
-            <span class="next-tag mono">Next</span>
+            <span class="next-tag mono">{t("queue.next")}</span>
           {/if}
           <span class="queue-time mono">{formatTime(item.track.durationMs / 1000)}</span>
         </li>

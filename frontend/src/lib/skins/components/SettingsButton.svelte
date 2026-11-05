@@ -19,5 +19,5 @@
   onclick={() => skins.openSettings()}
 >
   <Icon name="settings" size={13} />
-  {#if showLabel}<span>Skins</span>{/if}
+  {#if showLabel}<span>{t("browse.skins.title")}</span>{/if}
 </button>

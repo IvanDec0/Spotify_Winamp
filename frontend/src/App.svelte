@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import { appWindow, screens } from "./shared/api";
+  import { t } from "./shared/i18n";
   import DevicePopover from "./lib/components/DevicePopover.svelte";
   import Icon from "./lib/components/Icon.svelte";
   import Player from "./lib/components/Player.svelte";
@@ -43,10 +44,12 @@
   );
 
   let activeTheme = $derived(themes.find((theme) => theme.id === preferences.theme) ?? themes[0]);
-  let activeModeLabel = $derived(
-    visualizerModes.find((mode) => mode.id === preferences.visualizer)?.label ?? "Spectrum",
+  let activeMode = $derived(
+    visualizerModes.find((mode) => mode.id === preferences.visualizer) ?? visualizerModes[0],
   );
-  let displayError = $derived(player.error || skins.error || browseOpenError);
+  let activeModeLabel = $derived(t(activeMode.labelKey));
+  let skinError = $derived(skins.errorKey ? t(skins.errorKey) : skins.error);
+  let displayError = $derived(player.error || skinError || browseOpenError);
   let overlayThemeStyle = $derived(
     skins.isDeclarative
       ? Object.entries(skins.palette)
@@ -298,7 +301,7 @@
 
   function dismissError(): void {
     if (player.error) player.dismissError();
-    if (skins.error) skins.dismissError();
+    if (skins.error || skins.errorKey) skins.dismissError();
     browseOpenError = null;
   }
 
@@ -394,7 +397,7 @@
           onClose={closeWindow}
         />
 
-        <main class="player-region" aria-label="Cadence player">
+        <main class="player-region" aria-label={t("app.playerLabel")}>
           <Player
             state={player.state}
             visualizerMode={preferences.visualizer}
@@ -428,7 +431,7 @@
             <button
               class="popover-backdrop"
               type="button"
-              aria-label="Close popover"
+              aria-label={t("app.closePopover")}
               tabindex="-1"
               onclick={closePopovers}
             ></button>
@@ -459,7 +462,7 @@
         <button
           class="popover-backdrop"
           type="button"
-          aria-label="Close popover"
+          aria-label={t("app.closePopover")}
           tabindex="-1"
           onclick={closePopovers}
         ></button>
@@ -489,7 +492,12 @@
           <Icon name="info" size={13} />
         </span>
         <span class="toast-message">{displayError}</span>
-        <button class="toast-close" type="button" aria-label="Dismiss error" onclick={dismissError}>
+        <button
+          class="toast-close"
+          type="button"
+          aria-label={t("app.dismissError")}
+          onclick={dismissError}
+        >
           <Icon name="close" size={11} />
         </button>
       </div>

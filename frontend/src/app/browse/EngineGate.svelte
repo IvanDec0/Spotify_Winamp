@@ -136,6 +136,11 @@
           {music.error}
         </p>
       {/if}
+      {#if music.notice}
+        <p class="engine-gate-status" role="status">
+          {t(music.notice.key, music.notice.params)}
+        </p>
+      {/if}
     </div>
   </section>
 {/if}

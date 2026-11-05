@@ -161,7 +161,8 @@ Tests for the engine integration use `httptest` servers and do not need Spotify 
 - Album art is proxied/cached through Go; skins and CSS cannot load arbitrary remote URLs.
 - Skins are declarative JSON + CSS + local assets. No JavaScript in level 1–2 skins.
 - The built-in Clarity skin must always be available as a fallback.
-- Use English for UI strings, code comments, commit messages and documentation.
+- Use English for code comments, commit messages and documentation. User-facing
+  UI copy belongs in the `en`/`es` catalogs and is rendered with `t()`.
 - Keep production dependencies pinned exactly; do not use `latest`.
 
 ## Continuous integration
@@ -169,7 +170,8 @@ Tests for the engine integration use `httptest` servers and do not need Spotify 
 `.github/workflows/ci.yml` runs on an `archlinux:base-devel` container. It installs the system and Go toolchain, then runs:
 
 1. `npm ci`
-2. `npm run check`, `npm run lint`, `npm run format`, `npm run test`, `npm run build`
+2. `npm run check`, `npm run lint`, `npm run format`, `npm run i18n:check`,
+   `npm run test`, `npm run build`
 3. Filtered `go test` and `go vet`
 4. `wails3 build`
 5. On `main` or manual dispatch, `task package` and uploads the release artifacts

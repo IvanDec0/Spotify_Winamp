@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "../../../shared/i18n";
   import { coverURL } from "../../artwork";
   import { player } from "../../player.svelte";
 
@@ -32,7 +33,7 @@
   class:is-reflected={reflection}
   style={`--cover-size: ${size}px`}
   role="img"
-  aria-label={`Album art for ${player.state.track.title}`}
+  aria-label={t("albumArt.label", { title: player.state.track.title })}
   data-component="album-art"
 >
   <div class="cad-cover-inner">

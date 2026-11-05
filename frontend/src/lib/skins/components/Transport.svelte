@@ -1,5 +1,6 @@
 <script lang="ts">
   import { RepeatMode, Status } from "../../../shared/api/types";
+  import { t } from "../../../shared/i18n";
   import Icon from "../../components/Icon.svelte";
   import { player } from "../../player.svelte";
 
@@ -14,10 +15,10 @@
   let playing = $derived(player.state.status === Status.StatusPlaying);
   let repeatLabel = $derived(
     player.state.repeat === RepeatMode.RepeatTrack
-      ? "Repeat one track"
+      ? t("transport.repeatTrack")
       : player.state.repeat === RepeatMode.RepeatContext
-        ? "Repeat queue"
-        : "Repeat off",
+        ? t("transport.repeatContext")
+        : t("transport.repeatOff"),
   );
 </script>
 
@@ -25,7 +26,7 @@
   class="cad-transport"
   class:is-compact={size === "compact"}
   class:is-large={size === "large"}
-  aria-label="Playback controls"
+  aria-label={t("transport.controls")}
   data-component="transport-controls"
 >
   {#if showShuffle}
@@ -34,9 +35,9 @@
       class:is-active={player.state.shuffle}
       type="button"
       disabled={!player.state.canControl}
-      aria-label={player.state.shuffle ? "Turn shuffle off" : "Turn shuffle on"}
+      aria-label={player.state.shuffle ? t("transport.shuffleOff") : t("transport.shuffleOn")}
       aria-pressed={player.state.shuffle}
-      title="Shuffle (S)"
+      title={t("transport.shuffleShortcut")}
       onclick={() => void player.toggleShuffle()}
     >
       <Icon name="shuffle" size={13} />
@@ -47,8 +48,8 @@
     class="cad-control"
     type="button"
     disabled={!player.state.canControl}
-    aria-label="Previous track"
-    title="Previous (Shift+←)"
+    aria-label={t("transport.previousTrack")}
+    title={t("transport.previousShortcut")}
     onclick={() => void player.previous()}
   >
     <Icon name="previous" size={14} />
@@ -59,8 +60,8 @@
     class:is-playing={playing}
     type="button"
     disabled={!player.state.canControl}
-    aria-label={playing ? "Pause" : "Play"}
-    title={playing ? "Pause (Space)" : "Play (Space)"}
+    aria-label={playing ? t("transport.pause") : t("transport.play")}
+    title={playing ? t("transport.pauseShortcut") : t("transport.playShortcut")}
     onclick={() => void player.toggle()}
   >
     <Icon name={playing ? "pause" : "play"} size={14} />
@@ -70,8 +71,8 @@
     class="cad-control"
     type="button"
     disabled={!player.state.canControl}
-    aria-label="Next track"
-    title="Next (Shift+→)"
+    aria-label={t("transport.nextTrack")}
+    title={t("transport.nextShortcut")}
     onclick={() => void player.next()}
   >
     <Icon name="next" size={14} />
@@ -85,7 +86,7 @@
       disabled={!player.state.canControl}
       aria-label={repeatLabel}
       aria-pressed={player.state.repeat !== RepeatMode.RepeatOff}
-      title={`${repeatLabel} (R)`}
+      title={t("transport.repeatShortcut", { label: repeatLabel })}
       onclick={() => void player.cycleRepeat()}
     >
       <Icon name="repeat" size={13} />

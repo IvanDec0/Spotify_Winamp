@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
+  import { t } from "../../shared/i18n";
   import { formatTime } from "../format";
   import { clamp } from "../visualizer";
 
@@ -118,8 +119,11 @@
       step="100"
       value={shownMs}
       disabled={!canSeek}
-      aria-label="Playback position"
-      aria-valuetext={`${formatTime(shownMs / 1000)} of ${formatTime(durationMs / 1000)}`}
+      aria-label={t("progress.label")}
+      aria-valuetext={t("progress.value", {
+        position: formatTime(shownMs / 1000),
+        duration: formatTime(durationMs / 1000),
+      })}
       onpointerdown={() => {
         dragging = true;
         dragValue = shownMs;
