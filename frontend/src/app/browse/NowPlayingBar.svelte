@@ -98,34 +98,35 @@
 </script>
 
 <footer class="now-playing" aria-label={t("browse.nowPlaying")}>
-  <div class="track">
-    <div class="cover" aria-hidden="true">
-      {#if coverSrc}
-        <img src={coverSrc} alt="" width="48" height="48" loading="eager" decoding="async" />
-      {:else}
-        <Icon name="note" size={18} />
-      {/if}
-    </div>
-    <div class="track-copy">
-      <span class="track-title">{track.title || t("browse.nothingPlaying")}</span>
-      <span class="track-meta">{artistLabel}</span>
-    </div>
-    <div class="spectrum-preview" aria-hidden="true">
-      <BrowseVisualizer />
-    </div>
-    <button
-      class="heart-button"
-      class:is-liked={browse.currentLiked}
-      type="button"
-      disabled={!track.uri || browse.likedLoading}
-      title={heartLabel}
-      aria-label={heartLabel}
-      aria-pressed={browse.currentLiked}
-      onclick={() => void browse.toggleCurrentLike()}
-    >
-      <Icon name="heart" size={15} filled={browse.currentLiked} />
-    </button>
+  <div class="visualizer-strip" aria-hidden="true">
+    <BrowseVisualizer />
   </div>
+  <div class="bar-row">
+    <div class="track">
+      <div class="cover" aria-hidden="true">
+        {#if coverSrc}
+          <img src={coverSrc} alt="" width="48" height="48" loading="eager" decoding="async" />
+        {:else}
+          <Icon name="note" size={18} />
+        {/if}
+      </div>
+      <div class="track-copy">
+        <span class="track-title">{track.title || t("browse.nothingPlaying")}</span>
+        <span class="track-meta">{artistLabel}</span>
+      </div>
+      <button
+        class="heart-button"
+        class:is-liked={browse.currentLiked}
+        type="button"
+        disabled={!track.uri || browse.likedLoading}
+        title={heartLabel}
+        aria-label={heartLabel}
+        aria-pressed={browse.currentLiked}
+        onclick={() => void browse.toggleCurrentLike()}
+      >
+        <Icon name="heart" size={15} filled={browse.currentLiked} />
+      </button>
+    </div>
 
   <div class="transport" role="group" aria-label={t("transport.controls")}>
     <button
@@ -229,17 +230,31 @@
       oninput={setVolume}
     />
   </div>
+  </div>
 </footer>
 
 <style>
   .now-playing {
-    display: grid;
-    grid-template-columns: minmax(170px, 1fr) auto minmax(150px, 0.9fr) auto;
-    align-items: center;
-    gap: 22px;
-    padding: 14px 24px;
+    display: flex;
+    flex-direction: column;
     border-top: 1px solid var(--line);
     background: color-mix(in srgb, var(--panel) 88%, var(--bg));
+  }
+
+  .visualizer-strip {
+    width: 100%;
+    height: 18px;
+    flex: 0 0 18px;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.3fr) auto minmax(180px, 1fr) auto;
+    align-items: center;
+    gap: 18px;
+    padding: 12px 24px;
   }
 
   .track {
@@ -272,13 +287,6 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-  }
-
-  .spectrum-preview {
-    width: 72px;
-    height: 28px;
-    flex: 0 0 72px;
-    opacity: 0.85;
   }
 
   .track-copy {
@@ -490,28 +498,36 @@
   }
 
   @media (max-width: 900px) {
-    .now-playing {
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px 14px;
-      padding: 12px 18px;
+    .bar-row {
+      grid-template-columns: minmax(190px, 1fr) auto;
+      grid-template-areas:
+        "track transport"
+        "progress volume";
+      gap: 8px 14px;
+      padding: 10px 16px;
     }
 
-    .spectrum-preview {
-      display: none;
+    .track {
+      grid-area: track;
+    }
+
+    .transport {
+      grid-area: transport;
+      justify-self: end;
     }
 
     .progress {
-      grid-column: 1 / -1;
+      grid-area: progress;
     }
 
     .volume {
-      grid-column: 1 / -1;
-      justify-content: flex-end;
+      grid-area: volume;
+      justify-self: end;
     }
   }
 
   @media (max-width: 560px) {
-    .now-playing {
+    .bar-row {
       padding: 10px 12px;
     }
 

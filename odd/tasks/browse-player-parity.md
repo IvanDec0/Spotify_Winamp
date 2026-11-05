@@ -126,3 +126,5 @@ monitor captures system-wide output on Linux/PulseAudio-PipeWire.
 | 2026-11-05 | V1 | `f0fbceb` | Monitor analyzer and `parec` capture, Wails client-set service/event, real-frame rendering in the compact, skin and Browse visualizers with simulated fallback; all gates green; live playback check pending user |
 
 | 2026-11-05 | V1 correction | `fix(visualizer): release capture on pagehide` | Closing the Browse/compact webview releases its visualizer client via `pagehide`/`beforeunload`, so a stale client cannot keep the PulseAudio monitor capture alive; test added |
+
+| 2026-11-05 | Layout correction | `fix(browse): restore track info in the now-playing bar` | Moved the mini visualizer out of the track row into a full-width 18 px strip above the bar; the track copy no longer competes with it, and the bar switches to a two-row layout at <=900 px so title/artist remain visible at the 720 px minimum |
