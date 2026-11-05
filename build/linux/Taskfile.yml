@@ -48,11 +48,18 @@ tasks:
       - mkdir -p out
       - wails3 generate appimage -binary "{{.APP_NAME}}" -icon "{{.APP_NAME}}.png" -desktopfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -outputdir "{{.ROOT_DIR}}/build/linux/appimage/out" -builddir "{{.ROOT_DIR}}/build/linux/appimage/build"
       - rm -f "{{.ROOT_DIR}}/build/linux/appimage/out/{{.APP_NAME}}-{{.ARCH}}.AppImage"
+      # Wails beta.34 copies every WebKit helper generation it finds, so the
+      # AppDir ends up with both WebKitGTK 6.0 and WebKit2GTK 4.1. Cadence only
+      # links the GTK4 stack; remove the unused GTK3/WebKit4.1 files before the
+      # final linuxdeploy pack so its dependencies are not bundled either.
+      - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/lib/webkit2gtk-4.1" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/lib/girepository-1.0" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/lib/gtk-3.0" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/gtk-3.0"
+      - rm -f "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/lib/libwebkit2gtk-4.1.so"* "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/lib/libjavascriptcoregtk-4.1.so"* "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/lib/libgtk-3.so"* "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/lib/libgdk-3.so"*
       - cp "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/bin/go-librespot"
       - chmod 755 "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/bin/go-librespot"
       - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence"
       - cp "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/CHANGELOG.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
       - cp -R "{{.ROOT_DIR}}/docs" "{{.ROOT_DIR}}/LICENSES" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
+      - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/docs/screenshots"
       - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/cadence/skins"
       - cp -R "{{.ROOT_DIR}}/skins-dev/lumina" "{{.ROOT_DIR}}/skins-dev/afterglow" "{{.ROOT_DIR}}/skins-dev/vanta" "{{.ROOT_DIR}}/skins-dev/nightstar" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/cadence/skins/"
       - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/applications" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/pixmaps"

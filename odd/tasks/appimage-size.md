@@ -1,6 +1,7 @@
 # AppImage size optimization
 
-> **Status:** In progress.
+> **Status:** Complete — final artifacts rebuilt and verified; live GTK smoke
+> remains pending the user.
 > **Branch:** `feat/cadence-v2`
 > **Scope:** reduce the v0.2.0 AppImage without removing runtime features.
 
@@ -21,33 +22,42 @@
 
 ### O1 — Prune the unused GTK3/WebKit4.1 stack
 
-- [ ] After `wails3 generate appimage`, remove
+- [x] After `wails3 generate appimage`, remove
       `usr/lib/webkit2gtk-4.1`, `usr/lib/girepository-1.0`,
       `usr/lib/gtk-3.0` and the `libwebkit2gtk-4.1`,
       `libjavascriptcoregtk-4.1`, `libgtk-3` and `libgdk-3` libraries before
       the final linuxdeploy pack. Keep the GTK4/WebKit6 stack untouched.
-- [ ] Omit `docs/screenshots` from the AppImage docs copy.
-- Expected: AppDir ~333 MB, AppImage ~119 MB.
+- [x] Omit `docs/screenshots` from the AppImage docs copy.
+- Result: AppDir **323 MB**, AppImage **110 MB** (with the stripped engine and
+  without the screenshots).
 
 ### O2 — Strip the audio engine
 
-- [ ] Add `-s -w` to the `go build` ldflags in
+- [x] Add `-s -w` to the `go build` ldflags in
       `scripts/build-go-librespot.sh` while keeping the injected engine version.
-- [ ] Rebuild `bin/go-librespot`; expect ~18 MB instead of 26 MB and a
-      stripped ELF. The engine must still print its help/version.
+- [x] Rebuild `bin/go-librespot`: **18 MB** instead of 26 MB, stripped ELF;
+      `--help` still works.
 
 ### O3 — Rebuild and verify
 
-- [ ] `task audio:build`, `task package`.
-- [ ] Verify AppImage size, `sha256sum -c`, `--version` from AppImage and
+- [x] `task audio:build`, `task package`.
+- [x] Verify AppImage size, `sha256sum -c`, `--version` from AppImage and
       tarball, no `webkit2gtk-4.1`/`gtk-3` files in the AppImage, the engine is
       stripped, and the docs no longer contain screenshots.
-- [ ] `ldd` over the extracted `usr/bin/cadence` and WebKit helpers with the
+- [x] `ldd` over the extracted `usr/bin/cadence` and WebKit helpers with the
       AppDir library path: no `not found`.
-- [ ] Full gates: Go tests/vet/gofmt, frontend i18n/check/lint/format/test/build,
+- [x] Full gates: Go tests/vet/gofmt, frontend i18n/check/lint/format/test/build,
       `task build`, `git diff --check`.
 - [ ] Live GTK smoke pending user: open the AppImage and confirm the UI,
       WebKit content, skins and audio engine still work.
+
+## Progress log
+
+| Work unit | Changes | Verification | Commit |
+|---|---|---|---|
+| Prune unused WebKit/GTK3 stack | `build/linux/Taskfile.yml` removes `usr/lib/webkit2gtk-4.1`, `usr/lib/girepository-1.0`, `usr/lib/gtk-3.0`, the 4.1/GTK3 libraries and the AppImage docs screenshots before the final linuxdeploy pack. | AppDir 484 → 323 MB; AppImage 171 → 110 MB; no `webkit2gtk-4.1`/`gtk-3` files; `ldd` over `cadence` and all WebKit helpers reports no missing libraries. | perf commit |
+| Strip the audio engine | `scripts/build-go-librespot.sh` adds `-s -w`; engine rebuilt. | 26 → 18 MB; stripped ELF; `--help` exit 0. | perf commit |
+| Final verification | `task package`, checksums, versions, full Go/frontend/build gates. | `sha256sum -c` OK; AppImage and tarball report `0.2.0`; 239 frontend tests; Go tests/vet/gofmt; `task build`; `git diff --check`. | perf commit |
 
 ## Acceptance
 

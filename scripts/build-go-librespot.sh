@@ -51,7 +51,7 @@ fi
 	# report Cadence's revision as the engine version. Inject the real pin and
 	# disable VCS stamping.
 	go build -trimpath -buildvcs=false \
-		-ldflags "-X github.com/devgianlu/go-librespot.version=${VERSION#v}" \
+		-ldflags "-s -w -X github.com/devgianlu/go-librespot.version=${VERSION#v}" \
 		-o "${OUTPUT}" ./cmd/daemon
 )
 

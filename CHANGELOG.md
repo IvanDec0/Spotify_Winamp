@@ -41,6 +41,10 @@ requires a Spotify Premium account.
 - Pinned go-librespot to `v0.10.6-0.20261104085532-16b65bb4cd2b` with four
   local patches: search/radio, search groups (shows/episodes), library
   collection writes and HTTP proxy support.
+- The AppImage no longer bundles the unused GTK3/WebKit2GTK 4.1 stack, strips
+  the audio engine and omits documentation screenshots. The v0.2.0 AppImage
+  drops from about 171 MB to about 110 MB and the tarball from about 21 MB to
+  16 MB.
 - AppImage and tarball now bundle `CHANGELOG.md` and the `docs/` directory
   alongside the README, notices and licenses.
 - `--version` prints the stamped release version and short commit, then exits
