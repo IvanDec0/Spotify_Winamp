@@ -90,16 +90,27 @@ services expose plain Go methods and never touch `application.App`.
 
 The catalog has its own native window, separate from the compact player.
 
-- `internal/platform.WindowService.OpenBrowse` creates the window named
-  `browse` on demand (`GetByName` shows and focuses an existing instance) with
-  a normal frame, 960×640 logical size, 720×480 minimum and the URL
-  `/?surface=browse`. `CloseBrowse` and `BrowseOpen` complete the host API.
+- `internal/platform.WindowService.OpenBrowse(section)` creates the window
+  named `browse` on demand with a normal frame, 960×640 logical size,
+  720×480 minimum and `/?surface=browse&section=<section>`. The section is
+  validated (`search`, `library`, `podcasts`, `settings`; empty means
+  `library`). An existing window is shown, focused and sent
+  `browse:navigate` so it switches sections without reloading. `CloseBrowse`
+  and `BrowseOpen` complete the host API.
+- The compact window's `LOCAL` provider badge calls `openBrowse("library")`
+  directly; the old in-window Library panel is no longer rendered. Its handlers
+  and skin `open-library` actions route to the same Browse opener.
 - `frontend/src/main.ts` branches on `surface=browse` and dynamically imports
   the Browse entry, so the compact window never downloads the Browse chunk.
-  `initI18n()` stays shared by both surfaces.
+  `initI18n()` stays shared by both surfaces. The entry reads `section=` before
+  mounting and starts the audio/music store.
 - `frontend/src/app/browse/BrowseApp.svelte` is app-owned: sidebar, search
   field, section views and the now-playing bar use `shared/ui`, `shared/i18n`
   and the existing player/skin stores. It does not import `lib/components`.
+  It subscribes to `browse:navigate`, and while `music.authenticated` is false
+  it replaces catalog content with `EngineGate`; the sweep keeps pairing,
+  engine-retry and copy/reset actions in Browse. Settings remains reachable
+  before pairing.
 - `frontend/src/app/browse/browse.svelte.ts` owns the Browse state: latest-wins
   search across the six groups, paged library tabs (playlists, albums, artists
   and Your Episodes), the entity back stack, retried `contextTracks` loading,

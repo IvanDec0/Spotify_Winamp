@@ -24,3 +24,11 @@ export function onAudioState(handler: Handler<AudioState>): () => void {
 export function onSkinsChanged(handler: Handler<SkinCatalog>): () => void {
   return Events.On("skins:changed", (event) => handler(event.data as SkinCatalog));
 }
+
+/**
+ * Subscribes to section changes requested by the compact window. The payload
+ * is the validated section name.
+ */
+export function onBrowseNavigate(handler: Handler<string>): () => void {
+  return Events.On("browse:navigate", (event) => handler(event.data as string));
+}

@@ -13,7 +13,7 @@ vi.mock("@wailsio/runtime", () => ({
   Events: { On: mocks.on },
 }));
 
-import { onAudioState, onPlayerState, onSkinsChanged } from "./events";
+import { onAudioState, onBrowseNavigate, onPlayerState, onSkinsChanged } from "./events";
 
 function handlerFor(name: string): EventHandler {
   const call = mocks.on.mock.calls.find(([eventName]) => eventName === name);
@@ -49,6 +49,15 @@ describe("api events", () => {
 
     expect(audio).toHaveBeenCalledWith({ available: true });
     expect(skins).toHaveBeenCalledWith({ activeId: "clarity" });
+  });
+
+  it("unwraps Browse navigation section names", () => {
+    const listener = vi.fn();
+    onBrowseNavigate(listener);
+
+    handlerFor("browse:navigate")({ data: "podcasts" });
+
+    expect(listener).toHaveBeenCalledWith("podcasts");
   });
 
   it("unsubscribes through the returned function", () => {

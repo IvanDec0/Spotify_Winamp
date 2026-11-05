@@ -13,7 +13,16 @@ import type {
 import type { MessageKey, MessageParams } from "../../shared/i18n";
 import { player } from "../../lib/player.svelte";
 
-export type Section = "search" | "library" | "podcasts" | "settings";
+export const BROWSE_SECTIONS = ["search", "library", "podcasts", "settings"] as const;
+export type Section = (typeof BROWSE_SECTIONS)[number];
+
+/** Accepts a URL or event value only when it is a known Browse section. */
+export function normalizeSection(value: unknown, fallback: Section = "library"): Section {
+  return typeof value === "string" && (BROWSE_SECTIONS as readonly string[]).includes(value)
+    ? (value as Section)
+    : fallback;
+}
+
 export type SearchTab = "tracks" | "albums" | "artists" | "playlists" | "shows" | "episodes";
 export type LibraryTab = "playlists" | "albums" | "artists" | "episodes";
 export type EntityKind = "playlist" | "album" | "artist" | "show";
@@ -556,6 +565,11 @@ export class BrowseStore {
     } finally {
       this.busy = false;
     }
+  }
+
+  setInitialSection(section: Section): void {
+    this.#resetRoute();
+    this.section = section;
   }
 
   setSection(section: Section): void {

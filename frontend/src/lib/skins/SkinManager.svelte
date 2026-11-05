@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "../../shared/i18n";
   import Icon from "../components/Icon.svelte";
   import {
     preferences,
@@ -98,7 +99,7 @@
       <h2>Skins</h2>
     </div>
     <div class="head-actions">
-      <button class="spotify-link" type="button" onclick={onOpenMusic}>Library</button>
+      <button class="spotify-link" type="button" onclick={onOpenMusic}>{t("browse.open")}</button>
       <button class="close" type="button" aria-label="Close skin library" onclick={onClose}>
         <Icon name="close" size={12} />
       </button>

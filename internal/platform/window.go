@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -15,30 +16,56 @@ import (
 // Cadence needs a real resize for the queue expansion.
 type WindowService struct{}
 
-// browseWindowName is the stable Wails name used to focus an existing Browse
-// window instead of opening a duplicate.
-const browseWindowName = "browse"
+const (
+	// browseWindowName is the stable Wails name used to focus an existing
+	// Browse window instead of opening a duplicate.
+	browseWindowName = "browse"
+
+	// BrowseNavigateEvent asks an already-open Browse window to switch sections.
+	BrowseNavigateEvent = "browse:navigate"
+)
+
+// browseSection normalizes the section requested by the compact window. The
+// value becomes part of a URL, so only known identifiers are accepted.
+func browseSection(section string) (string, error) {
+	switch section {
+	case "", "library":
+		return "library", nil
+	case "search", "podcasts", "settings":
+		return section, nil
+	default:
+		return "", fmt.Errorf("unsupported browse section %q", section)
+	}
+}
 
 func NewWindowService() *WindowService {
 	return &WindowService{}
 }
 
 // OpenBrowse opens the dedicated Browse window, or focuses it when it already
-// exists. Window creation runs on the GTK main thread through Wails; the
-// window is opaque and keeps a normal frame so it behaves like a regular
-// second window.
-func (s *WindowService) OpenBrowse() error {
+// exists. An existing window receives a navigation event instead of a reload.
+// Window creation runs on the GTK main thread through Wails; the window is
+// opaque and keeps a normal frame so it behaves like a regular second window.
+func (s *WindowService) OpenBrowse(section string) error {
+	normalized, err := browseSection(section)
+	if err != nil {
+		return err
+	}
 	app := application.Get()
 	if app == nil {
 		return errors.New("application is not ready")
 	}
 
 	if window, ok := app.Window.GetByName(browseWindowName); ok {
-		return application.InvokeSyncWithError(func() error {
+		if err := application.InvokeSyncWithError(func() error {
 			window.Show()
 			window.Focus()
 			return nil
-		})
+		}); err != nil {
+			return err
+		}
+		app.Event.Emit(BrowseNavigateEvent, normalized)
+		return nil
 	}
 
 	return application.InvokeSyncWithError(func() error {
@@ -49,7 +76,7 @@ func (s *WindowService) OpenBrowse() error {
 			Height:           640,
 			MinWidth:         720,
 			MinHeight:        480,
-			URL:              "/?surface=browse",
+			URL:              "/?surface=browse&section=" + normalized,
 			Zoom:             1,
 			Frameless:        false,
 			BackgroundType:   application.BackgroundTypeSolid,

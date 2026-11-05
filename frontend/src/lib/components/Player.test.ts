@@ -77,7 +77,7 @@ describe("Player error states", () => {
     );
 
     expect(screen.getByText("Pair Spotify to start")).not.toBeNull();
-    expect(screen.getByText("Pair Spotify in the Library")).not.toBeNull();
+    expect(screen.getByText("Pair Spotify in Browse")).not.toBeNull();
     expect(screen.getByText("Pair Cadence with Spotify to start playing music.")).not.toBeNull();
   });
 

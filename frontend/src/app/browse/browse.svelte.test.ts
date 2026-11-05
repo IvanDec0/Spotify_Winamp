@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LibraryContext, LibraryPlaylist, SearchResults } from "../../shared/api/types";
-import { BrowseStore, type EntityRef } from "./browse.svelte";
+import { BrowseStore, normalizeSection, type EntityRef } from "./browse.svelte";
 
 const mocks = vi.hoisted(() => ({
   search: vi.fn(),
@@ -124,6 +124,17 @@ describe("BrowseStore", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("accepts a validated initial section", () => {
+    expect(normalizeSection("podcasts")).toBe("podcasts");
+    expect(normalizeSection("bogus")).toBe("library");
+    expect(normalizeSection(null)).toBe("library");
+    expect(normalizeSection("settings", "search")).toBe("settings");
+
+    store.setInitialSection("library");
+    expect(store.section).toBe("library");
+    expect(store.route.name).toBe("root");
   });
 
   it("keeps the latest search response and maps every group", async () => {

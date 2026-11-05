@@ -1,5 +1,6 @@
 <script lang="ts">
   import { appWindow } from "../../../shared/api";
+  import { t } from "../../../shared/i18n";
   import Icon from "../../components/Icon.svelte";
   import { player } from "../../player.svelte";
   import { skins } from "../../skins.svelte";
@@ -55,8 +56,8 @@
       <button
         class="cad-provider"
         type="button"
-        title="Music library"
-        aria-label="Open music library"
+        title={t("browse.openWindow")}
+        aria-label={t("browse.openWindow")}
         onclick={() => skins.openMusic()}
       >
         {providerLabel}

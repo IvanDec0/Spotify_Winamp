@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
+  import { music } from "../../lib/music.svelte";
   import { player } from "../../lib/player.svelte";
   import { isThemeId, preferences } from "../../lib/preferences.svelte";
   import { skins } from "../../lib/skins.svelte";
+  import { onBrowseNavigate } from "../../shared/api";
   import { t } from "../../shared/i18n";
+  import EngineGate from "./EngineGate.svelte";
   import EntityView from "./EntityView.svelte";
   import Icon from "./Icon.svelte";
   import type { BrowseIcon } from "./icons";
@@ -12,7 +15,7 @@
   import PodcastsView from "./PodcastsView.svelte";
   import SearchView from "./SearchView.svelte";
   import SettingsView from "./SettingsView.svelte";
-  import { browse, type Section } from "./browse.svelte";
+  import { browse, normalizeSection, type Section } from "./browse.svelte";
   import { applyTokens, readSkinTokens, syncBrowseStylesheet } from "./theme.svelte";
 
   const SECTIONS: ReadonlyArray<{
@@ -86,8 +89,14 @@
       if (event.key !== "cadence.theme") return;
       if (isThemeId(event.newValue)) preferences.syncTheme(event.newValue);
     };
+    const unsubscribeNavigate = onBrowseNavigate((section) => {
+      const next = normalizeSection(section, "library");
+      if (music.authenticated) browse.setSection(next);
+      else browse.setInitialSection(next);
+    });
     window.addEventListener("storage", onStorage);
     return () => {
+      unsubscribeNavigate();
       window.removeEventListener("storage", onStorage);
       if (searchTimer) clearTimeout(searchTimer);
     };
@@ -106,6 +115,7 @@
       clearTimeout(searchTimer);
       searchTimer = null;
     }
+    if (!music.authenticated) return;
     if (!value.trim()) {
       browse.clearSearch();
       return;
@@ -119,7 +129,8 @@
       clearTimeout(searchTimer);
       searchTimer = null;
     }
-    browse.setSection(section);
+    if (music.authenticated) browse.setSection(section);
+    else browse.setInitialSection(section);
     if (section === "search") {
       void tick().then(() => searchInputEl?.focus());
     }
@@ -182,6 +193,7 @@
         value={searchInput}
         placeholder={t("browse.searchPlaceholder")}
         aria-label={t("browse.searchPlaceholder")}
+        disabled={!music.authenticated}
         autocomplete="off"
         spellcheck="false"
         oninput={(event) => {
@@ -224,7 +236,9 @@
       </div>
     {/if}
 
-    {#if browse.route.name === "entity"}
+    {#if browse.section !== "settings" && !music.authenticated}
+      <EngineGate />
+    {:else if browse.route.name === "entity"}
       <EntityView />
     {:else if browse.section === "search"}
       <SearchView />
@@ -399,6 +413,11 @@
 
   .search-field input::placeholder {
     color: var(--faint);
+  }
+
+  .search-field input:disabled {
+    cursor: default;
+    opacity: 0.55;
   }
 
   .search-field input::-webkit-search-cancel-button {

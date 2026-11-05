@@ -964,6 +964,7 @@ case. No Go API was missing; no bindings changed.
 | T6.1 | `698a185` |
 | T6.2 | `1996a77` |
 | T6.3 | `b55a8c1` |
+| Correction: LOCAL opens Browse | `fix(browse): route LOCAL directly to the Browse window` |
 
 ### T6.3 — Settings, accessibility and polish
 
@@ -1030,10 +1031,12 @@ restart behavior were not exercised.
 
 ## Phase 6 status
 
-- **Code:** complete at `b55a8c1`; the full Wails app builds as `bin/cadence`.
-- **Window:** Browse is a separate 960×640 opaque window opened from the compact
-  Library header; re-opening focuses the existing window. It is a native-frame
-  window, not a shaped/transparent skin window.
+- **Code:** complete at `b55a8c1`, with the LOCAL→Browse routing correction
+  above; the full Wails app builds as `bin/cadence`.
+- **Window:** Browse is a separate 960×640 opaque window opened directly from
+  the compact `LOCAL` badge (Library section); re-opening focuses the existing
+  window and sends `browse:navigate`. It is a native-frame window, not a
+  shaped/transparent skin window.
 - **Skin-aware:** the active skin’s theme tokens are read through a hidden
   shadow/Clarity probe and applied inline; the compact `styles.css` is never
   injected. An optional manifest `browse.css` lets a skin restyle the Browse
@@ -1047,14 +1050,60 @@ restart behavior were not exercised.
 - **Performance:** entity track lists use `VirtualList` at a 44 px pitch; the
   Browse window owns its scroll container.
 - **Pending live smoke:** the environment cannot open the GTK window. The user
-  should run `./bin/cadence`, open Browse, search podcasts, play an episode,
-  save/follow an album/artist/show, change a skin/theme and restart the engine
-  from Settings.
+  should run `./bin/cadence`, click `LOCAL` to open Browse directly, search
+  podcasts, play an episode, save/follow an album/artist/show, change a
+  skin/theme and restart the engine from Settings.
 - **Deferred:** saved-shows listing (the `show` collection set is identified),
-  per-row liked hearts (the now-playing bar has the current-track like), and any
-  native window resize/frame polish if the live smoke finds it.
+  per-row liked hearts (the now-playing bar has the current-track like), any
+  native window resize/frame polish if the live smoke finds it, and removal of
+  the now-unused `frontend/src/lib/MusicBrowser.svelte` in Phase 7.
 - **Next:** live smoke, then Phase 7 (i18n sweep/tests/docs) or Phase 8
   (packaging).
+
+### Correction — 2026-11-05: LOCAL opens Browse directly
+
+The compact flow previously opened the old in-window Library panel first and
+required a second `Browse` click. The correction routes `LOCAL` straight to the
+dedicated window.
+
+- [x] `platform.WindowService.OpenBrowse(section)`: validates
+      `search`/`library`/`podcasts`/`settings` (empty = `library`), opens
+      `/?surface=browse&section=<section>`, and focuses + emits
+      `browse:navigate` for an existing window.
+- [x] Registered the `string` Browse navigation event in `main.go`; regenerated
+      bindings and added the typed `onBrowseNavigate` facade.
+- [x] Compact app: `LOCAL`/skin handlers call `openBrowse("library")`; removed
+      `musicOpen`, the `MusicBrowser` render, and all size/shortcut references.
+      Provider badge strings and the Skin Manager link now say Browse; pair copy
+      points at Browse.
+- [x] Browse owns pairing: the entry starts `music`, reads `section=`, the shell
+      subscribes to `browse:navigate`, and `EngineGate` handles engine
+      unavailable, pairing, starting and copy/reset states. Settings remains
+      reachable before authentication.
+- [x] Tests: window section forwarding, Browse event unwrapping, App redirect
+      without the old panel, EngineGate states/copy/reset, initial section and
+      navigation event, plus updated Player copy.
+- Commit: `fix(browse): route LOCAL directly to the Browse window`
+
+#### Correction verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `go vet $(go list ./... \| grep -v '/node_modules/')` | exit 0, no findings |
+| `gofmt -l $(go list -f '{{.Dir}}' ./... \| grep -v '/node_modules/')` | exit 0, no files listed |
+| `wails3 generate bindings -clean=true -ts -i .` | exit 0; 4 services / 55 methods / 4 events; regenerated binding diff |
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint`, `npm run format` | exit 0 |
+| `npm run test` | exit 0, 38 files / 183 tests |
+| `npm run build` | exit 0, 252 modules; `browse-*.js` 75.23 kB |
+| `task build` | exit 0; `bin/cadence` produced |
+| `./scripts/build-go-librespot.sh --check` | exit 0, all patches apply |
+| `git diff --check` | exit 0 |
+
+Live GTK flow is **not** claimed: the user will verify that clicking `LOCAL`
+opens the Browse window directly in the Library section and that a second click
+focuses it without a duplicate.
 
 ## Progress log
 
@@ -1105,3 +1154,4 @@ restart behavior were not exercised.
 | 2026-11-05 | T6.3 | `b55a8c1` | Engine settings view/store (bitrate, crossfade, normalisation, cache, FLAC, MPRIS, device group, image size), explicit Dialog restart flow, tablist/roving keyboard focus, search/entity focus management, loading/empty/error-retry and aria-busy states, responsive token-only styling, tooltip labels; 37 files / 177 frontend tests green; live UI/native restart not run |
 
 | 2026-11-05 | T6.4 | `docs(odd): record Phase 6 verification` | Go/engine/binding/frontend gates green; full `task build` produces `bin/cadence`; Browse window, search/library/entities/podcasts/settings code complete; live GTK smoke pending user |
+| 2026-11-05 | Correction: LOCAL opens Browse | `fix(browse): route LOCAL directly to the Browse window` | `OpenBrowse(section)` + `browse:navigate`, compact App redirect without the MusicBrowser panel, Browse-owned music/pairing `EngineGate`, initial section parsing, provider/pair copy and tests; Go/frontend gates green; live GTK flow pending user |

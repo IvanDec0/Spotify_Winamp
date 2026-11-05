@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { music } from "./lib/music.svelte";
 import { preferences } from "./lib/preferences.svelte";
 import { skins } from "./lib/skins.svelte";
 import { createPlayerState, playerMock } from "./lib/testing/player-mock.svelte";
@@ -12,19 +11,9 @@ const mocks = vi.hoisted(() => {
   const getZoom = vi.fn(() => Promise.resolve(2));
   const setZoom = vi.fn(() => Promise.resolve());
   const size = vi.fn(() => Promise.resolve({ width: 840, height: 440 }));
-  const search = vi.fn(() =>
-    Promise.resolve({
-      tracks: { hits: [], total: 0 },
-      albums: { hits: [], total: 0 },
-      artists: { hits: [], total: 0 },
-      playlists: { hits: [], total: 0 },
-      shows: { hits: [], total: 0 },
-      episodes: { hits: [], total: 0 },
-    }),
-  );
-  const startRadio = vi.fn(() => Promise.resolve());
   const minimise = vi.fn(() => Promise.resolve());
   const close = vi.fn(() => Promise.resolve());
+  const openBrowse = vi.fn(() => Promise.resolve());
 
   const catalog = {
     skins: [
@@ -74,21 +63,6 @@ const mocks = vi.hoisted(() => {
     queueHeight: 460,
   };
 
-  const audio = {
-    available: true,
-    running: true,
-    authenticated: false,
-    engine: "go-librespot",
-    engineVersion: "",
-    deviceName: "Cadence",
-    deviceType: "",
-    pairing: null,
-    error: "",
-    binaryPath: "/tmp/go-librespot",
-    configDirectory: "/tmp/cadence-audio",
-    audioBackend: "pulseaudio",
-  };
-
   const on = vi.fn(() => () => {});
 
   return {
@@ -97,13 +71,11 @@ const mocks = vi.hoisted(() => {
     getZoom,
     setZoom,
     size,
-    search,
-    startRadio,
     minimise,
     close,
+    openBrowse,
     catalog,
     runtime,
-    audio,
     on,
   };
 });
@@ -136,27 +108,7 @@ vi.mock("./lib/player.svelte", async () => {
 });
 
 vi.mock("../bindings/cadence/internal/platform", () => ({
-  WindowService: { SetSize: mocks.setSize },
-}));
-
-vi.mock("../bindings/cadence/internal/wailsapi/audio", () => ({
-  Service: {
-    GetState: vi.fn(() => Promise.resolve(mocks.audio)),
-    OpenPairing: vi.fn(() => Promise.resolve()),
-    ResetSession: vi.fn(() => Promise.resolve(mocks.audio)),
-    Restart: vi.fn(() => Promise.resolve(mocks.audio)),
-    Playlists: vi.fn(() => Promise.resolve({ total: 0, offset: 0, limit: 100, items: [] })),
-    Albums: vi.fn(() => Promise.resolve({ total: 0, offset: 0, limit: 100, items: [] })),
-    Artists: vi.fn(() => Promise.resolve({ total: 0, offset: 0, limit: 100, items: [] })),
-    ContextTracks: vi.fn(() =>
-      Promise.resolve({ uri: "", ready: true, length: 0, cached: 0, items: [] }),
-    ),
-    Search: mocks.search,
-    StartRadio: mocks.startRadio,
-    PlayContext: vi.fn(() => Promise.resolve()),
-    PlayTrack: vi.fn(() => Promise.resolve()),
-    AddToQueue: vi.fn(() => Promise.resolve()),
-  },
+  WindowService: { SetSize: mocks.setSize, OpenBrowse: mocks.openBrowse },
 }));
 
 vi.mock("../bindings/cadence/internal/wailsapi/skins", () => ({
@@ -191,11 +143,7 @@ describe("App shell", () => {
     skins.queueOpen = false;
     skins.error = null;
     skins.notice = null;
-    music.error = null;
-    music.notice = null;
-    music.clearSearch();
-    mocks.search.mockClear();
-    mocks.startRadio.mockClear();
+    mocks.openBrowse.mockClear();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   });
 
@@ -310,26 +258,14 @@ describe("App shell", () => {
     await waitFor(() => expect(mocks.setSize).toHaveBeenCalledWith(840, 920));
   });
 
-  it("opens the music library from the provider badge", async () => {
+  it("opens the Browse window directly from the provider badge", async () => {
     render(App);
 
-    await fireEvent.click(screen.getByRole("button", { name: "Open music library" }));
+    await fireEvent.click(screen.getByRole("button", { name: "Open Browse" }));
 
-    expect(screen.getByRole("dialog", { name: "Music library" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Close music library" })).not.toBeNull();
-    await waitFor(() => expect(mocks.setSize).toHaveBeenCalledWith(840, 920));
-  });
-
-  it("searches the Spotify catalog from the library", async () => {
-    render(App);
-
-    await fireEvent.click(screen.getByRole("button", { name: "Open music library" }));
-    const input = screen.getByRole("searchbox", { name: "Search Spotify" });
-    await fireEvent.input(input, { target: { value: "daft punk" } });
-    await fireEvent.click(screen.getByRole("button", { name: "Search" }));
-
-    await waitFor(() => expect(mocks.search).toHaveBeenCalledWith("daft punk", 20));
-    expect(screen.getByText("No results in this category.")).not.toBeNull();
+    await waitFor(() => expect(mocks.openBrowse).toHaveBeenCalledWith("library"));
+    expect(screen.queryByRole("dialog", { name: "Music library" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close music library" })).toBeNull();
   });
 
   it("applies the reduced-motion preference to the shell", async () => {

@@ -12,8 +12,6 @@
   import SkinHost from "./lib/skins/SkinHost.svelte";
   import SkinManager from "./lib/skins/SkinManager.svelte";
   import { skins } from "./lib/skins.svelte";
-  import MusicBrowser from "./lib/MusicBrowser.svelte";
-  import { music } from "./lib/music.svelte";
   import {
     DEFAULT_UI_SCALE,
     EXPANDED_HEIGHT,
@@ -28,7 +26,7 @@
   let settingsOpen = $state(false);
   let devicesOpen = $state(false);
   let skinManagerOpen = $state(false);
-  let musicOpen = $state(false);
+  let browseOpenError = $state<string | null>(null);
   let uiScale = $state(DEFAULT_UI_SCALE);
   let baseNativeWidth = Math.round(WINDOW_WIDTH * DEFAULT_UI_SCALE);
   let baseNativeHeight = Math.round(WINDOW_HEIGHT * DEFAULT_UI_SCALE);
@@ -52,7 +50,7 @@
   let activeModeLabel = $derived(
     visualizerModes.find((mode) => mode.id === preferences.visualizer)?.label ?? "Spectrum",
   );
-  let displayError = $derived(player.error || skins.error);
+  let displayError = $derived(player.error || skins.error || browseOpenError);
   let overlayThemeStyle = $derived(
     skins.isDeclarative
       ? Object.entries(skins.palette)
@@ -62,7 +60,7 @@
   );
 
   function currentLogicalHeight(): number {
-    return musicOpen ? EXPANDED_HEIGHT : queueOpen ? expandedHeight : baseHeight;
+    return queueOpen ? expandedHeight : baseHeight;
   }
 
   async function syncUiScale(): Promise<void> {
@@ -74,7 +72,7 @@
       // The window mode may have changed while Size() was resolving.
       if (currentLogicalHeight() !== logicalHeight) return;
       const next = roundedUiScale(fitUiScale(size.width, size.height, logicalHeight));
-      if (!musicOpen && !queueOpen && !skinManagerOpen) {
+      if (!queueOpen && !skinManagerOpen) {
         baseNativeWidth = size.width;
         baseNativeHeight = size.height;
       }
@@ -145,14 +143,12 @@
     }
     devicesOpen = false;
     skinManagerOpen = false;
-    musicOpen = false;
     settingsOpen = true;
   }
 
   function openSkinManager(): void {
     devicesOpen = false;
     settingsOpen = false;
-    musicOpen = false;
     if (queueOpen) setQueue(false);
     skinManagerOpen = true;
   }
@@ -161,23 +157,17 @@
     skinManagerOpen = false;
   }
 
-  function openMusic(): void {
-    devicesOpen = false;
-    settingsOpen = false;
-    skinManagerOpen = false;
-    if (queueOpen) setQueue(false);
-    musicOpen = true;
-  }
-
-  function closeMusic(): void {
-    musicOpen = false;
-    music.clearContext();
+  function openBrowse(): void {
+    closePopovers();
+    browseOpenError = null;
+    void appWindow.openBrowse("library").catch((error: unknown) => {
+      browseOpenError = error instanceof Error ? error.message : String(error);
+    });
   }
 
   function openDevices(): void {
     settingsOpen = false;
     skinManagerOpen = false;
-    musicOpen = false;
     devicesOpen = true;
   }
 
@@ -185,7 +175,6 @@
     settingsOpen = false;
     devicesOpen = false;
     skinManagerOpen = false;
-    musicOpen = false;
   }
 
   function setQueue(open: boolean): void {
@@ -264,8 +253,6 @@
     if (event.key === "Escape") {
       if (skinManagerOpen) {
         skinManagerOpen = false;
-      } else if (musicOpen) {
-        closeMusic();
       } else if (settingsOpen || devicesOpen) {
         closePopovers();
       } else if (queueOpen) {
@@ -335,6 +322,7 @@
   function dismissError(): void {
     if (player.error) player.dismissError();
     if (skins.error) skins.dismissError();
+    browseOpenError = null;
   }
 
   $effect(() => {
@@ -350,13 +338,13 @@
     );
     baseNativeWidth = Math.round(WINDOW_WIDTH * scale);
     baseNativeHeight = Math.round(height * scale);
-    if (musicOpen || skinManagerOpen || queueOpen) return;
+    if (skinManagerOpen || queueOpen) return;
     void restoreBaseWindow();
   });
 
   $effect(() => {
     if (skins.loading) return;
-    const expanded = musicOpen || skinManagerOpen;
+    const expanded = skinManagerOpen;
     const height = expanded ? EXPANDED_HEIGHT : queueOpen ? expandedHeight : baseHeight;
     if (!expanded && !queueOpen) {
       void restoreBaseWindow();
@@ -383,11 +371,10 @@
       toggleQueue,
       openDevices,
       openSettings,
-      openMusic,
+      openMusic: openBrowse,
     });
     void player.start();
     void skins.start();
-    void music.start();
     const cleanupMotion = preferences.syncSystemMotion();
     globalThis.addEventListener("resize", scheduleUiScaleSync);
     void syncUiScale();
@@ -397,7 +384,6 @@
       if (scaleSyncTimer) clearTimeout(scaleSyncTimer);
       player.stop();
       skins.stop();
-      music.stop();
       skins.setHandlers(null);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
@@ -427,7 +413,7 @@
           onToggleQueue={toggleQueue}
           onOpenDevices={openDevices}
           onOpenSettings={openSettings}
-          onOpenMusic={openMusic}
+          onOpenMusic={openBrowse}
           onMinimise={minimise}
           onClose={closeWindow}
         />
@@ -536,18 +522,7 @@
       data-theme={preferences.theme}
       style={overlayThemeStyle}
     >
-      <SkinManager onOpenMusic={openMusic} onClose={closeSkinManager} />
-    </div>
-  {/if}
-
-  {#if musicOpen}
-    <div
-      class="clarity overlay-layer"
-      class:reduce-motion={preferences.reducedMotion}
-      data-theme={preferences.theme}
-      style={overlayThemeStyle}
-    >
-      <MusicBrowser onClose={closeMusic} />
+      <SkinManager onOpenMusic={openBrowse} onClose={closeSkinManager} />
     </div>
   {/if}
 

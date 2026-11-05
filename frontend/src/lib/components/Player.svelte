@@ -47,7 +47,7 @@
   let artists = $derived(
     state.track.artists?.join(", ") ||
       (state.error?.code === "not_authenticated"
-        ? "Pair Spotify in the Library"
+        ? "Pair Spotify in Browse"
         : state.error?.code === "audio_unavailable"
           ? "Local audio engine unavailable"
           : "Unknown artist"),

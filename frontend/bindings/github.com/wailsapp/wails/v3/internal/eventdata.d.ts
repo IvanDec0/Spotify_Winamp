@@ -19,6 +19,7 @@ declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "audio:state": engine$0.AudioState;
+            "browse:navigate": string;
             "player:state": playback$0.PlayerState;
             "skins:changed": skins$0.SkinCatalog;
         }

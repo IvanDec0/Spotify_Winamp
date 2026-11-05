@@ -54,6 +54,7 @@ describe("window api", () => {
     await appWindow.close();
     await appWindow.setSize(840, 920);
     await appWindow.openBrowse();
+    await appWindow.openBrowse("settings");
     await appWindow.closeBrowse();
     await expect(appWindow.browseOpen()).resolves.toBe(true);
     await expect(screens.getCurrent()).resolves.toEqual({ ID: "main" });
@@ -62,7 +63,8 @@ describe("window api", () => {
     expect(mocks.setZoom).toHaveBeenCalledWith(2);
     expect(mocks.setMinSize).toHaveBeenCalledWith(600, 300);
     expect(mocks.setSize).toHaveBeenCalledWith(840, 920);
-    expect(mocks.openBrowse).toHaveBeenCalledOnce();
+    expect(mocks.openBrowse).toHaveBeenNthCalledWith(1, "library");
+    expect(mocks.openBrowse).toHaveBeenNthCalledWith(2, "settings");
     expect(mocks.closeBrowse).toHaveBeenCalledOnce();
     expect(mocks.browseOpen).toHaveBeenCalledOnce();
     expect(mocks.invoke).toHaveBeenCalledWith("wails:drag");

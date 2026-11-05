@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { playerMock } from "../../lib/testing/player-mock.svelte";
 import { preferences } from "../../lib/preferences.svelte";
@@ -25,6 +26,20 @@ const mocks = vi.hoisted(() => ({
     queueHeight: 460,
   },
   loading: false,
+  onBrowseNavigate: vi.fn(),
+  navigateHandler: null as ((section: string) => void) | null,
+  music: {
+    authenticated: true,
+    loading: false,
+    busy: false,
+    error: null as string | null,
+    audio: { available: true, binaryPath: "/tmp/go-librespot" },
+    pairing: null as { code: string; url: string } | null,
+    openPairing: vi.fn(() => Promise.resolve()),
+    resetSession: vi.fn(() => Promise.resolve()),
+    restart: vi.fn(() => Promise.resolve()),
+    refresh: vi.fn(() => Promise.resolve()),
+  },
   audio: {
     search: vi.fn(),
     playlists: vi.fn(),
@@ -54,8 +69,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../shared/api", () => ({
   audio: mocks.audio,
+  onBrowseNavigate: mocks.onBrowseNavigate,
   toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
 }));
+
+vi.mock("../../lib/music.svelte", () => ({ music: mocks.music }));
 
 vi.mock("../../lib/player.svelte", async () => {
   const { playerMock: player } = await import("../../lib/testing/player-mock.svelte");
@@ -96,6 +114,21 @@ describe("Browse shell", () => {
     vi.clearAllMocks();
     mocks.audio.isLiked.mockResolvedValue(false);
     mocks.audio.getEngineSettings.mockResolvedValue(engineSettings);
+    mocks.audio.playlists.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
+    mocks.audio.yourEpisodes.mockResolvedValue({
+      uri: "",
+      ready: true,
+      length: 0,
+      cached: 0,
+      items: [],
+    });
+    mocks.navigateHandler = null;
+    mocks.onBrowseNavigate.mockImplementation((handler: (section: string) => void) => {
+      mocks.navigateHandler = handler;
+      return () => {};
+    });
+    mocks.music.authenticated = true;
+    mocks.music.pairing = null;
     browse.reset();
     browseSettings.reset();
     preferences.setTheme("graphite");
@@ -159,6 +192,35 @@ describe("Browse shell", () => {
         screen.getByRole("heading", { name: "Search the catalog" }),
       ),
     );
+  });
+
+  it("uses the initial section and follows browse:navigate events", async () => {
+    browse.setInitialSection("library");
+    render(BrowseApp);
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "Your library" })).not.toBeNull(),
+    );
+
+    mocks.navigateHandler?.("podcasts");
+    await tick();
+
+    expect(browse.section).toBe("podcasts");
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "Your Episodes" })).not.toBeNull(),
+    );
+  });
+
+  it("shows the engine gate for catalog sections but keeps settings reachable", async () => {
+    mocks.music.authenticated = false;
+    mocks.music.pairing = { code: "ABCD-1234", url: "https://spotify.example/pair" };
+
+    render(BrowseApp);
+    expect(screen.getByRole("heading", { name: "Pair Cadence with Spotify" })).not.toBeNull();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(screen.getByRole("heading", { name: "Settings" })).not.toBeNull();
+    expect(screen.queryByText("Pair Cadence with Spotify")).toBeNull();
   });
 
   it("focuses the search field when switching back to Search", async () => {

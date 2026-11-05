@@ -67,6 +67,7 @@ func init() {
 	application.RegisterEvent[playback.PlayerState](playerapi.StateEvent)
 	application.RegisterEvent[skins.SkinCatalog](skins.ChangedEvent)
 	application.RegisterEvent[engine.AudioState](audioapi.AudioEvent)
+	application.RegisterEvent[string](platform.BrowseNavigateEvent)
 }
 
 func main() {

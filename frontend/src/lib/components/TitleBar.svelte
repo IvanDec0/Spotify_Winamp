@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "../../shared/i18n";
   import Icon from "./Icon.svelte";
 
   interface Props {
@@ -45,8 +46,8 @@
     <button
       class="provider-badge"
       type="button"
-      title="Music library"
-      aria-label="Open music library"
+      title={t("browse.openWindow")}
+      aria-label={t("browse.openWindow")}
       onclick={onOpenMusic}
     >
       {providerLabel}

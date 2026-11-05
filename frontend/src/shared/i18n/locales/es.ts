@@ -15,7 +15,28 @@ export const es: Record<MessageKey, string> = {
   "ui.empty": "Todavía no hay nada aquí",
   "ui.items": "{count, plural, one {# elemento} other {# elementos}}",
   "browse.open": "Explorar",
+  "browse.openWindow": "Abrir Explorar",
   "browse.navLabel": "Secciones de exploración",
+  "browse.pairing.localDevice": "Dispositivo local de Spotify",
+  "browse.pairing.startingTitle": "Iniciando el motor de audio…",
+  "browse.pairing.startingBody":
+    "El motor se está iniciando. Esta ventana se actualiza automáticamente.",
+  "browse.pairing.waitingBody":
+    "El motor está en ejecución pero todavía no generó un código de vinculación.",
+  "browse.pairing.unavailableTitle": "Motor de audio local no disponible",
+  "browse.pairing.unavailableBody":
+    "Cadence reproduce Spotify mediante go-librespot. Compila o instala el motor y vuelve a intentarlo.",
+  "browse.pairing.retry": "Reintentar motor",
+  "browse.pairing.title": "Vincula Cadence con Spotify",
+  "browse.pairing.hint":
+    "Abre la página de vinculación de Spotify y aprueba Cadence como dispositivo. Esta ventana se actualiza automáticamente.",
+  "browse.pairing.open": "Abrir página de vinculación",
+  "browse.pairing.copy": "Copiar código",
+  "browse.pairing.copied": "Código copiado",
+  "browse.pairing.reset": "Restablecer vinculación",
+  "browse.pairing.confirmReset": "Confirmar restablecimiento",
+  "browse.pairing.checkAgain": "Comprobar de nuevo",
+  "browse.pairing.errorLabel": "La acción de vinculación falló.",
   "browse.search": "Buscar",
   "browse.library": "Biblioteca",
   "browse.podcasts": "Pódcasts",

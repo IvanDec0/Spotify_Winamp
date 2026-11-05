@@ -15,7 +15,7 @@
   let artists = $derived(
     player.state.track.artists?.join(", ") ||
       (player.state.error?.code === "no_active_device"
-        ? "Pair Spotify in the Library"
+        ? "Pair Spotify in Browse"
         : "Unknown artist"),
   );
   let displayTitle = $derived(

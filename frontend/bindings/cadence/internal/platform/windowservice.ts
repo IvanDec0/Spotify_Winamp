@@ -30,12 +30,12 @@ export function CloseBrowse(): $CancellablePromise<void> {
 
 /**
  * OpenBrowse opens the dedicated Browse window, or focuses it when it already
- * exists. Window creation runs on the GTK main thread through Wails; the
- * window is opaque and keeps a normal frame so it behaves like a regular
- * second window.
+ * exists. An existing window receives a navigation event instead of a reload.
+ * Window creation runs on the GTK main thread through Wails; the window is
+ * opaque and keeps a normal frame so it behaves like a regular second window.
  */
-export function OpenBrowse(): $CancellablePromise<void> {
-    return $Call.ByID(828243989);
+export function OpenBrowse(section: string): $CancellablePromise<void> {
+    return $Call.ByID(828243989, section);
 }
 
 /**
