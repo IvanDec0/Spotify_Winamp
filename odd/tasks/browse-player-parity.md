@@ -96,6 +96,21 @@ the user.
 with no errors. Live playback reaction is still pending user verification; the
 monitor captures system-wide output on Linux/PulseAudio-PipeWire.
 
+### W1 — Browse window chrome
+
+- [ ] Create the Browse window frameless with a skin-aware custom topbar:
+      draggable empty area (`--wails-draggable: drag`), no-drag search/controls,
+      minimize and close buttons.
+- [ ] Add a bottom-right resize grip using a new
+      `WindowService.SetBrowseSize(width,height)` that resizes the `browse`
+      window through the existing GTK helper; clamp to 720×480 and throttle the
+      drag.
+- [ ] Keep the topbar search, navigation and close-to-player behavior; the
+      native close hook still restores the compact window.
+- [ ] Tests for the wrapper, controls and resize math; frontend checks/build,
+      `task build`, `git diff --check`.
+- Commit: `feat(browse): add custom draggable and resizable chrome`
+
 ### V2 — Verification
 
 - [ ] Go tests/race/vet/gofmt, engine patch check, bindings no diff,
