@@ -31,13 +31,13 @@
 
 ### R3 — Docs and installation
 
-- [ ] Update `docs/installation.md` to 0.2.0: Browse/pairing flow (the badge is
+- [x] Update `docs/installation.md` to 0.2.0: Browse/pairing flow (the badge is
       Browse, not LOCAL), search tabs (tracks/albums/artists/playlists/shows/
       episodes), library/podcasts/settings, language selector, queue, real
       visualizer (`parec`), cache paths, four engine patches, version/checksums.
-- [ ] Update README features/stack/architecture and `docs/development.md`
+- [x] Update README features/stack/architecture and `docs/development.md`
       (`task package`, `--version`, required `parec`).
-- [ ] Add the installation requirements for `parec`/PulseAudio tools and the
+- [x] Add the installation requirements for `parec`/PulseAudio tools and the
       optional-ness/fallback of the monitor visualizer.
 
 ### R4 — Build and verify
@@ -61,6 +61,7 @@
 | `CHANGELOG.md` 0.2.0 entry covering the v2 work | Done | Reviewed against `git log` and `plan/cadence-v2.md` | reported in session |
 | Packaging contents: AppImage `usr/share/doc/cadence` and tarball include `CHANGELOG.md` and `docs/` | Done | Taskfile diff; artifact inspection deferred to the orchestrator's `task package` | reported in session |
 | Release workflow: assert `./bin/cadence --version` matches `build/config.yml` before checksums | Done | `release.yml` diff | reported in session |
+| Docs: 0.2.0 installation/Browse tour/visualizer paths, README v2 architecture/features, development release flow, docs index and architecture badge fixes | Done | `rg` consistency checks, `git diff --check` | reported in session |
 | Tracker update for R1/R2 | Done | This file | reported in session |
 
 ## Acceptance

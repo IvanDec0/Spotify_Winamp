@@ -91,14 +91,14 @@ services expose plain Go methods and never touch `application.App`.
 The catalog has its own native window, separate from the compact player.
 
 - `internal/platform.WindowService.OpenBrowse(section)` creates the window
-  named `browse` on demand with a normal frame, 960×640 logical size,
+  named `browse` on demand with frameless custom chrome, 960×640 default size,
   720×480 minimum and `/?surface=browse&section=<section>`. The section is
   validated (`search`, `library`, `podcasts`, `settings`; empty means
   `library`). An existing window is shown, focused and sent
   `browse:navigate` so it switches sections without reloading. `CloseBrowse`
   and `BrowseOpen` complete the host API.
-- The compact window's `LOCAL` provider badge calls `openBrowse("library")`
-  directly; the old in-window Library panel is no longer rendered. Its handlers
+- The compact window's **Browse** badge calls `openBrowse("library")`
+  directly; the old in-window library surface is no longer rendered. Its handlers
   and skin `open-library` actions route to the same Browse opener.
 - Opening Browse hides the `main` window only after the Browse window is
   visible; the compact window is never destroyed, so playback and frontend

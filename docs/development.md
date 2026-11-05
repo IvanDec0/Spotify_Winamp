@@ -33,8 +33,9 @@ Run commands from the repository root. The Taskfile is Linux-only.
 | `task lint` | Run Go vet, ESLint and Prettier |
 | `task format` | Check Go and frontend formatting |
 | `task format:write` | Format Go and frontend sources |
-| `task package` | Create AppImage, tar.gz (with the engine) and checksums in `bin/` |
+| `task package` | Create the 0.2.0 AppImage, tar.gz (with the engine) and checksums in `bin/` |
 | `task clean` | Remove build outputs and generated bindings |
+| `./bin/cadence --version` | Print `Cadence 0.2.0 (<short commit>)` and exit without starting the UI |
 
 The frontend scripts can also be run directly from `frontend/`:
 
@@ -95,7 +96,7 @@ Wails v3 beta.34 maps `Window.SetSize` to `gtk_window_set_default_size` on GTK4,
 
 ### UI scale
 
-The webview keeps the active skin's logical layout and rescales it to the native window. The default is 200%, with a supported range of 125%–300%. Resizing the window changes the zoom so the current logical view fits; opening the Library or queue also fits the window to the screen work area.
+The webview keeps the active skin's logical layout and rescales it to the native window. The default is 200%, with a supported range of 125%–300%. Resizing the compact window changes the zoom so the current logical view fits; opening the queue also fits the window to the screen work area.
 
 The scale is coordinated in two places:
 
@@ -136,11 +137,11 @@ task audio:build
 Run the app:
 
 ```bash
-./bin/cadence            # local engine + Library panel
+./bin/cadence            # local engine + compact player
 ./bin/cadence --demo     # simulated player, no engine
 ```
 
-Open the provider badge in the titlebar to show the Library. The search bar queries Spotify's internal catalog and groups results into Tracks, Albums, Artists and Playlists. The radio button starts a station from any track, album, artist or playlist context. On first run the engine prints a pairing code; approve it at `spotify.com/pair`. The engine stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json` with owner-only permissions. Cadence receives only token-free state.
+Click **Browse** in the titlebar to open the dedicated window. The search field queries Spotify's internal catalog and groups results into Tracks, Albums, Artists, Playlists, Shows and Episodes; the Library, Podcasts, Queue and Settings sections cover the rest of the catalog and player surface. On first run the engine prints a pairing code; approve it at `spotify.com/pair`. The engine stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json` with owner-only permissions. Cadence receives only token-free state.
 
 The engine writes its log to `$XDG_CACHE_HOME/cadence/logs/go-librespot.log`. Its loopback API binds to a random port on `127.0.0.1`, and the port is written into `$XDG_CONFIG_HOME/cadence/audio/config.yml`.
 
@@ -152,7 +153,26 @@ Useful flags:
 
 Tests for the engine integration use `httptest` servers and do not need Spotify credentials. Live pairing, local playback and library browsing were verified manually on Arch Linux. The engine requires Spotify Premium and a working PulseAudio/PipeWire sink.
 
-## Architecture rules for v1
+## Visualizer capture
+
+The visualizer is real on Linux. `internal/visualizer` runs `parec` against the
+system-wide default PulseAudio/PipeWire monitor:
+
+```text
+parec --format=s16le --rate=44100 --channels=1 --latency-msec=20 --device=@DEFAULT_MONITOR@
+```
+
+`parec` ships in the `libpulse` package on Arch. The analyzer produces 24
+log-spaced bands, RMS and a 64-point waveform at up to 30 frames per second; the
+compact player and Browse share one capture through
+`internal/wailsapi/visualizer`. Capture starts when a window activates its
+visualizer and stops when the last one deactivates.
+
+The capture is system-wide, not per-application. If `parec` or the monitor is
+missing, the Go service logs the failure and clients keep running; the frontend
+falls back to the simulated animation. Playback never requires `parec`.
+
+## Architecture rules
 
 - The frontend never receives Spotify playback credentials.
 - go-librespot credentials stay in the engine's `state.json`; the frontend only sees token-free engine state.
@@ -180,6 +200,27 @@ persisted in `localStorage["cadence.locale"]` and mirrored across the compact
 and Browse windows by the `storage` listener installed in `initI18n()`. See
 [`i18n.md`](i18n.md) for the key groups, ICU rules, allowlist and backend error
 policy.
+
+## Release flow
+
+1. Bump `APP_VERSION` in [`Taskfile.yml`](../Taskfile.yml) and `info.version` in
+   [`build/config.yml`](../build/config.yml). The release tag must match:
+   `vX.Y.Z`.
+2. Run `task package`. It builds `bin/cadence`, builds the patched engine if it
+   is missing, and writes the AppImage, tarball and `cadence-X.Y.Z-SHA256SUMS`
+   to `bin/`.
+3. Check the build identity and checksums:
+
+   ```bash
+   ./bin/cadence --version
+   cd bin && sha256sum -c cadence-X.Y.Z-SHA256SUMS
+   ```
+
+   `--version` prints `Cadence X.Y.Z (<short commit>)` and exits without opening
+   a window.
+4. Tag `vX.Y.Z` and push the tag. The release workflow re-checks that the tag
+   matches `build/config.yml` and verifies `--version` and the checksums before
+   publishing.
 
 ## Continuous integration
 
@@ -209,7 +250,7 @@ policy.
 | Skin CSS is not applied | Confirm `styles.css` is at the package root and its URLs resolve to local assets |
 | Third-party skins are disabled | Restart without `--safe-mode` and enable them in the skin library |
 | `Local audio engine unavailable` | Run `task audio:build` or set `CADENCE_GO_LIBRESPOT` |
-| No pairing code | Restart the engine from the Library panel; check the engine log |
+| No pairing code | Retry the engine from the Browse pairing screen; check the engine log |
 | Pairing code expired | Select **Reset pairing** and use the new code |
 | No sound | Check that PipeWire/PulseAudio is running and the default sink is correct |
 | Engine exits immediately | Run `bin/go-librespot --config_dir ~/.config/cadence/audio` manually to see its output |

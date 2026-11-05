@@ -199,8 +199,8 @@ At least one of `text` or `label` is required on a `button`. The allowed actions
 
 | Action | Effect | Capability |
 |---|---|---|
-| `open-library` | Open the Library panel | none |
-| `open-settings` | Open the skin settings / library surface | none |
+| `open-library` | Open the Browse window | none |
+| `open-settings` | Open Browse Settings | none |
 | `open-devices` | Open the playback device popover | `devices.read` |
 | `toggle-queue` | Show or hide the queue | `queue.read` |
 | `play-pause` | Toggle playback | `player.control` |

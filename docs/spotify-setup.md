@@ -38,8 +38,8 @@ The engine is a separate process. It is not linked into Cadence.
 ## Pair the device
 
 1. Start Cadence without `--demo`.
-2. Open the provider badge in the titlebar (**CONNECT** / **DEMO**).
-3. If the engine is not paired, Cadence shows a pairing code.
+2. Click **Browse** in the compact titlebar.
+3. If the engine is not paired, Browse shows a pairing code.
 4. Choose **Open pairing page**, sign in to Spotify, and approve the device.
 5. Cadence updates automatically. The local device appears as **Cadence**.
 
@@ -55,20 +55,20 @@ flow.
 
 ## Library and playback
 
-The Library panel is the Spotify account/library surface:
+The Browse window is the Spotify account/library surface:
 
-- browse playlists, saved albums and followed artists;
-- open a context and play any track;
+- browse playlists, saved albums, followed artists, Liked Songs and Your Episodes;
+- open an entity page and play any track;
 - play an entire playlist, album, artist or Liked Songs;
-- search the Spotify catalog for tracks, albums, artists and playlists;
+- search the Spotify catalog for tracks, albums, artists, playlists, shows and episodes;
 - start a Spotify radio station from a track, album, artist or playlist;
-- add tracks to the local play queue;
-- queue expansion and playback controls use the local engine.
+- add tracks to the play queue;
+- use the Queue section and the now-playing bar for playback state.
 
-The library, search and radio endpoints are provided by go-librespot's internal
-Spotify session, not the rate-limited public Web API. The local engine patch in
-`build/patches/go-librespot-search-radio.patch` adds the search and radio
-endpoints. Audio output uses the configured PulseAudio device (`default` in v1).
+The library, search, podcast and radio endpoints are provided by go-librespot's
+internal Spotify session, not the rate-limited public Web API. The local engine
+patches add the search/radio, search-group and collection-write endpoints. Audio
+output uses the configured PulseAudio device (`default`).
 
 ## Engine version and options
 
@@ -112,7 +112,7 @@ Without `--diagnostics`, the same line is the first entry in
 | Symptom | Fix |
 |---|---|
 | `Local audio engine unavailable` | Run `task audio:build` or set `CADENCE_GO_LIBRESPOT` |
-| No pairing code | Restart the engine from the Library panel; check the engine log |
+| No pairing code | Retry the engine from the Browse pairing screen; check the engine log |
 | Pairing code expired | Select **Reset pairing** and use the new code |
 | No sound | Check that PipeWire/PulseAudio is running and the default sink is correct |
 | Engine exits immediately | Run `bin/go-librespot --config_dir ~/.config/cadence/audio` manually to see its output |
