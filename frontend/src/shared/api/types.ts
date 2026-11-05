@@ -39,3 +39,14 @@ export type {
   SkinRuntime,
   SkinSummary,
 } from "../../../bindings/cadence/internal/skins/models";
+
+import type { Frame } from "../../../bindings/cadence/internal/visualizer/models";
+
+/**
+ * Analyzed monitor frame. Go always sends arrays; the generated model marks
+ * them nullable, so the frontend narrows them once at the event boundary.
+ */
+export type VisualizerFrame = Omit<Frame, "bands" | "waveform"> & {
+  bands: number[];
+  waveform: number[];
+};

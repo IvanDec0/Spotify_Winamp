@@ -22,9 +22,11 @@ import (
 	"cadence/internal/playback"
 	"cadence/internal/settings"
 	"cadence/internal/skins"
+	"cadence/internal/visualizer"
 	audioapi "cadence/internal/wailsapi/audio"
 	playerapi "cadence/internal/wailsapi/player"
 	skinsapi "cadence/internal/wailsapi/skins"
+	visualizerapi "cadence/internal/wailsapi/visualizer"
 
 	"github.com/adrg/xdg"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -68,6 +70,7 @@ func init() {
 	application.RegisterEvent[skins.SkinCatalog](skins.ChangedEvent)
 	application.RegisterEvent[engine.AudioState](audioapi.AudioEvent)
 	application.RegisterEvent[string](platform.BrowseNavigateEvent)
+	application.RegisterEvent[visualizer.Frame](visualizerapi.FrameEvent)
 }
 
 func main() {
@@ -195,6 +198,7 @@ func main() {
 		Settings:   settingsStore,
 		Enabled:    !*demoMode,
 	})
+	visualizerService := visualizerapi.NewService()
 
 	if recorder != nil {
 		server, err := startDiagnosticsServer(recorder, audioRuntime.Version)
@@ -229,6 +233,7 @@ func main() {
 			application.NewService(windowService),
 			application.NewService(skinService),
 			application.NewService(audioService),
+			application.NewService(visualizerService),
 		},
 		Linux: application.LinuxOptions{
 			ProgramName:   "cadence",

@@ -119,3 +119,44 @@ export function gridPoint(
   const focus = clamp(1 - distance * 1.3, 0, 1);
   return clamp((0.14 + sweep * 0.36 + sparkle * 0.14) * (0.55 + focus * energy * 0.65), 0, 1);
 }
+
+/**
+ * Maps a spectrum bar index onto the real analysis bands. Bars are spread
+ * linearly across the log-spaced bands so a 20-bar canvas still shows all 24
+ * bands and a 48-bar canvas interpolates between neighbours.
+ */
+export function bandValue(bands: readonly number[], index: number, count: number): number {
+  if (bands.length === 0 || count <= 0) return 0;
+  const position = count <= 1 ? 0 : clamp(index / (count - 1), 0, 1) * (bands.length - 1);
+  const lower = Math.floor(position);
+  const upper = Math.min(bands.length - 1, lower + 1);
+  const mix = position - lower;
+  const value = bands[lower] * (1 - mix) + bands[upper] * mix;
+  return clamp(Number.isFinite(value) ? value : 0, 0, 1);
+}
+
+/** Interpolates a real oscilloscope sample in [-1, 1]. */
+export function waveformValue(waveform: readonly number[], progress: number): number {
+  if (waveform.length === 0) return 0;
+  const position = clamp(Number.isFinite(progress) ? progress : 0, 0, 1) * (waveform.length - 1);
+  const lower = Math.floor(position);
+  const upper = Math.min(waveform.length - 1, lower + 1);
+  const mix = position - lower;
+  const value = waveform[lower] * (1 - mix) + waveform[upper] * mix;
+  return clamp(Number.isFinite(value) ? value : 0, -1, 1);
+}
+
+/**
+ * Frame-local oscilloscope gain. Music peaks rarely reach full scale after
+ * downsampling, so normalizing each frame keeps the trace visible without
+ * amplifying near-silence into noise.
+ */
+export function waveformGain(waveform: readonly number[]): number {
+  let peak = 0;
+  for (const value of waveform) {
+    const magnitude = Math.abs(value);
+    if (Number.isFinite(magnitude) && magnitude > peak) peak = magnitude;
+  }
+  if (peak <= 0.02) return 0;
+  return Math.min(1 / peak, 6);
+}

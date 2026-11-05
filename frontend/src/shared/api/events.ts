@@ -1,5 +1,5 @@
 import { Events } from "@wailsio/runtime";
-import type { AudioState, PlayerState, SkinCatalog } from "./types";
+import type { AudioState, PlayerState, SkinCatalog, VisualizerFrame } from "./types";
 
 type Handler<T> = (payload: T) => void;
 
@@ -31,4 +31,12 @@ export function onSkinsChanged(handler: Handler<SkinCatalog>): () => void {
  */
 export function onBrowseNavigate(handler: Handler<string>): () => void {
   return Events.On("browse:navigate", (event) => handler(event.data as string));
+}
+
+/**
+ * Subscribes to analyzed audio frames from the system monitor. Frames are push
+ * events: there is no polling or engine request involved.
+ */
+export function onVisualizerFrame(handler: Handler<VisualizerFrame>): () => void {
+  return Events.On("visualizer:frame", (event) => handler(event.data as VisualizerFrame));
 }

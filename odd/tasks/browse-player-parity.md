@@ -55,23 +55,46 @@ the user.
 
 ### V1 — Real visualizer
 
-- [ ] `internal/visualizer`: pure analyzer (1024-sample FFT, ~24 log bands,
+- [x] `internal/visualizer`: pure analyzer (1024-sample FFT, ~24 log bands,
       64-point waveform, RMS, attack/decay smoothing) with sine/silence tests.
-- [ ] Linux capture via `parec` on `@DEFAULT_MONITOR@` (s16le/44.1k/mono), with
+- [x] Linux capture via `parec` on `@DEFAULT_MONITOR@` (s16le/44.1k/mono), with
       start/stop, bounded reads, no Wails imports; fallback when `parec` or the
       monitor is unavailable.
-- [ ] `internal/wailsapi/visualizer`: `SetActive(clientID, active)` with a
+- [x] `internal/wailsapi/visualizer`: `SetActive(clientID, active)` with a
       client set; start capture on the first active client and stop on the last;
       emit `visualizer:frame` at ≤30 Hz; register the event/service in `main.go`.
-- [ ] Frontend `visualizer-data.svelte.ts`: subscribe to frames, track freshness,
+- [x] Frontend `visualizer-data.svelte.ts`: subscribe to frames, track freshness,
       call `setActive` per window with a unique client ID; fallback to the
       simulated visualizer when stale.
-- [ ] Wire the compact `Visualizer.svelte` and skin `Visualizer.svelte` to real
+- [x] Wire the compact `Visualizer.svelte` and skin `Visualizer.svelte` to real
       bands/waveform when fresh; keep the simulated math as fallback.
-- [ ] Add a compact real spectrum to the Browse now-playing bar
+- [x] Add a compact real spectrum to the Browse now-playing bar
       (`BrowseVisualizer.svelte`), using the same frames and fallback.
-- [ ] Tests: analyzer, client set, freshness/fallback, visualizer rendering.
+- [x] Tests: analyzer, client set, freshness/fallback, visualizer rendering.
 - Commit: `feat(audio): add a real monitor-driven visualizer`
+
+#### V1 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `go test ./internal/visualizer/... ./internal/wailsapi/visualizer/...` | exit 0 |
+| `go test -race ./internal/visualizer/... ./internal/wailsapi/visualizer/...` | exit 0 |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `go vet $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `gofmt -l internal/visualizer internal/wailsapi/visualizer main.go` | exit 0, no files |
+| `wails3 generate bindings -clean=true -ts -i .` | regenerated; identical on rerun |
+| `npm run i18n:check` | exit 0, 0 findings |
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0 |
+| `npm run test` | exit 0, 43 files / 235 tests |
+| `npm run build` | exit 0, 258 modules |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+`parec` was exercised locally for 1.5 s: 31 frames were captured and analyzed
+with no errors. Live playback reaction is still pending user verification; the
+monitor captures system-wide output on Linux/PulseAudio-PipeWire.
 
 ### V2 — Verification
 
@@ -100,3 +123,4 @@ the user.
 | Date | Task | Commit | Result |
 |---|---|---|---|
 | 2026-11-05 | P1 | `feat(browse): add player controls and queue` (hash reported in the session) | Browse shuffle/repeat/seek/mute, queue section with `QueueView`, i18n keys and tests; all frontend/Go/build gates green; live GTK verification pending user |
+| 2026-11-05 | V1 | `feat(audio): add a real monitor-driven visualizer` (hash reported in the session) | Monitor analyzer and `parec` capture, Wails client-set service/event, real-frame rendering in the compact, skin and Browse visualizers with simulated fallback; all gates green; live playback check pending user |

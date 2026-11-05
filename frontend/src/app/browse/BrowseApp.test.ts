@@ -72,6 +72,8 @@ vi.mock("../../shared/api", () => ({
   appWindow: { closeBrowse: mocks.closeBrowse },
   audio: mocks.audio,
   onBrowseNavigate: mocks.onBrowseNavigate,
+  visualizer: { setActive: vi.fn(() => Promise.resolve()) },
+  onVisualizerFrame: vi.fn(() => () => {}),
   toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
 }));
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bandValue,
   beatEnvelope,
   gridPoint,
   hashString,
@@ -9,6 +10,8 @@ import {
   trackSeed,
   trackTempo,
   waveSample,
+  waveformGain,
+  waveformValue,
 } from "./visualizer";
 
 describe("deterministic visualizer signals", () => {
@@ -77,5 +80,29 @@ describe("deterministic visualizer signals", () => {
       true,
     );
     expect(Number.isFinite(beatEnvelope(Number.NaN, Number.NaN))).toBe(true);
+  });
+
+  it("maps real bands across any bar count", () => {
+    const bands = [0, 0.25, 0.5, 0.75, 1];
+    expect(bandValue(bands, 0, 5)).toBe(0);
+    expect(bandValue(bands, 4, 5)).toBe(1);
+    expect(bandValue(bands, 4, 9)).toBeCloseTo(0.5);
+    expect(bandValue([], 0, 10)).toBe(0);
+
+    for (let index = 0; index < 48; index += 1) {
+      const value = bandValue(bands, index, 48);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("interpolates real waveform samples and scales quiet frames", () => {
+    expect(waveformValue([-1, 1], 0)).toBe(-1);
+    expect(waveformValue([-1, 1], 1)).toBe(1);
+    expect(waveformValue([-1, 1], 0.5)).toBeCloseTo(0);
+    expect(waveformValue([], 0.5)).toBe(0);
+    expect(waveformGain([0, 0.01])).toBe(0);
+    expect(waveformGain([0, 0.5])).toBeCloseTo(2);
+    expect(waveformGain([0, 0.1])).toBeLessThanOrEqual(6);
   });
 });

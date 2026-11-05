@@ -14,6 +14,9 @@ import type * as playback$0 from "../../../../../cadence/internal/playback/model
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import type * as skins$0 from "../../../../../cadence/internal/skins/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as visualizer$0 from "../../../../../cadence/internal/visualizer/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
@@ -22,6 +25,7 @@ declare module "@wailsio/runtime" {
             "browse:navigate": string;
             "player:state": playback$0.PlayerState;
             "skins:changed": skins$0.SkinCatalog;
+            "visualizer:frame": visualizer$0.Frame;
         }
     }
 }

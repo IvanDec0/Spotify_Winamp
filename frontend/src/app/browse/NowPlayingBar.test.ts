@@ -29,10 +29,14 @@ const mocks = vi.hoisted(() => ({
     addToPlaylist: vi.fn(),
     removeFromPlaylist: vi.fn(),
   },
+  setVisualizerActive: vi.fn(() => Promise.resolve()),
+  onVisualizerFrame: vi.fn(() => () => {}),
 }));
 
 vi.mock("../../shared/api", () => ({
   audio: mocks.audio,
+  visualizer: { setActive: mocks.setVisualizerActive },
+  onVisualizerFrame: mocks.onVisualizerFrame,
   toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
 }));
 

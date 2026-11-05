@@ -6,6 +6,7 @@
   import { clamp } from "../../lib/visualizer";
   import { t } from "../../shared/i18n";
   import Button from "../../shared/ui/Button.svelte";
+  import BrowseVisualizer from "./BrowseVisualizer.svelte";
   import Icon from "./Icon.svelte";
   import { browse } from "./browse.svelte";
 
@@ -108,6 +109,9 @@
     <div class="track-copy">
       <span class="track-title">{track.title || t("browse.nothingPlaying")}</span>
       <span class="track-meta">{artistLabel}</span>
+    </div>
+    <div class="spectrum-preview" aria-hidden="true">
+      <BrowseVisualizer />
     </div>
     <button
       class="heart-button"
@@ -268,6 +272,13 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  .spectrum-preview {
+    width: 72px;
+    height: 28px;
+    flex: 0 0 72px;
+    opacity: 0.85;
   }
 
   .track-copy {
@@ -483,6 +494,10 @@
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px 14px;
       padding: 12px 18px;
+    }
+
+    .spectrum-preview {
+      display: none;
     }
 
     .progress {
