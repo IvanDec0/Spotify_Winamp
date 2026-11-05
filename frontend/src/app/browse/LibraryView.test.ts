@@ -67,6 +67,14 @@ describe("LibraryView", () => {
       loading: false,
       loaded: true,
     };
+    mocks.audio.albums.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
+    mocks.audio.yourEpisodes.mockResolvedValue({
+      uri: "spotify:user:listener:collection:your-episodes",
+      ready: true,
+      length: 0,
+      cached: 0,
+      items: [],
+    });
     mocks.audio.playlists.mockResolvedValue({
       total: 2,
       offset: 1,
@@ -98,5 +106,25 @@ describe("LibraryView", () => {
 
     expect(mocks.audio.playlists).toHaveBeenCalledWith(1, 50);
     expect(browse.pages.playlists.items).toHaveLength(2);
+  });
+
+  it("moves the active library tab with the keyboard", async () => {
+    render(LibraryView);
+
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs[0].getAttribute("aria-selected")).toBe("true");
+
+    await fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
+    expect(browse.libraryTab).toBe("albums");
+    await waitFor(() => {
+      expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
+      expect(document.activeElement).toBe(screen.getAllByRole("tab")[1]);
+    });
+
+    await fireEvent.keyDown(screen.getAllByRole("tab")[1], { key: "End" });
+    expect(browse.libraryTab).toBe("episodes");
+
+    await fireEvent.keyDown(screen.getAllByRole("tab")[3], { key: "Home" });
+    expect(browse.libraryTab).toBe("playlists");
   });
 });

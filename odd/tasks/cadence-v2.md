@@ -963,16 +963,35 @@ case. No Go API was missing; no bindings changed.
 |---|---|
 | T6.1 | `feat(browse): add the separate skin-aware Browse window` |
 | T6.2 | `feat(browse): add search, library and podcast surfaces` |
+| T6.3 | `feat(browse): add settings and accessibility polish` |
 
 ### T6.3 — Settings, accessibility and polish
 
-- [ ] Settings panel for bitrate, crossfade, normalization, audio cache, FLAC,
+- [x] Settings panel for bitrate, crossfade, normalization, audio cache, FLAC,
       MPRIS, device group and image size; save + explicit restart confirmation.
-- [ ] Keyboard navigation, focus management, ARIA labels, empty/error/loading
+- [x] Keyboard navigation, focus management, ARIA labels, empty/error/loading
       states; responsive at 960×640 and 720×480.
-- [ ] Visual polish with tokens only; no hardcoded dark colors that break light
+- [x] Visual polish with tokens only; no hardcoded dark colors that break light
       skin themes.
 - Commit: `feat(browse): add settings and accessibility polish`
+
+#### T6.3 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0, 0 errors and 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0, all files match Prettier |
+| `npm run test` | exit 0, 37 files / 177 tests |
+| `npm run build` | exit 0, 259 modules; `browse-*.js` 65.32 kB |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0, unchanged |
+| `git diff --check` | exit 0, no whitespace errors |
+
+Live UI behavior is **not** claimed: this environment cannot open the Browse
+window. jsdom covers the settings form/store, tab keyboard navigation, focus
+on the entity back button and return to the section heading, and the save /
+restart notices. Native select popups, real window resizing and actual engine
+restart behavior were not exercised.
 
 ### T6.4 — Verification
 
@@ -1038,3 +1057,4 @@ case. No Go API was missing; no bindings changed.
 | 2026-11-05 | T5.4 | `docs(odd): record Phase 5 verification` | All Go/engine/binding/frontend gates green; live read-only search and collection checks passed; actual writes and UI remain Phase 6 |
 | 2026-11-05 | T6.1 | `feat(browse): add the separate skin-aware Browse window` | Separate `browse` window host (open/close/status, focus instead of duplicate), `?surface=browse` dynamic entry, app-owned Browse shell with sidebar/top bar/now-playing, hidden shadow/Clarity token probe applied inline with storage re-sync, optional manifest `browse.css` with schema/validation/runtime URL, Lumina example; Go and frontend checks green; live window smoke not run |
 | 2026-11-05 | T6.2 | `feat(browse): add search, library and podcast surfaces` | Browse store with latest-wins six-group search, paged library tabs, retried entity contexts and back stack; Search/Library/Podcasts/Entity views, VirtualList context rows (44 px), save/follow/like and playlist add/remove with optimistic rollback, now-playing heart and playlist picker; no Go or binding changes; 35 files / 164 frontend tests green; live UI not run |
+| 2026-11-05 | T6.3 | `feat(browse): add settings and accessibility polish` | Engine settings view/store (bitrate, crossfade, normalisation, cache, FLAC, MPRIS, device group, image size), explicit Dialog restart flow, tablist/roving keyboard focus, search/entity focus management, loading/empty/error-retry and aria-busy states, responsive token-only styling, tooltip labels; 37 files / 177 frontend tests green; live UI/native restart not run |

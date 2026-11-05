@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SearchHit } from "../../shared/api/types";
 import type { SearchResultsView } from "./browse.svelte";
@@ -92,16 +92,41 @@ describe("SearchView", () => {
     };
 
     render(SearchView);
-    expect(screen.getByRole("button", { name: /Tracks/ }).textContent).toContain("1");
+    expect(screen.getByRole("tab", { name: /Tracks/ }).textContent).toContain("1");
     expect(screen.getByText("One More Time")).not.toBeNull();
     expect(screen.getByText("Daft Punk")).not.toBeNull();
 
-    await fireEvent.click(screen.getByRole("button", { name: /Albums/ }));
+    await fireEvent.click(screen.getByRole("tab", { name: /Albums/ }));
     expect(screen.getByText("Discovery")).not.toBeNull();
 
-    await fireEvent.click(screen.getByRole("button", { name: /Shows/ }));
+    await fireEvent.click(screen.getByRole("tab", { name: /Shows/ }));
     expect(screen.getByText("Podcast Show")).not.toBeNull();
     expect(screen.getByText("Podcast")).not.toBeNull();
+  });
+
+  it("moves the active tab with the keyboard", async () => {
+    browse.query = "daft";
+    browse.results = emptyView({
+      tracks: [hit("spotify:track:1", "One More Time")],
+      albums: [hit("spotify:album:1", "Discovery")],
+    });
+
+    render(SearchView);
+    const first = screen.getAllByRole("tab")[0];
+    expect(first.getAttribute("aria-selected")).toBe("true");
+
+    await fireEvent.keyDown(first, { key: "ArrowRight" });
+    expect(browse.searchTab).toBe("albums");
+    await waitFor(() => {
+      const tabs = screen.getAllByRole("tab");
+      expect(tabs[1].getAttribute("aria-selected")).toBe("true");
+      expect(document.activeElement).toBe(tabs[1]);
+    });
+
+    await fireEvent.keyDown(screen.getAllByRole("tab")[1], { key: "End" });
+    expect(browse.searchTab).toBe("episodes");
+    await fireEvent.keyDown(screen.getAllByRole("tab")[5], { key: "Home" });
+    expect(browse.searchTab).toBe("tracks");
   });
 
   it("forwards track queue and radio actions", async () => {

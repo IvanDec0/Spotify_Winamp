@@ -20,6 +20,7 @@
   let progressPercent = $derived(
     durationMs > 0 ? Math.min(100, Math.max(0, (positionMs / durationMs) * 100)) : 0,
   );
+  let heartLabel = $derived(browse.currentLiked ? t("browse.unlike") : t("browse.like"));
 
   $effect(() => {
     const isPlaying = player.state.status === Status.StatusPlaying;
@@ -55,7 +56,8 @@
       class:is-liked={browse.currentLiked}
       type="button"
       disabled={!track.uri || browse.likedLoading}
-      aria-label={browse.currentLiked ? t("browse.unlike") : t("browse.like")}
+      title={heartLabel}
+      aria-label={heartLabel}
       aria-pressed={browse.currentLiked}
       onclick={() => void browse.toggleCurrentLike()}
     >
@@ -68,6 +70,7 @@
       variant="ghost"
       size="sm"
       ariaLabel={t("browse.previous")}
+      title={t("browse.previous")}
       disabled={!player.state.canControl}
       onclick={() => void player.previous()}
     >
@@ -77,6 +80,7 @@
       variant="primary"
       size="lg"
       ariaLabel={playing ? t("browse.pause") : t("browse.play")}
+      title={playing ? t("browse.pause") : t("browse.play")}
       disabled={!player.state.canControl}
       onclick={() => void player.toggle()}
     >
@@ -86,6 +90,7 @@
       variant="ghost"
       size="sm"
       ariaLabel={t("browse.next")}
+      title={t("browse.next")}
       disabled={!player.state.canControl}
       onclick={() => void player.next()}
     >

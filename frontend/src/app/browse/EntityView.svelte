@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { coverURL } from "../../lib/artwork";
   import { formatTime } from "../../lib/format";
   import { player } from "../../lib/player.svelte";
@@ -11,6 +12,7 @@
   import { browse } from "./browse.svelte";
 
   let pickerTrack = $state<string | null>(null);
+  let backButton = $state<HTMLButtonElement>();
 
   let entity = $derived(browse.entity);
   let context = $derived(browse.context);
@@ -46,14 +48,27 @@
     }),
   );
 
+  $effect(() => {
+    const uri = browse.entity?.uri;
+    if (!uri) return;
+    void tick().then(() => backButton?.focus());
+  });
+
   function meta(artists: string[] | null, album: string): string {
     return [(artists ?? []).join(", "), album].filter(Boolean).join(" · ");
+  }
+
+  function goBack(): void {
+    browse.back();
+    void tick().then(() => {
+      document.querySelector<HTMLElement>("main .view-title")?.focus();
+    });
   }
 </script>
 
 {#if entity}
-  <section class="entity-view" aria-labelledby="entity-title">
-    <button class="back-button" type="button" onclick={() => browse.back()}>
+  <section class="entity-view" aria-labelledby="entity-title" aria-busy={browse.contextLoading}>
+    <button class="back-button" type="button" bind:this={backButton} onclick={goBack}>
       <Icon name="back" size={14} />
       {t("browse.back")}
     </button>
@@ -110,15 +125,22 @@
     </header>
 
     {#if browse.contextError}
-      <p class="browse-banner is-error">{browse.contextError}</p>
+      <div class="browse-banner is-error" role="alert" aria-live="assertive">
+        <span>{browse.contextError}</span>
+        <Button variant="ghost" size="sm" onclick={() => void browse.reloadEntity()}>
+          {t("ui.retry")}
+        </Button>
+      </div>
     {/if}
 
     {#if browse.contextLoading && !context}
-      <div class="skeleton-wrap">
+      <div class="skeleton-wrap" aria-busy="true" aria-label={t("browse.loading")}>
         <Skeleton rows={8} height={16} />
       </div>
     {:else if context && !context.ready}
       <p class="entity-status">{loadingStatus}</p>
+    {:else if !context && !browse.contextError}
+      <p class="empty-panel">{t("browse.emptyContext")}</p>
     {/if}
 
     {#if context && context.ready && items.length === 0}
@@ -166,6 +188,7 @@
                 <button
                   class="icon-button"
                   type="button"
+                  title={t("browse.playNamed", { title: item.title || item.uri })}
                   aria-label={t("browse.playNamed", { title: item.title || item.uri })}
                   onclick={() => void browse.playItem(item)}
                 >
@@ -174,6 +197,7 @@
                 <button
                   class="icon-button"
                   type="button"
+                  title={t("browse.queueNamed", { title: item.title || item.uri })}
                   aria-label={t("browse.queueNamed", { title: item.title || item.uri })}
                   onclick={() => void browse.addToQueue(item.uri)}
                 >
@@ -182,6 +206,7 @@
                 <button
                   class="icon-button"
                   type="button"
+                  title={t("browse.playlistNamed", { title: item.title || item.uri })}
                   aria-label={t("browse.playlistNamed", { title: item.title || item.uri })}
                   onclick={() => {
                     pickerTrack = item.uri;
@@ -193,6 +218,7 @@
                   <button
                     class="icon-button is-danger"
                     type="button"
+                    title={t("browse.removeNamed", { title: item.title || item.uri })}
                     aria-label={t("browse.removeNamed", { title: item.title || item.uri })}
                     onclick={() => void browse.removeFromPlaylist(item.uri)}
                   >

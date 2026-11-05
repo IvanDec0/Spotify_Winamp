@@ -220,6 +220,7 @@ export class BrowseStore {
   searchSequence = $state(0);
 
   pages = $state<Record<LibraryTab, LibraryPage>>(emptyPages());
+  libraryError = $state<string | null>(null);
   stack = $state<Route[]>([{ name: "root" }]);
   entity = $state<EntityRef | null>(null);
   context = $state<(LibraryContext & { items: NonNullable<LibraryContext["items"]> }) | null>(null);
@@ -294,16 +295,17 @@ export class BrowseStore {
 
   async loadLibrary(tab: LibraryTab): Promise<void> {
     const request = ++this.#libraryRequests[tab];
+    this.libraryError = null;
     this.pages[tab] = { ...emptyPage(), loading: true };
     try {
       const page = await this.#fetchPage(tab, 0);
       if (request !== this.#libraryRequests[tab]) return;
       this.pages[tab] = { ...page, loading: false, loaded: true };
-      this.error = null;
+      this.libraryError = null;
     } catch (error) {
       if (request !== this.#libraryRequests[tab]) return;
       this.pages[tab] = { ...this.pages[tab], loading: false };
-      this.error = toApiError(error).message;
+      this.libraryError = toApiError(error).message;
     }
   }
 
@@ -313,6 +315,7 @@ export class BrowseStore {
     if (page.offset >= page.total) return;
 
     const request = ++this.#libraryRequests[tab];
+    this.libraryError = null;
     this.pages[tab] = { ...page, loading: true };
     try {
       const next = await this.#fetchPage(tab, page.offset);
@@ -324,11 +327,11 @@ export class BrowseStore {
         loading: false,
         loaded: true,
       };
-      this.error = null;
+      this.libraryError = null;
     } catch (error) {
       if (request !== this.#libraryRequests[tab]) return;
       this.pages[tab] = { ...this.pages[tab], loading: false };
-      this.error = toApiError(error).message;
+      this.libraryError = toApiError(error).message;
     }
   }
 
@@ -379,6 +382,16 @@ export class BrowseStore {
     const request = this.#contextRequest;
     void this.#loadEntitySaved(request, ref);
     await this.#loadEntityContext(request, ref);
+  }
+
+  async reloadEntity(): Promise<void> {
+    const entity = this.entity;
+    if (!entity) return;
+    this.#cancelEntityContext();
+    this.#beginEntity(entity);
+    const request = this.#contextRequest;
+    void this.#loadEntitySaved(request, entity);
+    await this.#loadEntityContext(request, entity);
   }
 
   back(): void {
@@ -588,6 +601,7 @@ export class BrowseStore {
     this.searchError = null;
     this.results = null;
     this.pages = emptyPages();
+    this.libraryError = null;
     this.stack = [{ name: "root" }];
     this.#clearEntity();
     this.currentLiked = false;

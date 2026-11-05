@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/svelte";
+import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { playerMock } from "../../lib/testing/player-mock.svelte";
 import { preferences } from "../../lib/preferences.svelte";
@@ -46,6 +46,9 @@ const mocks = vi.hoisted(() => ({
     isArtistFollowed: vi.fn(),
     addToPlaylist: vi.fn(),
     removeFromPlaylist: vi.fn(),
+    getEngineSettings: vi.fn(),
+    setEngineSettings: vi.fn(),
+    restart: vi.fn(),
   },
 }));
 
@@ -71,12 +74,30 @@ vi.mock("../../lib/skins.svelte", () => ({
 
 import BrowseApp from "./BrowseApp.svelte";
 import { browse } from "./browse.svelte";
+import { browseSettings } from "./settings.svelte";
+
+const engineSettings = {
+  bitrate: 320,
+  crossfadeDurationMs: 0,
+  normalisationDisabled: false,
+  normalisationUseAlbumGain: false,
+  normalisationPregain: 0,
+  cacheEnabled: true,
+  cacheDir: "/tmp/cadence-cache",
+  cacheSizeLimit: "1GB",
+  flacEnabled: false,
+  mprisEnabled: true,
+  deviceIsGroup: false,
+  imageSize: "default",
+};
 
 describe("Browse shell", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.audio.isLiked.mockResolvedValue(false);
+    mocks.audio.getEngineSettings.mockResolvedValue(engineSettings);
     browse.reset();
+    browseSettings.reset();
     preferences.setTheme("graphite");
     playerMock.state = { ...playerMock.state, canControl: true };
     playerMock.toggle.mockClear();
@@ -111,6 +132,7 @@ describe("Browse shell", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Save settings" })).not.toBeNull();
 
     await fireEvent.click(screen.getByRole("button", { name: "Pause" }));
     expect(playerMock.toggle).toHaveBeenCalledOnce();
@@ -119,5 +141,38 @@ describe("Browse shell", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(playerMock.previous).toHaveBeenCalledOnce();
     expect(playerMock.next).toHaveBeenCalledOnce();
+  });
+
+  it("focuses the entity back button and returns focus to the view heading", async () => {
+    const entity = { kind: "album" as const, uri: "spotify:album:1", title: "Album" };
+    browse.stack = [{ name: "root" }, { name: "entity", entity }];
+    browse.entity = entity;
+    browse.context = { uri: entity.uri, ready: true, length: 0, cached: 0, items: [] };
+
+    render(BrowseApp);
+    const back = screen.getByRole("button", { name: "Back" });
+    await waitFor(() => expect(document.activeElement).toBe(back));
+
+    await fireEvent.click(back);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { name: "Search the catalog" }),
+      ),
+    );
+  });
+
+  it("focuses the search field when switching back to Search", async () => {
+    render(BrowseApp);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Library" }));
+    await fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("searchbox", {
+          name: "Search tracks, albums, artists, playlists, shows and episodes",
+        }),
+      ),
+    );
   });
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { player } from "../../lib/player.svelte";
   import { isThemeId, preferences } from "../../lib/preferences.svelte";
   import { skins } from "../../lib/skins.svelte";
@@ -11,6 +11,7 @@
   import NowPlayingBar from "./NowPlayingBar.svelte";
   import PodcastsView from "./PodcastsView.svelte";
   import SearchView from "./SearchView.svelte";
+  import SettingsView from "./SettingsView.svelte";
   import { browse, type Section } from "./browse.svelte";
   import { applyTokens, readSkinTokens, syncBrowseStylesheet } from "./theme.svelte";
 
@@ -26,9 +27,11 @@
   ];
 
   let root: HTMLDivElement;
+  let searchInputEl: HTMLInputElement;
   let themeRequest = 0;
   let searchInput = $derived(browse.query);
   let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  let previousSection: Section = browse.section;
 
   let navItems = $derived(SECTIONS.map((item) => ({ ...item, label: t(item.label) })));
   let skinLabel = $derived.by(() => {
@@ -67,6 +70,15 @@
 
   $effect(() => {
     void browse.syncTrackLike(player.state.track.uri);
+  });
+
+  $effect(() => {
+    const section = browse.section;
+    if (section === previousSection) return;
+    previousSection = section;
+    if (section === "search") {
+      void tick().then(() => searchInputEl?.focus());
+    }
   });
 
   onMount(() => {
@@ -108,6 +120,9 @@
       searchTimer = null;
     }
     browse.setSection(section);
+    if (section === "search") {
+      void tick().then(() => searchInputEl?.focus());
+    }
   }
 
   function clearSearch(): void {
@@ -162,6 +177,7 @@
     >
       <Icon name="search" size={14} />
       <input
+        bind:this={searchInputEl}
         type="search"
         value={searchInput}
         placeholder={t("browse.searchPlaceholder")}
@@ -178,6 +194,7 @@
         <button
           class="search-clear"
           type="button"
+          title={t("browse.clearSearch")}
           aria-label={t("browse.clearSearch")}
           onclick={clearSearch}
         >
@@ -193,13 +210,13 @@
     {#if browse.error || browse.notice}
       <div class="browse-banners">
         {#if browse.error}
-          <div class="browse-banner is-error" role="status">
+          <div class="browse-banner is-error" role="alert" aria-live="assertive" aria-atomic="true">
             <span>{browse.error}</span>
             <button type="button" onclick={() => browse.dismissError()}>{t("ui.dismiss")}</button>
           </div>
         {/if}
         {#if browse.notice}
-          <div class="browse-banner is-info" role="status">
+          <div class="browse-banner is-info" role="status" aria-live="polite" aria-atomic="true">
             <span>{t(browse.notice.key, browse.notice.params)}</span>
             <button type="button" onclick={() => browse.dismissNotice()}>{t("ui.dismiss")}</button>
           </div>
@@ -216,15 +233,7 @@
     {:else if browse.section === "podcasts"}
       <PodcastsView />
     {:else}
-      <section class="browse-view" aria-labelledby="settings-view-title">
-        <header class="view-head">
-          <div>
-            <p class="eyebrow">{t("browse.settings")}</p>
-            <h1 id="settings-view-title" class="view-title">{t("browse.settingsTitle")}</h1>
-          </div>
-        </header>
-        <p class="empty-panel">{t("browse.settingsPlaceholder")}</p>
-      </section>
+      <SettingsView />
     {/if}
   </main>
 
@@ -450,6 +459,24 @@
     }
 
     .theme-chip {
+      display: none;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .cadence-browse {
+      grid-template-columns: 148px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      padding: 14px 8px 12px;
+    }
+
+    .nav-item {
+      padding: 8px;
+    }
+
+    .wordmark span {
       display: none;
     }
   }

@@ -108,6 +108,9 @@ describe("EntityView", () => {
     expect(screen.getByRole("heading", { name: "Album" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Play all" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Save" })).not.toBeNull();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Back" })),
+    );
     await waitFor(() => expect(screen.getByText("Track 1")).not.toBeNull());
     expect(screen.getByText("Track 2")).not.toBeNull();
 

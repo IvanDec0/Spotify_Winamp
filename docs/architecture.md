@@ -109,6 +109,11 @@ The catalog has its own native window, separate from the compact player.
 - Long entity lists use `shared/ui/VirtualList` with a 44 px row pitch. The
   entity panel is `flex:1; min-height:0` and the virtual list owns the scroll
   container at `height:100%`, so the Browse window never nests scroll areas.
+- `frontend/src/app/browse/settings.svelte.ts` and `SettingsView` load and save
+  `EngineSettings` through the audio facade. Saving marks a restart as pending;
+  `audio.restart()` only runs from the `Dialog` confirmation. Search and
+  library tabs use `tablist`/`tab` semantics with roving keyboard focus, and
+  async views expose skeleton, empty, error/retry and `aria-busy` states.
 - `frontend/src/app/browse/theme.svelte.ts` probes the active skin in a hidden
   shadow host (declarative) or a hidden `.clarity[data-theme]` element
   (built-in), then applies the known token list inline to `.cadence-browse`.
@@ -157,8 +162,8 @@ Engine playback and cache options persist in `settings.Config.Engine` under
 `$XDG_CONFIG_HOME/cadence/config.json`. The audio adapter validates and saves
 them through `Store.UpdateEngine`, then calls
 `Supervisor.ApplyPlaybackConfig`; the running engine is never restarted
-implicitly. New values are used by the next `Start`, or after the UI calls
-`Restart` following an explicit confirmation.
+implicitly. New values are used by the next `Start`, or after the Browse
+settings view calls `Restart` following the explicit dialog confirmation.
 
 ## Generated bindings
 
