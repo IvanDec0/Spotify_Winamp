@@ -21,8 +21,9 @@ export function BrowseOpen(): $CancellablePromise<boolean> {
 }
 
 /**
- * CloseBrowse closes the Browse window. It is a no-op when the window is not
- * open.
+ * CloseBrowse closes the Browse window and restores the compact player. The
+ * explicit restore covers close paths where the WindowClosing listener does
+ * not fire.
  */
 export function CloseBrowse(): $CancellablePromise<void> {
     return $Call.ByID(3772327875);

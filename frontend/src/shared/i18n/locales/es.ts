@@ -16,6 +16,7 @@ export const es: Record<MessageKey, string> = {
   "ui.items": "{count, plural, one {# elemento} other {# elementos}}",
   "browse.open": "Explorar",
   "browse.openWindow": "Abrir Explorar",
+  "browse.backToPlayer": "Volver al reproductor",
   "browse.navLabel": "Secciones de exploración",
   "browse.pairing.localDevice": "Dispositivo local de Spotify",
   "browse.pairing.startingTitle": "Iniciando el motor de audio…",

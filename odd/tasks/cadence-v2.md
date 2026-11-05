@@ -965,6 +965,7 @@ case. No Go API was missing; no bindings changed.
 | T6.2 | `1996a77` |
 | T6.3 | `b55a8c1` |
 | Correction: LOCAL opens Browse | `fix(browse): route LOCAL directly to the Browse window` |
+| Correction: one visible window | `fix(browse): show one window at a time` |
 
 ### T6.3 — Settings, accessibility and polish
 
@@ -1035,8 +1036,9 @@ restart behavior were not exercised.
   above; the full Wails app builds as `bin/cadence`.
 - **Window:** Browse is a separate 960×640 opaque window opened directly from
   the compact `LOCAL` badge (Library section); re-opening focuses the existing
-  window and sends `browse:navigate`. It is a native-frame window, not a
-  shaped/transparent skin window.
+  window and sends `browse:navigate`. Opening Browse hides the compact player
+  (without destroying it) and closing Browse restores it. It is a native-frame
+  window, not a shaped/transparent skin window.
 - **Skin-aware:** the active skin’s theme tokens are read through a hidden
   shadow/Clarity probe and applied inline; the compact `styles.css` is never
   injected. An optional manifest `browse.css` lets a skin restyle the Browse
@@ -1050,9 +1052,10 @@ restart behavior were not exercised.
 - **Performance:** entity track lists use `VirtualList` at a 44 px pitch; the
   Browse window owns its scroll container.
 - **Pending live smoke:** the environment cannot open the GTK window. The user
-  should run `./bin/cadence`, click `LOCAL` to open Browse directly, search
-  podcasts, play an episode, save/follow an album/artist/show, change a
-  skin/theme and restart the engine from Settings.
+  should run `./bin/cadence`, click `LOCAL` to hide the compact player and open
+  Browse directly, use `Back to player`/native close to restore the compact
+  player, then search podcasts, play an episode, save/follow an
+  album/artist/show, change a skin/theme and restart the engine from Settings.
 - **Deferred:** saved-shows listing (the `show` collection set is identified),
   per-row liked hearts (the now-playing bar has the current-track like), any
   native window resize/frame polish if the live smoke finds it, and removal of
@@ -1104,6 +1107,41 @@ dedicated window.
 Live GTK flow is **not** claimed: the user will verify that clicking `LOCAL`
 opens the Browse window directly in the Library section and that a second click
 focuses it without a duplicate.
+
+### Correction — 2026-11-05: one visible window at a time
+
+Opening Browse now hides the compact player instead of leaving both windows
+visible. The compact window is only hidden, never destroyed, so playback and
+state survive. Closing Browse restores it.
+
+- [x] `OpenBrowse(section)` shows/focuses Browse, emits `browse:navigate` for an
+      existing window, then hides `main` only after Browse is visible. A failed
+      show leaves `main` visible.
+- [x] New Browse windows register a `WindowClosing` listener that shows and
+      focuses `main`; the close itself is not cancelled. `CloseBrowse` also
+      restores `main` explicitly as a fallback.
+- [x] Added the discoverable `Back to player` sidebar action calling
+      `closeBrowse()`; the native close paths remain supported.
+- [x] Updated docs and tests; the swap itself is user-verified because no live
+      GTK window can be opened here.
+- Commit: `fix(browse): show one window at a time`
+
+#### Correction verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `go vet $(go list ./... \| grep -v '/node_modules/')` | exit 0, no findings |
+| `gofmt -l $(go list -f '{{.Dir}}' ./... \| grep -v '/node_modules/')` | exit 0, no files listed |
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint`, `npm run format` | exit 0 |
+| `npm run test` | exit 0, 38 files / 184 tests |
+| `npm run build` | exit 0, 252 modules |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+The live hide/show swap is not claimed; the user will verify that opening
+Browse hides the compact player and closing Browse restores it.
 
 ## Progress log
 

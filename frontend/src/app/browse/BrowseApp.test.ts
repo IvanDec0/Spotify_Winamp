@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   },
   loading: false,
   onBrowseNavigate: vi.fn(),
+  closeBrowse: vi.fn(() => Promise.resolve()),
   navigateHandler: null as ((section: string) => void) | null,
   music: {
     authenticated: true,
@@ -68,6 +69,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../shared/api", () => ({
+  appWindow: { closeBrowse: mocks.closeBrowse },
   audio: mocks.audio,
   onBrowseNavigate: mocks.onBrowseNavigate,
   toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
@@ -221,6 +223,14 @@ describe("Browse shell", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).not.toBeNull();
     expect(screen.queryByText("Pair Cadence with Spotify")).toBeNull();
+  });
+
+  it("closes Browse from the back-to-player action", async () => {
+    render(BrowseApp);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Back to player" }));
+
+    await waitFor(() => expect(mocks.closeBrowse).toHaveBeenCalledOnce());
   });
 
   it("focuses the search field when switching back to Search", async () => {

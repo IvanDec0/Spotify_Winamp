@@ -4,7 +4,7 @@
   import { player } from "../../lib/player.svelte";
   import { isThemeId, preferences } from "../../lib/preferences.svelte";
   import { skins } from "../../lib/skins.svelte";
-  import { onBrowseNavigate } from "../../shared/api";
+  import { appWindow, onBrowseNavigate } from "../../shared/api";
   import { t } from "../../shared/i18n";
   import EngineGate from "./EngineGate.svelte";
   import EntityView from "./EntityView.svelte";
@@ -144,6 +144,12 @@
     searchInput = "";
     browse.clearSearch();
   }
+
+  function closeToPlayer(): void {
+    void appWindow.closeBrowse().catch((error: unknown) => {
+      browse.error = error instanceof Error ? error.message : String(error);
+    });
+  }
 </script>
 
 <div class="cadence-browse" bind:this={root}>
@@ -167,8 +173,20 @@
       {/each}
     </nav>
     <div class="sidebar-foot">
-      <span class="status-dot" aria-hidden="true"></span>
-      <span>{skins.loading ? t("ui.loading") : t("browse.catalogStatus")}</span>
+      <div class="sidebar-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>{skins.loading ? t("ui.loading") : t("browse.catalogStatus")}</span>
+      </div>
+      <button
+        class="back-to-player"
+        type="button"
+        title={t("browse.backToPlayer")}
+        aria-label={t("browse.backToPlayer")}
+        onclick={closeToPlayer}
+      >
+        <Icon name="back" size={13} />
+        <span>{t("browse.backToPlayer")}</span>
+      </button>
     </div>
   </aside>
 
@@ -332,12 +350,41 @@
 
   .sidebar-foot {
     display: flex;
-    align-items: center;
-    gap: 7px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
     margin-top: auto;
     padding: 8px;
     color: var(--faint);
     font-size: 10px;
+  }
+
+  .sidebar-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .back-to-player {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 8px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    color: var(--muted);
+    font-size: 10px;
+    text-align: left;
+    transition:
+      border-color var(--motion-fast, 120ms) ease,
+      background-color var(--motion-fast, 120ms) ease,
+      color var(--motion-fast, 120ms) ease;
+  }
+
+  .back-to-player:hover {
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+    color: var(--text);
   }
 
   .status-dot {

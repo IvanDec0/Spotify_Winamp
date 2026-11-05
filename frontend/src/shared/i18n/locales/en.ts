@@ -14,6 +14,7 @@ export const en = {
   "ui.items": "{count, plural, one {# item} other {# items}}",
   "browse.open": "Browse",
   "browse.openWindow": "Open Browse",
+  "browse.backToPlayer": "Back to player",
   "browse.navLabel": "Browse sections",
   "browse.pairing.localDevice": "Local Spotify device",
   "browse.pairing.startingTitle": "Starting the audio engine…",

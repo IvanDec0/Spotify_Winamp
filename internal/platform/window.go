@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 // WindowService exposes the small set of native window operations that need
@@ -17,6 +18,10 @@ import (
 type WindowService struct{}
 
 const (
+	// mainWindowName is the compact player window. It is hidden while Browse is
+	// visible and restored when Browse closes; it is never destroyed here.
+	mainWindowName = "main"
+
 	// browseWindowName is the stable Wails name used to focus an existing
 	// Browse window instead of opening a duplicate.
 	browseWindowName = "browse"
@@ -24,6 +29,33 @@ const (
 	// BrowseNavigateEvent asks an already-open Browse window to switch sections.
 	BrowseNavigateEvent = "browse:navigate"
 )
+
+// hideMainWindow hides the compact player only after the Browse window has
+// been shown successfully. Playback and frontend state stay alive.
+func hideMainWindow(app *application.App) {
+	window, ok := app.Window.GetByName(mainWindowName)
+	if !ok || !window.IsVisible() {
+		return
+	}
+	window.Hide()
+}
+
+// showMainWindow restores the compact player. The check avoids forcing a
+// window back up while the application is shutting down.
+func showMainWindow(app *application.App) {
+	if app == nil {
+		return
+	}
+	if ctx := app.Context(); ctx != nil && ctx.Err() != nil {
+		return
+	}
+	window, ok := app.Window.GetByName(mainWindowName)
+	if !ok {
+		return
+	}
+	window.Show()
+	window.Focus()
+}
 
 // browseSection normalizes the section requested by the compact window. The
 // value becomes part of a URL, so only known identifiers are accepted.
@@ -57,19 +89,20 @@ func (s *WindowService) OpenBrowse(section string) error {
 	}
 
 	if window, ok := app.Window.GetByName(browseWindowName); ok {
-		if err := application.InvokeSyncWithError(func() error {
+		return application.InvokeSyncWithError(func() error {
 			window.Show()
 			window.Focus()
+			if !window.IsVisible() {
+				return errors.New("browse window could not be shown")
+			}
+			app.Event.Emit(BrowseNavigateEvent, normalized)
+			hideMainWindow(app)
 			return nil
-		}); err != nil {
-			return err
-		}
-		app.Event.Emit(BrowseNavigateEvent, normalized)
-		return nil
+		})
 	}
 
 	return application.InvokeSyncWithError(func() error {
-		app.Window.NewWithOptions(application.WebviewWindowOptions{
+		window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 			Name:             browseWindowName,
 			Title:            "Cadence Browse",
 			Width:            960,
@@ -85,23 +118,44 @@ func (s *WindowService) OpenBrowse(section string) error {
 				WebviewGpuPolicy: application.WebviewGpuPolicyOnDemand,
 			},
 		})
+		if window == nil {
+			return errors.New("browse window could not be created")
+		}
+
+		// Native X, Alt+F4 and WM close paths all end here. Do not cancel the
+		// close; just bring the compact player back.
+		window.OnWindowEvent(events.Common.WindowClosing, func(_ *application.WindowEvent) {
+			showMainWindow(app)
+		})
+
+		window.Show()
+		window.Focus()
+		if !window.IsVisible() {
+			return errors.New("browse window could not be shown")
+		}
+		hideMainWindow(app)
 		return nil
 	})
 }
 
-// CloseBrowse closes the Browse window. It is a no-op when the window is not
-// open.
+// CloseBrowse closes the Browse window and restores the compact player. The
+// explicit restore covers close paths where the WindowClosing listener does
+// not fire.
 func (s *WindowService) CloseBrowse() error {
 	app := application.Get()
 	if app == nil {
 		return errors.New("application is not ready")
 	}
-	window, ok := app.Window.GetByName(browseWindowName)
-	if !ok {
-		return nil
+	if window, ok := app.Window.GetByName(browseWindowName); ok {
+		if err := application.InvokeSyncWithError(func() error {
+			window.Close()
+			return nil
+		}); err != nil {
+			return err
+		}
 	}
 	return application.InvokeSyncWithError(func() error {
-		window.Close()
+		showMainWindow(app)
 		return nil
 	})
 }
