@@ -80,7 +80,10 @@ export const playerMock = $state({
   next: vi.fn(() => Promise.resolve()),
   previous: vi.fn(() => Promise.resolve()),
   seek: vi.fn(() => Promise.resolve()),
-  setVolume: vi.fn(() => Promise.resolve()),
+  setVolume: vi.fn((volume: number) => {
+    void volume;
+    return Promise.resolve();
+  }),
   toggleShuffle: vi.fn(() => Promise.resolve()),
   cycleRepeat: vi.fn(() => Promise.resolve()),
   transfer: vi.fn(() => Promise.resolve()),

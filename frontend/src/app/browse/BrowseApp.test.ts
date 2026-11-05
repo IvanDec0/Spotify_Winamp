@@ -149,6 +149,9 @@ describe("Browse shell", () => {
     playerMock.previous.mockClear();
     playerMock.next.mockClear();
     playerMock.setVolume.mockClear();
+    playerMock.loadQueue.mockClear();
+    playerMock.queue = [];
+    playerMock.queueLoading = false;
   });
 
   it("renders the sidebar, search field, theme label and now-playing bar", () => {
@@ -158,6 +161,7 @@ describe("Browse shell", () => {
     expect(screen.getByRole("button", { name: "Search" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Library" })).not.toBeNull();
     expect(screen.getAllByRole("button", { name: "Podcasts" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Queue" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Settings" })).not.toBeNull();
     expect(
       screen.getByRole("searchbox", {
@@ -169,7 +173,16 @@ describe("Browse shell", () => {
     expect(screen.getByText("Neon Meridian")).not.toBeNull();
     expect(screen.getByText("Aster Vale")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Pause" })).not.toBeNull();
-    expect(screen.getByRole("slider", { name: "Volume" })).not.toBeNull();
+    expect(screen.getByRole("slider", { name: "Volume level" })).not.toBeNull();
+  });
+
+  it("opens the queue section and loads the queue", async () => {
+    render(BrowseApp);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Queue" }));
+
+    expect(screen.getByRole("heading", { name: "Playback queue" })).not.toBeNull();
+    await waitFor(() => expect(playerMock.loadQueue).toHaveBeenCalled());
   });
 
   it("switches to settings and forwards transport controls", async () => {

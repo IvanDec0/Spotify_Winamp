@@ -128,6 +128,10 @@ export const en = {
   "browse.search": "Search",
   "browse.library": "Library",
   "browse.podcasts": "Podcasts",
+  "browse.queue": "Queue",
+  "browse.queueHint": "Up next from the local engine.",
+  "browse.queueLoading": "Loading queue…",
+  "browse.queueEmpty": "Nothing queued. Start a track from Search or Library.",
   "browse.settings": "Settings",
   "browse.searchTitle": "Search the catalog",
   "browse.searchBody":

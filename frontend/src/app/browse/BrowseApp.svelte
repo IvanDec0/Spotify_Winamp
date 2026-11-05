@@ -13,6 +13,7 @@
   import LibraryView from "./LibraryView.svelte";
   import NowPlayingBar from "./NowPlayingBar.svelte";
   import PodcastsView from "./PodcastsView.svelte";
+  import QueueView from "./QueueView.svelte";
   import SearchView from "./SearchView.svelte";
   import SettingsView from "./SettingsView.svelte";
   import { browse, normalizeSection, type Section } from "./browse.svelte";
@@ -26,6 +27,7 @@
     { id: "search", label: "browse.search", glyph: "search" },
     { id: "library", label: "browse.library", glyph: "library" },
     { id: "podcasts", label: "browse.podcasts", glyph: "podcasts" },
+    { id: "queue", label: "browse.queue", glyph: "queue" },
     { id: "settings", label: "browse.settings", glyph: "settings" },
   ];
 
@@ -260,6 +262,8 @@
       <LibraryView />
     {:else if browse.section === "podcasts"}
       <PodcastsView />
+    {:else if browse.section === "queue"}
+      <QueueView />
     {:else}
       <SettingsView />
     {/if}

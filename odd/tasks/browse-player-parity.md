@@ -20,20 +20,38 @@
 
 ### P1 — Browse player parity
 
-- [ ] `NowPlayingBar.svelte`: add shuffle and repeat buttons with active state
+- [x] `NowPlayingBar.svelte`: add shuffle and repeat buttons with active state
       (`player.state.shuffle`, `player.state.repeat`) and the same
       toggle/cycle actions as the compact player.
-- [ ] Replace the non-interactive progress rail with a seek range (disabled when
+- [x] Replace the non-interactive progress rail with a seek range (disabled when
       `canSeek` is false), using `player.seek` and keeping the interpolated
       position.
-- [ ] Add a real mute button on the volume icon: save the last non-zero volume,
+- [x] Add a real mute button on the volume icon: save the last non-zero volume,
       set 0, restore on second click; keep the slider.
-- [ ] Add a Browse `queue` section: sidebar entry, `QueueView.svelte` using
+- [x] Add a Browse `queue` section: sidebar entry, `QueueView.svelte` using
       `player.queue`/`loadQueue`, current/next tags, covers, durations, empty
       state and reload on track change while open.
-- [ ] i18n keys for shuffle/repeat/seek/mute/queue; guard at 0. Tests for the
+- [x] i18n keys for shuffle/repeat/seek/mute/queue; guard at 0. Tests for the
       bar controls and the queue view.
 - Commit: `feat(browse): add player controls and queue`
+
+#### P1 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `npm run i18n:check` | exit 0, 0 findings |
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0 |
+| `npm run test` | exit 0, 40 files / 223 tests |
+| `npm run build` | exit 0, 252 modules |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 (unchanged) |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+The bar keeps its existing heart/transport layout and adds shuffle, repeat,
+seek and mute; queue rows are display-only. Live GTK verification is pending
+the user.
 
 ### V1 — Real visualizer
 
@@ -76,3 +94,9 @@
 - Monitor capture is system-wide; other apps' audio can influence the
   visualization.
 - The approach is Linux/PulseAudio-PipeWire only (the app targets Arch Linux).
+
+## Progress log
+
+| Date | Task | Commit | Result |
+|---|---|---|---|
+| 2026-11-05 | P1 | `feat(browse): add player controls and queue` (hash reported in the session) | Browse shuffle/repeat/seek/mute, queue section with `QueueView`, i18n keys and tests; all frontend/Go/build gates green; live GTK verification pending user |

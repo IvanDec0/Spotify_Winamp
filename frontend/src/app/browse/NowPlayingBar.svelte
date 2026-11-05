@@ -1,26 +1,46 @@
 <script lang="ts">
-  import { Status } from "../../shared/api/types";
+  import { RepeatMode, Status } from "../../shared/api/types";
   import { coverURL } from "../../lib/artwork";
   import { formatTime } from "../../lib/format";
   import { player } from "../../lib/player.svelte";
+  import { clamp } from "../../lib/visualizer";
   import { t } from "../../shared/i18n";
   import Button from "../../shared/ui/Button.svelte";
   import Icon from "./Icon.svelte";
   import { browse } from "./browse.svelte";
 
   let positionMs = $state(0);
+  let dragging = $state(false);
+  let dragValue = $state(0);
+  let lastVolume = $state(player.state.volume > 0 ? player.state.volume : 65);
 
   let track = $derived(player.state.track);
   let durationMs = $derived(player.state.durationMs);
   let playing = $derived(player.state.status === Status.StatusPlaying);
+  let shuffle = $derived(player.state.shuffle);
+  let repeat = $derived(player.state.repeat);
+  let muted = $derived(player.state.volume <= 0);
   let coverSrc = $derived(track.cover.startsWith("/art/") ? coverURL(track.cover, 48) : "");
   let artistLabel = $derived(
     (track.artists ?? []).join(", ") || track.album || t("browse.nothingPlaying"),
   );
-  let progressPercent = $derived(
-    durationMs > 0 ? Math.min(100, Math.max(0, (positionMs / durationMs) * 100)) : 0,
+  let repeatLabel = $derived(
+    repeat === RepeatMode.RepeatTrack
+      ? t("transport.repeatTrack")
+      : repeat === RepeatMode.RepeatContext
+        ? t("transport.repeatContext")
+        : t("transport.repeatOff"),
   );
+  let shownMs = $derived(dragging ? dragValue : positionMs);
+  let progressPercent = $derived(durationMs > 0 ? clamp((shownMs / durationMs) * 100, 0, 100) : 0);
   let heartLabel = $derived(browse.currentLiked ? t("browse.unlike") : t("browse.like"));
+  let seekLabel = $derived(t("progress.label"));
+  let seekValueText = $derived(
+    t("progress.value", {
+      position: formatTime(shownMs / 1000),
+      duration: formatTime(durationMs / 1000),
+    }),
+  );
 
   $effect(() => {
     const isPlaying = player.state.status === Status.StatusPlaying;
@@ -32,9 +52,47 @@
     return () => clearInterval(timer);
   });
 
+  $effect(() => {
+    if (player.state.volume > 0) lastVolume = player.state.volume;
+  });
+
   function setVolume(event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
     void player.setVolume(input.valueAsNumber);
+  }
+
+  function toggleMute(): void {
+    if (!player.state.canControl) return;
+    if (player.state.volume > 0) {
+      lastVolume = player.state.volume;
+      void player.setVolume(0);
+    } else {
+      void player.setVolume(lastVolume || 65);
+    }
+  }
+
+  function beginSeek(): void {
+    if (!player.state.canSeek) return;
+    dragging = true;
+    dragValue = positionMs;
+  }
+
+  function updateSeek(event: Event): void {
+    if (!player.state.canSeek) return;
+    const input = event.currentTarget as HTMLInputElement;
+    dragging = true;
+    dragValue = clamp(input.valueAsNumber, 0, Math.max(0, durationMs));
+  }
+
+  function commitSeek(): void {
+    if (!player.state.canSeek) {
+      dragging = false;
+      return;
+    }
+    const value = Math.round(clamp(dragValue, 0, Math.max(0, durationMs)));
+    dragging = false;
+    positionMs = value;
+    void player.seek(value);
   }
 </script>
 
@@ -65,7 +123,19 @@
     </button>
   </div>
 
-  <div class="transport">
+  <div class="transport" role="group" aria-label={t("transport.controls")}>
+    <button
+      class="bar-button"
+      class:is-active={shuffle}
+      type="button"
+      disabled={!player.state.canControl}
+      aria-label={shuffle ? t("transport.shuffleOff") : t("transport.shuffleOn")}
+      aria-pressed={shuffle}
+      title={t("transport.shuffleShortcut")}
+      onclick={() => void player.toggleShuffle()}
+    >
+      <Icon name="shuffle" size={14} />
+    </button>
     <Button
       variant="ghost"
       size="sm"
@@ -96,32 +166,61 @@
     >
       <Icon name="next" size={14} />
     </Button>
+    <button
+      class="bar-button"
+      class:is-active={repeat !== RepeatMode.RepeatOff}
+      type="button"
+      disabled={!player.state.canControl}
+      aria-label={repeatLabel}
+      aria-pressed={repeat !== RepeatMode.RepeatOff}
+      title={t("transport.repeatShortcut", { label: repeatLabel })}
+      onclick={() => void player.cycleRepeat()}
+    >
+      <Icon name={repeat === RepeatMode.RepeatTrack ? "repeatOne" : "repeat"} size={14} />
+    </button>
   </div>
 
-  <div class="progress" role="group" aria-label={t("browse.progress")}>
-    <span class="time">{formatTime(positionMs / 1000)}</span>
-    <span
-      class="progress-rail"
-      role="progressbar"
-      aria-valuemin="0"
-      aria-valuemax={Math.max(0, Math.round(durationMs))}
-      aria-valuenow={Math.max(0, Math.round(positionMs))}
-    >
-      <span class="progress-fill" style={`width: ${progressPercent}%`}></span>
-    </span>
+  <div class="progress" role="group" aria-label={seekLabel}>
+    <span class="time">{formatTime(shownMs / 1000)}</span>
+    <input
+      class="seek"
+      type="range"
+      min="0"
+      max={Math.max(1, durationMs)}
+      step="100"
+      value={shownMs}
+      disabled={!player.state.canSeek}
+      aria-label={seekLabel}
+      aria-valuetext={seekValueText}
+      style={`--seek: ${progressPercent}%`}
+      onpointerdown={beginSeek}
+      oninput={updateSeek}
+      onchange={commitSeek}
+    />
     <span class="time">{formatTime(durationMs / 1000)}</span>
   </div>
 
-  <div class="volume">
-    <Icon name="volume" size={15} />
+  <div class="volume" role="group" aria-label={t("volume.label")}>
+    <button
+      class="bar-button"
+      type="button"
+      disabled={!player.state.canControl}
+      aria-label={muted ? t("volume.unmute") : t("volume.mute")}
+      title={muted ? t("volume.unmuteShortcut") : t("volume.muteShortcut")}
+      onclick={toggleMute}
+    >
+      <Icon name={muted ? "volumeMute" : "volume"} size={15} />
+    </button>
     <input
+      class="volume-slider"
       type="range"
       min="0"
       max="100"
       step="1"
       value={player.state.volume}
       disabled={!player.state.canControl}
-      aria-label={t("browse.volume")}
+      aria-label={t("volume.level")}
+      aria-valuetext={t("volume.percent", { value: Math.round(player.state.volume) })}
       style={`--volume: ${player.state.volume}%`}
       oninput={setVolume}
     />
@@ -197,7 +296,8 @@
     font-size: 10px;
   }
 
-  .heart-button {
+  .heart-button,
+  .bar-button {
     display: grid;
     width: 28px;
     height: 28px;
@@ -208,26 +308,35 @@
     color: var(--faint);
     transition:
       color var(--motion-fast, 120ms) ease,
-      background-color var(--motion-fast, 120ms) ease;
+      border-color var(--motion-fast, 120ms) ease,
+      background-color var(--motion-fast, 120ms) ease,
+      transform var(--motion-fast, 120ms) var(--ease-spring, ease);
   }
 
-  .heart-button:hover:not(:disabled) {
+  .heart-button:hover:not(:disabled),
+  .bar-button:hover:not(:disabled) {
+    border-color: var(--line);
     background: var(--surface-2);
     color: var(--text);
+    transform: translateY(-1px);
   }
 
-  .heart-button.is-liked {
+  .heart-button.is-liked,
+  .bar-button.is-active {
+    border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
     color: var(--accent);
   }
 
-  .heart-button:disabled {
+  .heart-button:disabled,
+  .bar-button:disabled {
     opacity: 0.45;
   }
 
   .transport {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
   }
 
   .progress {
@@ -245,35 +354,73 @@
     white-space: nowrap;
   }
 
-  .progress-rail {
-    position: relative;
-    display: block;
-    height: 4px;
-    flex: 1 1 auto;
-    overflow: hidden;
-    border-radius: 999px;
-    background: var(--line-strong);
+  .seek {
+    width: 100%;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
   }
 
-  .progress-fill {
-    position: absolute;
-    inset: 0 auto 0 0;
+  .seek:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  .seek::-webkit-slider-runnable-track {
+    height: 3px;
     border-radius: 999px;
     background: linear-gradient(
       90deg,
-      color-mix(in srgb, var(--accent) 58%, transparent),
-      var(--accent)
+      color-mix(in srgb, var(--accent) 70%, var(--muted)) var(--seek),
+      var(--line-strong) var(--seek)
     );
+  }
+
+  .seek::-moz-range-track {
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 70%, var(--muted)) var(--seek),
+      var(--line-strong) var(--seek)
+    );
+  }
+
+  .seek::-webkit-slider-thumb {
+    width: 11px;
+    height: 11px;
+    margin-top: -4px;
+    appearance: none;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+    transition: transform var(--motion-fast, 120ms) var(--ease-spring);
+  }
+
+  .seek::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .seek:hover::-webkit-slider-thumb {
+    transform: scale(1.2);
   }
 
   .volume {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     color: var(--muted);
   }
 
-  input[type="range"] {
+  .volume-slider {
     width: 92px;
     height: 10px;
     margin: 0;
@@ -283,12 +430,12 @@
     cursor: pointer;
   }
 
-  input[type="range"]:disabled {
+  .volume-slider:disabled {
     cursor: default;
     opacity: 0.5;
   }
 
-  input[type="range"]::-webkit-slider-runnable-track {
+  .volume-slider::-webkit-slider-runnable-track {
     height: 3px;
     border-radius: 999px;
     background: linear-gradient(
@@ -298,7 +445,7 @@
     );
   }
 
-  input[type="range"]::-moz-range-track {
+  .volume-slider::-moz-range-track {
     height: 3px;
     border-radius: 999px;
     background: linear-gradient(
@@ -308,7 +455,7 @@
     );
   }
 
-  input[type="range"]::-webkit-slider-thumb {
+  .volume-slider::-webkit-slider-thumb {
     width: 11px;
     height: 11px;
     margin-top: -4px;
@@ -319,7 +466,7 @@
     transition: transform var(--motion-fast, 120ms) var(--ease-spring);
   }
 
-  input[type="range"]::-moz-range-thumb {
+  .volume-slider::-moz-range-thumb {
     width: 11px;
     height: 11px;
     border: 0;
@@ -327,11 +474,11 @@
     background: var(--accent);
   }
 
-  input[type="range"]:hover::-webkit-slider-thumb {
+  .volume-slider:hover::-webkit-slider-thumb {
     transform: scale(1.2);
   }
 
-  @media (max-width: 820px) {
+  @media (max-width: 900px) {
     .now-playing {
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px 14px;
@@ -345,6 +492,16 @@
     .volume {
       grid-column: 1 / -1;
       justify-content: flex-end;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .now-playing {
+      padding: 10px 12px;
+    }
+
+    .transport {
+      gap: 0;
     }
   }
 </style>

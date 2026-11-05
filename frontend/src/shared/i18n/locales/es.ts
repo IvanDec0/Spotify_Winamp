@@ -133,6 +133,10 @@ export const es: Record<MessageKey, string> = {
   "browse.search": "Buscar",
   "browse.library": "Biblioteca",
   "browse.podcasts": "Pódcasts",
+  "browse.queue": "Cola",
+  "browse.queueHint": "Lo que sigue en el motor local.",
+  "browse.queueLoading": "Cargando cola…",
+  "browse.queueEmpty": "No hay nada en cola. Inicia una canción desde Buscar o Biblioteca.",
   "browse.settings": "Configuración",
   "browse.searchTitle": "Buscar en el catálogo",
   "browse.searchBody":
