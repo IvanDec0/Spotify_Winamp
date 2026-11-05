@@ -48,6 +48,13 @@ requires a Spotify Premium account.
 
 ### Fixed
 
+- The AppImage installs its icon in the hicolor theme and its desktop entry
+  under `usr/share/applications`, so launchers and the desktop use the Cadence
+  icon instead of the default.
+- Lumina and Afterglow no longer repeat the device and settings controls that
+  the titlebar already provides. Vanta's utilities row now fits the compact
+  canvas, and its telemetry display uses the full visualizer layer instead of a
+  short bottom strip.
 - Browse and the compact player now show one window at a time instead of
   leaving a stale window behind.
 - Saved shows use the show collection set rather than the episode set.

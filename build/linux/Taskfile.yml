@@ -55,7 +55,17 @@ tasks:
       - cp -R "{{.ROOT_DIR}}/docs" "{{.ROOT_DIR}}/LICENSES" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
       - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/cadence/skins"
       - cp -R "{{.ROOT_DIR}}/skins-dev/lumina" "{{.ROOT_DIR}}/skins-dev/afterglow" "{{.ROOT_DIR}}/skins-dev/vanta" "{{.ROOT_DIR}}/skins-dev/nightstar" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/cadence/skins/"
-      - chmod -R a+rX "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence"
+      - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/applications" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/pixmaps"
+      - cp "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/applications/{{.APP_NAME}}.desktop"
+      - cp "{{.ROOT_DIR}}/build/appicon.png" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/pixmaps/{{.APP_NAME}}.png"
+      - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/16x16/apps" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/32x32/apps" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/64x64/apps" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/128x128/apps" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/256x256/apps" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/512x512/apps"
+      - cp "{{.ROOT_DIR}}/build/linux/icons/16x16.png" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/16x16/apps/{{.APP_NAME}}.png"
+      - cp "{{.ROOT_DIR}}/build/linux/icons/32x32.png" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/32x32/apps/{{.APP_NAME}}.png"
+      - cp "{{.ROOT_DIR}}/build/linux/icons/64x64.png" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/64x64/apps/{{.APP_NAME}}.png"
+      - cp "{{.ROOT_DIR}}/build/linux/icons/128x128.png" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/128x128/apps/{{.APP_NAME}}.png"
+      - cp "{{.ROOT_DIR}}/build/linux/icons/256x256.png" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/256x256/apps/{{.APP_NAME}}.png"
+      - cp "{{.ROOT_DIR}}/build/linux/icons/512x512.png" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/512x512/apps/{{.APP_NAME}}.png"
+      - chmod -R a+rX "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/applications" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/pixmaps"
       - cd "{{.ROOT_DIR}}/build/linux/appimage/build" && NO_STRIP=1 OUTPUT="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage" ./linuxdeploy-{{.ARCH}}.AppImage --appimage-extract-and-run --appdir {{.APP_NAME}}-{{.ARCH}}.AppDir --output appimage
       - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/out"
 
@@ -90,4 +100,6 @@ tasks:
     dir: build
     cmds:
       - mkdir -p linux
-      - wails3 generate .desktop -name "{{.APP_NAME}}" -exec "{{.APP_NAME}}" -icon "{{.APP_NAME}}" -outputfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -categories "AudioVideo;Audio;"
+      - wails3 generate .desktop -name "Cadence" -genericname "Music Player" -comment "A compact local Spotify player with declarative skins" -exec "{{.APP_NAME}}" -icon "{{.APP_NAME}}" -keywords "spotify;music;player;audio;" -outputfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -categories "AudioVideo;Audio;"
+      - sed -i '/^StartupWMClass=/d' "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop"
+      - printf 'StartupWMClass=cadence\n' >> "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop"
