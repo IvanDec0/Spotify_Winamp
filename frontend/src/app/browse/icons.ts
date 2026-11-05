@@ -24,6 +24,8 @@ export const BROWSE_ICONS = {
   radio: "M4 9a8 8 0 0 1 16 0M7.5 12a4.5 4.5 0 0 1 9 0M12 15v5",
   trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5",
   back: "M15 5l-7 7 7 7",
+  minimise: "M6 12h12",
+  close: "M6.5 6.5l11 11M17.5 6.5l-11 11",
   check: "m5 12.4 4.4 4.4L19 6.7",
   external: "M14 4h6v6M20 4l-9 9M19 14v5H5V5h5",
 } as const;

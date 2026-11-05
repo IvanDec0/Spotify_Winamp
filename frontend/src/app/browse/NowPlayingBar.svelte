@@ -128,108 +128,108 @@
       </button>
     </div>
 
-  <div class="transport" role="group" aria-label={t("transport.controls")}>
-    <button
-      class="bar-button"
-      class:is-active={shuffle}
-      type="button"
-      disabled={!player.state.canControl}
-      aria-label={shuffle ? t("transport.shuffleOff") : t("transport.shuffleOn")}
-      aria-pressed={shuffle}
-      title={t("transport.shuffleShortcut")}
-      onclick={() => void player.toggleShuffle()}
-    >
-      <Icon name="shuffle" size={14} />
-    </button>
-    <Button
-      variant="ghost"
-      size="sm"
-      ariaLabel={t("browse.previous")}
-      title={t("browse.previous")}
-      disabled={!player.state.canControl}
-      onclick={() => void player.previous()}
-    >
-      <Icon name="previous" size={14} />
-    </Button>
-    <Button
-      variant="primary"
-      size="lg"
-      ariaLabel={playing ? t("browse.pause") : t("browse.play")}
-      title={playing ? t("browse.pause") : t("browse.play")}
-      disabled={!player.state.canControl}
-      onclick={() => void player.toggle()}
-    >
-      <Icon name={playing ? "pause" : "play"} size={16} filled={!playing} />
-    </Button>
-    <Button
-      variant="ghost"
-      size="sm"
-      ariaLabel={t("browse.next")}
-      title={t("browse.next")}
-      disabled={!player.state.canControl}
-      onclick={() => void player.next()}
-    >
-      <Icon name="next" size={14} />
-    </Button>
-    <button
-      class="bar-button"
-      class:is-active={repeat !== RepeatMode.RepeatOff}
-      type="button"
-      disabled={!player.state.canControl}
-      aria-label={repeatLabel}
-      aria-pressed={repeat !== RepeatMode.RepeatOff}
-      title={t("transport.repeatShortcut", { label: repeatLabel })}
-      onclick={() => void player.cycleRepeat()}
-    >
-      <Icon name={repeat === RepeatMode.RepeatTrack ? "repeatOne" : "repeat"} size={14} />
-    </button>
-  </div>
+    <div class="transport" role="group" aria-label={t("transport.controls")}>
+      <button
+        class="bar-button"
+        class:is-active={shuffle}
+        type="button"
+        disabled={!player.state.canControl}
+        aria-label={shuffle ? t("transport.shuffleOff") : t("transport.shuffleOn")}
+        aria-pressed={shuffle}
+        title={t("transport.shuffleShortcut")}
+        onclick={() => void player.toggleShuffle()}
+      >
+        <Icon name="shuffle" size={14} />
+      </button>
+      <Button
+        variant="ghost"
+        size="sm"
+        ariaLabel={t("browse.previous")}
+        title={t("browse.previous")}
+        disabled={!player.state.canControl}
+        onclick={() => void player.previous()}
+      >
+        <Icon name="previous" size={14} />
+      </Button>
+      <Button
+        variant="primary"
+        size="lg"
+        ariaLabel={playing ? t("browse.pause") : t("browse.play")}
+        title={playing ? t("browse.pause") : t("browse.play")}
+        disabled={!player.state.canControl}
+        onclick={() => void player.toggle()}
+      >
+        <Icon name={playing ? "pause" : "play"} size={16} filled={!playing} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        ariaLabel={t("browse.next")}
+        title={t("browse.next")}
+        disabled={!player.state.canControl}
+        onclick={() => void player.next()}
+      >
+        <Icon name="next" size={14} />
+      </Button>
+      <button
+        class="bar-button"
+        class:is-active={repeat !== RepeatMode.RepeatOff}
+        type="button"
+        disabled={!player.state.canControl}
+        aria-label={repeatLabel}
+        aria-pressed={repeat !== RepeatMode.RepeatOff}
+        title={t("transport.repeatShortcut", { label: repeatLabel })}
+        onclick={() => void player.cycleRepeat()}
+      >
+        <Icon name={repeat === RepeatMode.RepeatTrack ? "repeatOne" : "repeat"} size={14} />
+      </button>
+    </div>
 
-  <div class="progress" role="group" aria-label={seekLabel}>
-    <span class="time">{formatTime(shownMs / 1000)}</span>
-    <input
-      class="seek"
-      type="range"
-      min="0"
-      max={Math.max(1, durationMs)}
-      step="100"
-      value={shownMs}
-      disabled={!player.state.canSeek}
-      aria-label={seekLabel}
-      aria-valuetext={seekValueText}
-      style={`--seek: ${progressPercent}%`}
-      onpointerdown={beginSeek}
-      oninput={updateSeek}
-      onchange={commitSeek}
-    />
-    <span class="time">{formatTime(durationMs / 1000)}</span>
-  </div>
+    <div class="progress" role="group" aria-label={seekLabel}>
+      <span class="time">{formatTime(shownMs / 1000)}</span>
+      <input
+        class="seek"
+        type="range"
+        min="0"
+        max={Math.max(1, durationMs)}
+        step="100"
+        value={shownMs}
+        disabled={!player.state.canSeek}
+        aria-label={seekLabel}
+        aria-valuetext={seekValueText}
+        style={`--seek: ${progressPercent}%`}
+        onpointerdown={beginSeek}
+        oninput={updateSeek}
+        onchange={commitSeek}
+      />
+      <span class="time">{formatTime(durationMs / 1000)}</span>
+    </div>
 
-  <div class="volume" role="group" aria-label={t("volume.label")}>
-    <button
-      class="bar-button"
-      type="button"
-      disabled={!player.state.canControl}
-      aria-label={muted ? t("volume.unmute") : t("volume.mute")}
-      title={muted ? t("volume.unmuteShortcut") : t("volume.muteShortcut")}
-      onclick={toggleMute}
-    >
-      <Icon name={muted ? "volumeMute" : "volume"} size={15} />
-    </button>
-    <input
-      class="volume-slider"
-      type="range"
-      min="0"
-      max="100"
-      step="1"
-      value={player.state.volume}
-      disabled={!player.state.canControl}
-      aria-label={t("volume.level")}
-      aria-valuetext={t("volume.percent", { value: Math.round(player.state.volume) })}
-      style={`--volume: ${player.state.volume}%`}
-      oninput={setVolume}
-    />
-  </div>
+    <div class="volume" role="group" aria-label={t("volume.label")}>
+      <button
+        class="bar-button"
+        type="button"
+        disabled={!player.state.canControl}
+        aria-label={muted ? t("volume.unmute") : t("volume.mute")}
+        title={muted ? t("volume.unmuteShortcut") : t("volume.muteShortcut")}
+        onclick={toggleMute}
+      >
+        <Icon name={muted ? "volumeMute" : "volume"} size={15} />
+      </button>
+      <input
+        class="volume-slider"
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value={player.state.volume}
+        disabled={!player.state.canControl}
+        aria-label={t("volume.level")}
+        aria-valuetext={t("volume.percent", { value: Math.round(player.state.volume) })}
+        style={`--volume: ${player.state.volume}%`}
+        oninput={setVolume}
+      />
+    </div>
   </div>
 </footer>
 

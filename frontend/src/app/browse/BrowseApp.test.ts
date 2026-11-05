@@ -3,6 +3,7 @@ import { tick } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { playerMock } from "../../lib/testing/player-mock.svelte";
 import { preferences } from "../../lib/preferences.svelte";
+import { clampBrowseSize } from "./browse-window";
 
 const mocks = vi.hoisted(() => ({
   runtime: {
@@ -28,6 +29,9 @@ const mocks = vi.hoisted(() => ({
   loading: false,
   onBrowseNavigate: vi.fn(),
   closeBrowse: vi.fn(() => Promise.resolve()),
+  minimise: vi.fn(() => Promise.resolve()),
+  setBrowseSize: vi.fn(() => Promise.resolve()),
+  size: vi.fn(() => Promise.resolve({ width: 960, height: 640 })),
   navigateHandler: null as ((section: string) => void) | null,
   music: {
     authenticated: true,
@@ -69,7 +73,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../shared/api", () => ({
-  appWindow: { closeBrowse: mocks.closeBrowse },
+  appWindow: {
+    closeBrowse: mocks.closeBrowse,
+    minimise: mocks.minimise,
+    setBrowseSize: mocks.setBrowseSize,
+    size: mocks.size,
+  },
   audio: mocks.audio,
   onBrowseNavigate: mocks.onBrowseNavigate,
   visualizer: { setActive: vi.fn(() => Promise.resolve()) },
@@ -185,6 +194,30 @@ describe("Browse shell", () => {
 
     expect(screen.getByRole("heading", { name: "Playback queue" })).not.toBeNull();
     await waitFor(() => expect(playerMock.loadQueue).toHaveBeenCalled());
+  });
+
+  it("minimises and closes from the custom window controls", async () => {
+    render(BrowseApp);
+
+    await fireEvent.click(screen.getByRole("button", { name: "Minimise window" }));
+    expect(mocks.minimise).toHaveBeenCalledOnce();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Close window" }));
+    await waitFor(() => expect(mocks.closeBrowse).toHaveBeenCalledOnce());
+  });
+
+  it("marks the topbar as draggable and interactive chrome as no-drag", () => {
+    const { container } = render(BrowseApp);
+
+    expect(container.querySelector(".topbar")?.classList.contains("drag-region")).toBe(true);
+    expect(container.querySelector(".search-field")?.classList.contains("no-drag")).toBe(true);
+    expect(container.querySelector(".window-controls")?.classList.contains("no-drag")).toBe(true);
+    expect(container.querySelector(".resize-grip")?.classList.contains("no-drag")).toBe(true);
+  });
+
+  it("clamps the custom resize grip to the minimum size", () => {
+    expect(clampBrowseSize(960, 640, -400, -300)).toEqual({ width: 720, height: 480 });
+    expect(clampBrowseSize(960, 640, 40, 20)).toEqual({ width: 1000, height: 660 });
   });
 
   it("switches to settings and forwards transport controls", async () => {

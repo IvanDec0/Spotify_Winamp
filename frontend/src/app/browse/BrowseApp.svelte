@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
   import { music } from "../../lib/music.svelte";
   import { player } from "../../lib/player.svelte";
   import { preferences } from "../../lib/preferences.svelte";
@@ -17,6 +17,7 @@
   import SearchView from "./SearchView.svelte";
   import SettingsView from "./SettingsView.svelte";
   import { browse, normalizeSection, type Section } from "./browse.svelte";
+  import { clampBrowseSize, type BrowseSize } from "./browse-window";
   import { applyTokens, readSkinTokens, syncBrowseStylesheet } from "./theme.svelte";
 
   const SECTIONS: ReadonlyArray<{
@@ -37,6 +38,16 @@
   let searchInput = $derived(browse.query);
   let searchTimer: ReturnType<typeof setTimeout> | null = null;
   let previousSection: Section = browse.section;
+  let resizing = $state(false);
+  let resizeState: {
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+  } | null = null;
+  let resizePending: BrowseSize | null = null;
+  let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  let resizeSession = 0;
 
   let navItems = $derived(SECTIONS.map((item) => ({ ...item, label: t(item.label) })));
   let skinLabel = $derived.by(() => {
@@ -84,6 +95,10 @@
     if (section === "search") {
       void tick().then(() => searchInputEl?.focus());
     }
+  });
+
+  onDestroy(() => {
+    if (resizeTimer) clearTimeout(resizeTimer);
   });
 
   onMount(() => {
@@ -147,6 +162,87 @@
       browse.error = error instanceof Error ? error.message : String(error);
     });
   }
+
+  function minimiseWindow(): void {
+    void appWindow.minimise().catch(() => {});
+  }
+
+  async function startResize(event: PointerEvent): Promise<void> {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const target = event.currentTarget as HTMLElement;
+    const session = ++resizeSession;
+    resizing = true;
+    resizeState = null;
+    try {
+      target.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort; movement still works inside the grip.
+    }
+    try {
+      const size = await appWindow.size();
+      if (session !== resizeSession || !resizing) return;
+      resizeState = {
+        startX: event.screenX,
+        startY: event.screenY,
+        startWidth: size.width,
+        startHeight: size.height,
+      };
+    } catch {
+      resizing = false;
+    }
+  }
+
+  function moveResize(event: PointerEvent): void {
+    if (!resizing || !resizeState) return;
+    queueBrowseResize(
+      clampBrowseSize(
+        resizeState.startWidth,
+        resizeState.startHeight,
+        event.screenX - resizeState.startX,
+        event.screenY - resizeState.startY,
+      ),
+    );
+  }
+
+  function queueBrowseResize(size: BrowseSize): void {
+    resizePending = size;
+    if (resizeTimer) return;
+    resizeTimer = setTimeout(() => {
+      resizeTimer = null;
+      void flushBrowseResize();
+    }, 50);
+  }
+
+  async function flushBrowseResize(): Promise<void> {
+    const size = resizePending;
+    resizePending = null;
+    if (!size) return;
+    try {
+      await appWindow.setBrowseSize(size.width, size.height);
+    } catch {
+      // A failed resize must not break the grip; the next move retries.
+    }
+  }
+
+  function endResize(event: PointerEvent): void {
+    if (resizeTimer) {
+      clearTimeout(resizeTimer);
+      resizeTimer = null;
+    }
+    void flushBrowseResize();
+    resizing = false;
+    resizeState = null;
+    resizeSession += 1;
+    const target = event.currentTarget as HTMLElement;
+    try {
+      if (target.hasPointerCapture(event.pointerId)) {
+        target.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // The pointer may already be released.
+    }
+  }
 </script>
 
 <div class="cadence-browse" bind:this={root}>
@@ -187,14 +283,14 @@
     </div>
   </aside>
 
-  <header class="topbar">
+  <header class="topbar drag-region">
     <div class="wordmark">
       <strong>Cadence</strong>
       <span>{t("browse.open")}</span>
     </div>
 
     <form
-      class="search-field"
+      class="search-field no-drag"
       role="search"
       onsubmit={(event) => {
         event.preventDefault();
@@ -231,7 +327,28 @@
       {/if}
     </form>
 
-    <span class="theme-chip" title={skinLabel}>{skinLabel}</span>
+    <span class="theme-chip no-drag" title={skinLabel}>{skinLabel}</span>
+
+    <div class="window-controls no-drag">
+      <button
+        class="window-button"
+        type="button"
+        title={t("titlebar.minimise")}
+        aria-label={t("titlebar.minimiseWindow")}
+        onclick={minimiseWindow}
+      >
+        <Icon name="minimise" size={12} />
+      </button>
+      <button
+        class="window-button is-close"
+        type="button"
+        title={t("ui.close")}
+        aria-label={t("titlebar.closeWindow")}
+        onclick={closeToPlayer}
+      >
+        <Icon name="close" size={12} />
+      </button>
+    </div>
   </header>
 
   <main class="content">
@@ -270,6 +387,15 @@
   </main>
 
   <NowPlayingBar />
+
+  <div
+    class="resize-grip no-drag"
+    aria-hidden="true"
+    onpointerdown={startResize}
+    onpointermove={moveResize}
+    onpointerup={endResize}
+    onpointercancel={endResize}
+  ></div>
 </div>
 
 <style>
@@ -396,6 +522,7 @@
   }
 
   .topbar {
+    --wails-draggable: drag;
     display: flex;
     min-width: 0;
     align-items: center;
@@ -404,6 +531,14 @@
     padding: 12px 24px;
     border-bottom: 1px solid var(--line);
     background: color-mix(in srgb, var(--panel) 70%, transparent);
+  }
+
+  .no-drag,
+  .search-field,
+  .theme-chip,
+  .window-controls,
+  .resize-grip {
+    --wails-draggable: no-drag;
   }
 
   .wordmark {
@@ -501,6 +636,61 @@
     letter-spacing: 0.03em;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .window-controls {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .window-button {
+    display: grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--muted);
+    transition:
+      color var(--motion-fast, 120ms) ease,
+      border-color var(--motion-fast, 120ms) ease,
+      background-color var(--motion-fast, 120ms) ease;
+  }
+
+  .window-button:hover {
+    border-color: var(--line);
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .window-button.is-close:hover {
+    border-color: color-mix(in srgb, var(--danger) 36%, transparent);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    color: var(--danger);
+  }
+
+  .resize-grip {
+    position: fixed;
+    right: 2px;
+    bottom: 2px;
+    z-index: 60;
+    width: 18px;
+    height: 18px;
+    border-radius: 3px 0 3px 0;
+    background: repeating-linear-gradient(
+      135deg,
+      transparent 0 3px,
+      color-mix(in srgb, var(--muted) 62%, transparent) 3px 4px
+    );
+    cursor: nwse-resize;
+    opacity: 0.55;
+    touch-action: none;
+  }
+
+  .resize-grip:hover {
+    opacity: 1;
   }
 
   .content {

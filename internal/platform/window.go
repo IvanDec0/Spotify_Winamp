@@ -28,6 +28,10 @@ const (
 
 	// BrowseNavigateEvent asks an already-open Browse window to switch sections.
 	BrowseNavigateEvent = "browse:navigate"
+
+	// Browse keeps the custom chrome usable at the minimum supported size.
+	browseMinWidth  = 720
+	browseMinHeight = 480
 )
 
 // hideMainWindow hides the compact player only after the Browse window has
@@ -77,7 +81,7 @@ func NewWindowService() *WindowService {
 // OpenBrowse opens the dedicated Browse window, or focuses it when it already
 // exists. An existing window receives a navigation event instead of a reload.
 // Window creation runs on the GTK main thread through Wails; the window is
-// opaque and keeps a normal frame so it behaves like a regular second window.
+// opaque and frameless so Browse owns its draggable topbar and resize grip.
 func (s *WindowService) OpenBrowse(section string) error {
 	normalized, err := browseSection(section)
 	if err != nil {
@@ -107,11 +111,11 @@ func (s *WindowService) OpenBrowse(section string) error {
 			Title:            "Cadence Browse",
 			Width:            960,
 			Height:           640,
-			MinWidth:         720,
-			MinHeight:        480,
+			MinWidth:         browseMinWidth,
+			MinHeight:        browseMinHeight,
 			URL:              "/?surface=browse&section=" + normalized,
 			Zoom:             1,
-			Frameless:        false,
+			Frameless:        true,
 			BackgroundType:   application.BackgroundTypeSolid,
 			BackgroundColour: application.NewRGBA(9, 11, 15, 255),
 			Linux: application.LinuxWindow{
@@ -210,23 +214,47 @@ func (s *WindowService) ServiceStartup(_ context.Context, _ application.ServiceO
 	return nil
 }
 
-// SetSize resizes the main window in physical pixels. It must run on the GTK
-// main thread, hence the InvokeSyncWithError wrapper.
+// clampBrowseSize enforces the minimum Browse window size used by both the
+// native window options and the custom resize grip.
+func clampBrowseSize(width, height int) (int, int) {
+	if width < browseMinWidth {
+		width = browseMinWidth
+	}
+	if height < browseMinHeight {
+		height = browseMinHeight
+	}
+	return width, height
+}
+
+// SetSize resizes the main window in physical pixels.
 func (s *WindowService) SetSize(width, height int) error {
+	return s.resizeNamedWindow(mainWindowName, width, height)
+}
+
+// SetBrowseSize resizes the frameless Browse window in physical pixels. The
+// custom chrome calls it from the resize grip.
+func (s *WindowService) SetBrowseSize(width, height int) error {
+	width, height = clampBrowseSize(width, height)
+	return s.resizeNamedWindow(browseWindowName, width, height)
+}
+
+// resizeNamedWindow must run on the GTK main thread, hence the
+// InvokeSyncWithError wrapper.
+func (s *WindowService) resizeNamedWindow(name string, width, height int) error {
 	app := application.Get()
 	if app == nil {
 		return errors.New("application is not ready")
 	}
 
-	window, ok := app.Window.GetByName("main")
+	window, ok := app.Window.GetByName(name)
 	if !ok {
-		return errors.New("main window not found")
+		return fmt.Errorf("%s window not found", name)
 	}
 
 	return application.InvokeSyncWithError(func() error {
 		handle := window.NativeWindow()
 		if handle == nil {
-			return errors.New("main window is not available")
+			return fmt.Errorf("%s window is not available", name)
 		}
 		resizeWindow(handle, width, height)
 		return nil

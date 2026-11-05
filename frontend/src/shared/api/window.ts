@@ -16,6 +16,8 @@ export const appWindow = {
   minimise: () => call(() => Window.Minimise()),
   close: () => call(() => Window.Close()),
   setSize: (width: number, height: number) => call(() => WindowService.SetSize(width, height)),
+  setBrowseSize: (width: number, height: number) =>
+    call(() => WindowService.SetBrowseSize(width, height)),
   openBrowse: (section: BrowseSection = "library") => call(() => WindowService.OpenBrowse(section)),
   closeBrowse: () => call(() => WindowService.CloseBrowse()),
   browseOpen: () => call(() => WindowService.BrowseOpen()),

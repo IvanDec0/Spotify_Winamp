@@ -98,18 +98,39 @@ monitor captures system-wide output on Linux/PulseAudio-PipeWire.
 
 ### W1 — Browse window chrome
 
-- [ ] Create the Browse window frameless with a skin-aware custom topbar:
+- [x] Create the Browse window frameless with a skin-aware custom topbar:
       draggable empty area (`--wails-draggable: drag`), no-drag search/controls,
       minimize and close buttons.
-- [ ] Add a bottom-right resize grip using a new
+- [x] Add a bottom-right resize grip using a new
       `WindowService.SetBrowseSize(width,height)` that resizes the `browse`
       window through the existing GTK helper; clamp to 720×480 and throttle the
       drag.
-- [ ] Keep the topbar search, navigation and close-to-player behavior; the
+- [x] Keep the topbar search, navigation and close-to-player behavior; the
       native close hook still restores the compact window.
-- [ ] Tests for the wrapper, controls and resize math; frontend checks/build,
+- [x] Tests for the wrapper, controls and resize math; frontend checks/build,
       `task build`, `git diff --check`.
 - Commit: `feat(browse): add custom draggable and resizable chrome`
+
+#### W1 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `npm run i18n:check` | exit 0, 0 findings |
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0 |
+| `npm run test` | exit 0, 43 files / 239 tests |
+| `npm run build` | exit 0, 259 modules |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `go vet` / `gofmt -l` | exit 0, no findings |
+| `wails3 generate bindings` | exit 0; `SetBrowseSize` added |
+| `git status --porcelain frontend/bindings` after regeneration | clean |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+The Browse window is now frameless with a custom topbar and resize grip; the
+compact window chrome is unchanged. Live WM drag/resize verification is pending
+the user after restarting `bin/cadence`.
 
 ### V2 — Verification
 
@@ -143,3 +164,4 @@ monitor captures system-wide output on Linux/PulseAudio-PipeWire.
 | 2026-11-05 | V1 correction | `fix(visualizer): release capture on pagehide` | Closing the Browse/compact webview releases its visualizer client via `pagehide`/`beforeunload`, so a stale client cannot keep the PulseAudio monitor capture alive; test added |
 
 | 2026-11-05 | Layout correction | `fix(browse): restore track info in the now-playing bar` | Moved the mini visualizer out of the track row into a full-width 18 px strip above the bar; the track copy no longer competes with it, and the bar switches to a two-row layout at <=900 px so title/artist remain visible at the 720 px minimum |
+| 2026-11-05 | W1 | `feat(browse): add custom draggable and resizable chrome` (hash reported in the session) | Frameless Browse window, draggable topbar with no-drag search/controls, minimize/close buttons, bottom-right resize grip with throttled `SetBrowseSize` and 720×480 clamp, bindings/tests; live WM verification pending user |

@@ -19,6 +19,25 @@ func TestWindowServiceRequiresApplication(t *testing.T) {
 	}
 }
 
+func TestClampBrowseSize(t *testing.T) {
+	tests := []struct {
+		width, height int
+		wantW, wantH  int
+	}{
+		{width: 1200, height: 800, wantW: 1200, wantH: 800},
+		{width: 500, height: 300, wantW: browseMinWidth, wantH: browseMinHeight},
+		{width: 720, height: 480, wantW: 720, wantH: 480},
+		{width: 0, height: 0, wantW: browseMinWidth, wantH: browseMinHeight},
+	}
+	for _, test := range tests {
+		gotW, gotH := clampBrowseSize(test.width, test.height)
+		if gotW != test.wantW || gotH != test.wantH {
+			t.Fatalf("clampBrowseSize(%d, %d) = %d, %d; want %d, %d",
+				test.width, test.height, gotW, gotH, test.wantW, test.wantH)
+		}
+	}
+}
+
 func TestBrowseSection(t *testing.T) {
 	tests := []struct {
 		input string
