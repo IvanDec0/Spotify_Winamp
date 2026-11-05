@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
+  import { engineErrorHelpKey, engineErrorKey } from "../../lib/engine-error";
   import { music } from "../../lib/music.svelte";
   import { t } from "../../shared/i18n";
   import Button from "../../shared/ui/Button.svelte";
@@ -8,6 +9,8 @@
   let copied = $state(false);
   let resetArmed = $state(false);
   let copyTimer: ReturnType<typeof setTimeout> | null = null;
+  let engineError = $derived(music.audio.error ? engineErrorKey(music.audio.errorCode) : null);
+  let engineHelp = $derived(engineErrorHelpKey(music.audio.errorCode));
 
   onDestroy(() => {
     if (copyTimer) clearTimeout(copyTimer);
@@ -59,6 +62,15 @@
   }
 </script>
 
+{#snippet diagnosticDetail()}
+  {#if music.audio.error}
+    <details class="engine-gate-detail">
+      <summary>{t("errors.detail")}</summary>
+      <p>{music.audio.error}</p>
+    </details>
+  {/if}
+{/snippet}
+
 {#if !music.authenticated}
   <section class="browse-view engine-gate" aria-labelledby="engine-gate-title" aria-live="polite">
     <div class="engine-gate-card">
@@ -71,11 +83,40 @@
           <Icon name="settings" size={22} />
         </span>
         <p class="eyebrow">{t("browse.pairing.localDevice")}</p>
-        <h1 id="engine-gate-title" class="view-title">{t("browse.pairing.unavailableTitle")}</h1>
-        <p class="engine-gate-copy">{t("browse.pairing.unavailableBody")}</p>
+        <h1 id="engine-gate-title" class="view-title">
+          {engineError ? t(engineError) : t("browse.pairing.unavailableTitle")}
+        </h1>
+        {#if music.audio.errorCode === "engine_disabled"}
+          <p class="engine-gate-copy">{t("errors.engineDisabledHelp")}</p>
+        {:else if music.audio.errorCode && music.audio.errorCode !== "engine_not_installed"}
+          <p class="engine-gate-copy">{t(engineHelp)}</p>
+        {:else}
+          <p class="engine-gate-copy">{t("browse.pairing.unavailableBody")}</p>
+        {/if}
         {#if music.audio.binaryPath}
           <p class="engine-gate-path">{music.audio.binaryPath}</p>
         {/if}
+        {@render diagnosticDetail()}
+        {#if music.audio.errorCode !== "engine_disabled"}
+          <div class="engine-gate-actions">
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={music.busy}
+              onclick={() => void music.restart()}
+            >
+              {music.busy ? t("ui.loading") : t("browse.pairing.retry")}
+            </Button>
+          </div>
+        {/if}
+      {:else if engineError}
+        <span class="engine-gate-icon" aria-hidden="true">
+          <Icon name="settings" size={22} />
+        </span>
+        <p class="eyebrow">{t("browse.pairing.localDevice")}</p>
+        <h1 id="engine-gate-title" class="view-title">{t(engineError)}</h1>
+        <p class="engine-gate-copy">{t(engineHelp)}</p>
+        {@render diagnosticDetail()}
         <div class="engine-gate-actions">
           <Button
             variant="primary"

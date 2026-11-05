@@ -153,6 +153,25 @@ The catalog has its own native window, separate from the compact player.
   `SkinRuntime.browseStylesheetUrl` and the Browse app loads it as
   `<link id="cadence-browse-skin">` after the app-owned base stylesheet.
 
+## Internationalization and error codes
+
+Both surfaces call `initI18n()` before mounting. The runtime keeps the active
+locale and cached ICU formatters in `frontend/src/shared/i18n`; `en.ts` is the
+typed source catalog and `es.ts` must match its keys. A `storage` listener on
+`cadence.locale` mirrors locale changes across windows without writing back, and
+Browse Settings exposes the runtime language selector. `npm run i18n:check`
+walks the Svelte AST and fails on untranslated text or `title`/`aria-label`/
+`placeholder`/`alt` literals.
+
+The Go backend is not localized. `engine.AudioState.ErrorCode` carries stable
+engine states (`engine_not_installed`, `engine_disabled`, etc.) while `Error`
+stays the raw diagnostic detail. `playback.PlayerError.Code` does the same for
+player states. The frontend maps known codes through `errors.*`; unknown codes
+fall back to a generic headline and keep the raw message in a diagnostic detail.
+Skin validation warnings remain raw English details.
+
+See [`i18n.md`](i18n.md) for the catalog workflow and the full error policy.
+
 ## Adding a catalog surface
 
 1. Add the engine route and wire type in `internal/engine/rest.go` and

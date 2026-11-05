@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -379,5 +381,92 @@ func TestSupervisorFindsExplicitBinary(t *testing.T) {
 	supervisor := NewSupervisor(Options{BinaryPath: "/bin/sh"})
 	if !supervisor.Available() || supervisor.BinaryPath() != "/bin/sh" {
 		t.Fatalf("supervisor = %#v", supervisor)
+	}
+}
+
+func TestSupervisorStartReportsMissingBinaryCode(t *testing.T) {
+	var emitted []AudioState
+	runtime := &Supervisor{
+		configDir: t.TempDir(),
+		emit:      func(state AudioState) { emitted = append(emitted, state) },
+	}
+
+	if err := runtime.Start(context.Background()); err == nil {
+		t.Fatal("Start() error = nil, want a missing-binary failure")
+	}
+	state := runtime.State(context.Background())
+	if state.ErrorCode != ErrorCodeNotInstalled {
+		t.Fatalf("ErrorCode = %q, want %q", state.ErrorCode, ErrorCodeNotInstalled)
+	}
+	if state.Error == "" {
+		t.Fatal("Error is empty, want the raw diagnostic detail")
+	}
+	if len(emitted) == 0 || emitted[0].ErrorCode != ErrorCodeNotInstalled {
+		t.Fatalf("notify event = %#v, want the not-installed code", emitted)
+	}
+}
+
+func TestSupervisorStartReportsConfigCode(t *testing.T) {
+	runtime := &Supervisor{binaryPath: "/bin/true"}
+
+	if err := runtime.Start(context.Background()); err == nil {
+		t.Fatal("Start() error = nil, want a missing-config-directory failure")
+	}
+	state := runtime.State(context.Background())
+	if state.ErrorCode != ErrorCodeConfig {
+		t.Fatalf("ErrorCode = %q, want %q", state.ErrorCode, ErrorCodeConfig)
+	}
+}
+
+func TestSupervisorStartReportsStartFailureCode(t *testing.T) {
+	runtime := &Supervisor{
+		binaryPath: filepath.Join(t.TempDir(), "missing-go-librespot"),
+		configDir:  t.TempDir(),
+	}
+
+	if err := runtime.Start(context.Background()); err == nil {
+		t.Fatal("Start() error = nil, want an exec failure")
+	}
+	state := runtime.State(context.Background())
+	if state.ErrorCode != ErrorCodeStartFailed {
+		t.Fatalf("ErrorCode = %q, want %q", state.ErrorCode, ErrorCodeStartFailed)
+	}
+}
+
+func TestSupervisorStartReportsStoppedCode(t *testing.T) {
+	runtime := NewSupervisor(Options{BinaryPath: "/bin/true", ConfigDir: t.TempDir()})
+
+	if err := runtime.Start(context.Background()); err == nil {
+		t.Fatal("Start() error = nil, want an engine that exits immediately")
+	}
+	state := runtime.State(context.Background())
+	if state.ErrorCode != ErrorCodeStopped {
+		t.Fatalf("ErrorCode = %q, want %q", state.ErrorCode, ErrorCodeStopped)
+	}
+}
+
+func TestSupervisorStateClearsErrorCodeWhenHealthy(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/status" {
+			http.NotFound(writer, request)
+			return
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"device_name":"Cadence","device_type":"computer"}`))
+	}))
+	defer server.Close()
+
+	runtime := &Supervisor{
+		running:       true,
+		client:        NewClient(server.URL, server.Client()),
+		lastError:     "stale error",
+		lastErrorCode: ErrorCodeStopped,
+	}
+	state := runtime.State(context.Background())
+	if state.Error != "" || state.ErrorCode != "" {
+		t.Fatalf("healthy state error=%q code=%q, want both cleared", state.Error, state.ErrorCode)
+	}
+	if !state.Authenticated {
+		t.Fatal("Authenticated = false, want true for a healthy status")
 	}
 }

@@ -28,6 +28,7 @@ export interface AudioState {
     "deviceType": string;
     "pairing": Pairing | null;
     "error": string;
+    "errorCode": string;
     "binaryPath": string;
     "configDirectory": string;
     "audioBackend": string;

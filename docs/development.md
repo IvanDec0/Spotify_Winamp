@@ -165,6 +165,22 @@ Tests for the engine integration use `httptest` servers and do not need Spotify 
   UI copy belongs in the `en`/`es` catalogs and is rendered with `t()`.
 - Keep production dependencies pinned exactly; do not use `latest`.
 
+## Localization workflow
+
+User-facing copy lives in `frontend/src/shared/i18n/locales/{en,es}.ts`.
+`en.ts` is the typed source; `es.ts` is a `Record<MessageKey, string>`, so a
+missing or unknown key fails `svelte-check`. Components use `t(key, params)`
+from `shared/i18n`; `title`, `aria-label`, `placeholder` and `alt` values must be
+translated too.
+
+Run `npm run i18n:check` from `frontend` before committing. It walks the Svelte
+compiler AST and reports untranslated literals with `file:line`. The command has
+no `--fix` mode; edit the catalogs and components by hand. Locale changes are
+persisted in `localStorage["cadence.locale"]` and mirrored across the compact
+and Browse windows by the `storage` listener installed in `initI18n()`. See
+[`i18n.md`](i18n.md) for the key groups, ICU rules, allowlist and backend error
+policy.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on an `archlinux:base-devel` container. It installs the system and Go toolchain, then runs:

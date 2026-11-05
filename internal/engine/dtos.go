@@ -78,6 +78,7 @@ type AudioState struct {
 	DeviceType      string   `json:"deviceType"`
 	Pairing         *Pairing `json:"pairing"`
 	Error           string   `json:"error"`
+	ErrorCode       string   `json:"errorCode"`
 	BinaryPath      string   `json:"binaryPath"`
 	ConfigDirectory string   `json:"configDirectory"`
 	AudioBackend    string   `json:"audioBackend"`

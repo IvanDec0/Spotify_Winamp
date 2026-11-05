@@ -59,6 +59,7 @@ func (s *Service) GetState() engine.AudioState {
 			Running:   false,
 			Engine:    engine.Name,
 			Error:     "The local audio engine is disabled in demo mode.",
+			ErrorCode: engine.ErrorCodeDisabled,
 		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -372,7 +373,10 @@ func (s *Service) StartRadio(uri string) error {
 func (s *Service) client() (*engine.Client, error) {
 	client := s.supervisor.Client()
 	if client == nil {
-		return nil, errors.New("the local audio engine is not running")
+		return nil, engine.NewCodedError(
+			engine.ErrorCodeNotRunning,
+			"the local audio engine is not running",
+		)
 	}
 	return client, nil
 }

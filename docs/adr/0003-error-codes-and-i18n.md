@@ -1,8 +1,8 @@
 # ADR 0003 — Error codes and i18n ownership
 
-- **Status:** Proposed
-- **Date:** 2026-11-04
-- **Phase:** 2 (infrastructure), 7 (final sweep)
+- **Status:** Accepted
+- **Date:** 2026-11-04 (Phase 7 implementation 2026-11-05)
+- **Phase:** 2 (infrastructure), 7 (implemented)
 - **Source:** [`../../plan/cadence-v2.md`](../../plan/cadence-v2.md) §7
 
 ## Context
@@ -14,8 +14,12 @@ are embedded in code and backend errors are opaque sentences.
 
 ## Decision
 
-- The Go backend is **not localized**. It returns stable `{code, params}` error
-  values; the frontend renders `errors.<code>` with the active locale.
+- The Go backend is **not localized**. `engine.AudioState` exposes a stable
+  `ErrorCode` (`engine_not_installed`, `engine_disabled`, `engine_not_running`,
+  etc.) and `playback.PlayerError` exposes a stable `Code`; the raw `Error` /
+  `Message` strings remain diagnostic detail. The frontend renders the matching
+  `errors.*` key with the active locale and falls back to a generic headline for
+  unknown codes.
 - Frontend catalogs are TypeScript modules with ICU MessageFormat strings at
   `frontend/src/shared/i18n/locales/{en,es}.ts`, rendered with
   `intl-messageformat`; `Intl` handles numbers, dates and relative time.
@@ -27,24 +31,29 @@ are embedded in code and backend errors are opaque sentences.
 - First run reads `localStorage["cadence.locale"]`, then falls back to
   `navigator.language` (`es*` to `es`, otherwise `en`). The choice persists in
   `localStorage` and updates `document.documentElement.lang`.
-- Skins may provide an optional `i18n` map in `manifest.json`; missing entries
-  fall back to the raw label.
+- Locale changes are mirrored across the compact and Browse windows on
+  `cadence.locale`; `syncLocale` applies a received catalog without persisting,
+  and `initI18n()` installs the listener once per webview.
 - The Phase 7 translation guard is `frontend/scripts/check-i18n.mjs`: it walks
   the Svelte compiler AST for literal text nodes and literal `title`,
   `aria-label`, `placeholder` and `alt` values, with a small brand/symbol/unit
   allowlist. `npm run i18n:check` runs in the Taskfile and CI and has no `--fix`
   mode. Key parity is compile-time and tests assert no empty catalog values.
-- Migration is per module as modules are touched; new code uses `t()` from day
-  one. The compact and declarative-skin sweep lands in Phase 7.
+- The compact player, declarative-skin components and Browse are fully
+  translated; new code uses `t()` from day one and the guard enforces it.
+  Skin-provided labels and Go skin-validation warnings remain raw English
+  diagnostic detail until they gain structured codes.
 
 ## Consequences
 
-- `AudioState.Error`, `SkinCatalog.LastError`, validation warnings and pairing
-  messages must migrate from prose to codes with parameters.
+- Engine and player error surfaces use `AudioState.ErrorCode` /
+  `PlayerError.Code`; unknown errors keep a raw diagnostic detail.
 - The frontend owns all user-facing text and locale switching; the Go API stays
   language-neutral.
 - New UI cannot merge with hardcoded user-facing strings once the guard is
   enabled.
 - Catalogs, the `MessageKey` union, the `Record<MessageKey, string>` parity
-  type and the ESLint rule become part of the review surface. Adding a key is
-  a two-file change with no generated artifacts to commit.
+  type and the translation guard are part of the review surface. Adding a key
+  is a two-file change with no generated artifacts to commit.
+- Known limitation: raw Go skin-validation warnings and the live GTK/locale
+  smoke test are pending.

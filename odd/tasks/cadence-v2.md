@@ -1232,9 +1232,9 @@ Taskfile/CI yet because it is red until the T7.2 sweep.
 
 | Task | Commit |
 |---|---|
-| T7.1 | `chore(i18n): remove dead UI and add the translation guard` (hash recorded in T7.3) |
-| T7.2 | `feat(i18n): translate the compact player and skin UI` (hash recorded in T7.3) |
-| T7.3 | pending |
+| T7.1 | `bdf54c1` — `chore(i18n): remove dead UI and add the translation guard` |
+| T7.2 | `293f632` — `feat(i18n): translate the compact player and skin UI` |
+| T7.3 | `feat(i18n): add typed engine error states and the i18n guide` (hash in the final report) |
 
 ### T7.2 — Compact and skin i18n sweep
 
@@ -1283,17 +1283,56 @@ allowlisted values are brand names (`CADENCE`, `Cadence`, `Clarity`, `Spotify`,
 
 ### T7.3 — Error codes, docs and verification
 
-- [ ] Add a typed `ErrorCode` to `engine.AudioState` for the known engine
-      states (not installed, start failed, not ready, disabled in demo, not
-      running) and set it at the source; expose it through the bindings and map
-      it in the frontend. Keep the raw `Error` string as a detail.
-- [ ] Add `docs/i18n.md` (catalog workflow, key groups, locale sync, guard,
-      backend error policy) and update `docs/README.md`, `docs/architecture.md`,
-      `docs/development.md` and the README feature list.
-- [ ] Run the full gates: Go tests/race/vet/gofmt, all four engine patches,
-      bindings no diff, `npm run check/lint/format/i18n:check/test/build`,
-      `task build`, `git diff --check`.
-- Commit: `docs: record the i18n and Phase 7 verification`
+- [x] Add `engine.AudioState.ErrorCode` and stable constants in
+      `internal/engine/errors.go`: `engine_not_installed`,
+      `engine_config_error`, `engine_start_failed`, `engine_not_ready`,
+      `engine_stopped`, `engine_disabled`, `engine_not_running` (plus the generic
+      frontend fallback). Set them in the supervisor start/exit/readiness paths
+      and in catalog demo mode/`client()`; clear `Error`/`ErrorCode` when
+      healthy and emit both from `State` and `notify`. Raw English `Error` text
+      is unchanged. Bindings regenerated and the frontend maps known/unknown
+      codes in `EngineGate`, with the raw message in a `<details>` detail.
+- [x] Add `docs/i18n.md` (catalog workflow, key groups, ICU rules, locale
+      sync, guard/allowlist and backend error policy) and update
+      `docs/README.md`, `docs/architecture.md`, `docs/development.md`, the
+      README feature list and ADR-0003 with the final implementation.
+- [x] Run the full gates (table below).
+- Commit: `feat(i18n): add typed engine error states and the i18n guide`
+
+#### T7.3 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `go test -race ./internal/engine/... ./internal/catalog/... ./internal/wailsapi/audio/...` | exit 0 |
+| `go vet $(go list ./... \| grep -v '/node_modules/')` | exit 0, no findings |
+| `gofmt -l` over non-vendored Go dirs | exit 0, no files listed |
+| `./scripts/build-go-librespot.sh --check` | exit 0, all four patches apply |
+| `wails3 generate bindings -clean=true -ts -i .` | 302 packages, 4 services, 55 methods, 40 models; only `AudioState.errorCode` added |
+| `git status --porcelain frontend/bindings` after regeneration | clean (no uncommitted binding drift) |
+| `npm run i18n:check` | exit 0, 0 findings |
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0 |
+| `npm run test` | exit 0, 38 files / 197 tests |
+| `npm run build` | exit 0, 250 modules |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+Go tests cover the deterministic paths: missing binary, config error, process
+start failure, process exit, healthy clearing and the catalog demo/not-running
+codes. No live-process readiness test was added.
+
+## Phase 7 status
+
+- **Code and docs:** complete; T7.1-T7.3 committed on `feat/cadence-v2`.
+- **Verification:** all Go, engine patch, binding, frontend and full-build gates
+  green (tables above).
+- **Known limitations:** raw Go skin-validation warnings remain English
+  diagnostic detail; the live GTK/language-switch smoke test is pending user
+  verification (switch to Español in Browse Settings, confirm the compact window
+  updates, and check the translated engine gate).
+- **Next:** Phase 8 (packaging) after the user verifies the live behavior.
 
 ### Phase 7 acceptance
 
@@ -1359,3 +1398,4 @@ allowlisted values are brand names (`CADENCE`, `Cadence`, `Clarity`, `Spotify`,
 | 2026-11-05 | Correction: one settings surface | `fix(settings): unify appearance and engine settings in Browse` | Compact badge says Browse; queue notes localized; compact settings/skin overlays replaced by `openBrowse("settings")`; Browse Settings adds appearance and skins management; cross-window preference storage sync; tests updated; live GTK redirect pending user |
 | 2026-11-05 | T7.1 | `chore(i18n): remove dead UI and add the translation guard` | Deleted the 6 unreachable compact components, trimmed `music.svelte.ts` to engine/pairing, added the AST i18n guard (60 findings for T7.2), Browse language selector and `cadence.locale` cross-window sync; frontend/Go/build gates green |
 | 2026-11-05 | T7.2 | `feat(i18n): translate the compact player and skin UI` | Swept compact and declarative-skin literals to typed `en`/`es` keys, localized visualizer labels and player error codes, structured music/skins notices, added Spanish locale coverage and wired `i18n:check` into Taskfile/CI; guard 0 findings and all gates green |
+| 2026-11-05 | T7.3 | `feat(i18n): add typed engine error states and the i18n guide` | `AudioState.errorCode` with seven stable engine codes set in supervisor/catalog and cleared when healthy, regenerated bindings, translated EngineGate headline plus raw detail, Go code tests, `docs/i18n.md` and final docs/ADR/tracker; all gates green, live GTK/locale smoke pending user |

@@ -83,13 +83,14 @@ type Supervisor struct {
 	httpClient                *http.Client
 	emit                      func(AudioState)
 
-	client    *Client
-	cmd       *exec.Cmd
-	running   bool
-	stopping  bool
-	available bool
-	lastError string
-	done      chan struct{}
+	client        *Client
+	cmd           *exec.Cmd
+	running       bool
+	stopping      bool
+	available     bool
+	lastError     string
+	lastErrorCode string
+	done          chan struct{}
 }
 
 func NewSupervisor(options Options) *Supervisor {
@@ -282,18 +283,21 @@ func (r *Supervisor) Start(ctx context.Context) error {
 	configDir := r.configDir
 	if binary == "" {
 		r.lastError = "go-librespot is not installed. Build it with task audio:build or install a compatible binary."
+		r.lastErrorCode = ErrorCodeNotInstalled
 		r.mu.Unlock()
 		r.notify()
 		return errors.New(r.lastError)
 	}
 	if configDir == "" {
 		r.lastError = "the go-librespot config directory is not configured"
+		r.lastErrorCode = ErrorCodeConfig
 		r.mu.Unlock()
 		r.notify()
 		return errors.New(r.lastError)
 	}
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		r.lastError = "cannot create the go-librespot config directory: " + err.Error()
+		r.lastErrorCode = ErrorCodeConfig
 		r.mu.Unlock()
 		r.notify()
 		return err
@@ -302,12 +306,14 @@ func (r *Supervisor) Start(ctx context.Context) error {
 	port, err := freePort()
 	if err != nil {
 		r.lastError = "cannot allocate a local port for go-librespot: " + err.Error()
+		r.lastErrorCode = ErrorCodeStartFailed
 		r.mu.Unlock()
 		r.notify()
 		return err
 	}
 	if err := r.writeConfig(port, configDir); err != nil {
 		r.lastError = "cannot write the go-librespot configuration: " + err.Error()
+		r.lastErrorCode = ErrorCodeConfig
 		r.mu.Unlock()
 		r.notify()
 		return err
@@ -329,6 +335,7 @@ func (r *Supervisor) Start(ctx context.Context) error {
 			_ = logFile.Close()
 		}
 		r.lastError = "cannot start go-librespot: " + err.Error()
+		r.lastErrorCode = ErrorCodeStartFailed
 		r.mu.Unlock()
 		r.notify()
 		return err
@@ -341,6 +348,7 @@ func (r *Supervisor) Start(ctx context.Context) error {
 	r.running = true
 	r.stopping = false
 	r.lastError = ""
+	r.lastErrorCode = ""
 	r.engineVersion = ""
 	r.versionAttempt = time.Time{}
 	done := make(chan struct{})
@@ -355,11 +363,14 @@ func (r *Supervisor) Start(ctx context.Context) error {
 		select {
 		case <-done:
 			r.mu.Lock()
+			if r.lastError == "" {
+				r.lastError = "go-librespot exited before the local API became ready"
+			}
+			if r.lastErrorCode == "" {
+				r.lastErrorCode = ErrorCodeStopped
+			}
 			lastError := r.lastError
 			r.mu.Unlock()
-			if lastError == "" {
-				lastError = "go-librespot exited before the local API became ready"
-			}
 			r.notify()
 			return errors.New(lastError)
 		default:
@@ -386,6 +397,7 @@ func (r *Supervisor) Start(ctx context.Context) error {
 	_ = r.Stop(context.Background())
 	r.mu.Lock()
 	r.lastError = "go-librespot did not become ready in time"
+	r.lastErrorCode = ErrorCodeNotReady
 	r.mu.Unlock()
 	r.notify()
 	return errors.New(r.lastError)
@@ -405,6 +417,7 @@ func (r *Supervisor) waitForExit(cmd *exec.Cmd, done chan struct{}) {
 			} else {
 				r.lastError = "go-librespot stopped unexpectedly"
 			}
+			r.lastErrorCode = ErrorCodeStopped
 		}
 		close(done)
 	}
@@ -479,6 +492,7 @@ func (r *Supervisor) State(ctx context.Context) AudioState {
 	running := r.running
 	client := r.client
 	lastError := r.lastError
+	lastErrorCode := r.lastErrorCode
 	configDir := r.configDir
 	engineVersion := r.engineVersion
 	attemptVersion := running && engineVersion == "" &&
@@ -499,6 +513,7 @@ func (r *Supervisor) State(ctx context.Context) AudioState {
 		DeviceName:      r.deviceName,
 		AudioBackend:    r.audioBackend,
 		Error:           lastError,
+		ErrorCode:       lastErrorCode,
 		BinaryPath:      r.binaryPath,
 		ConfigDirectory: configDir,
 	}
@@ -508,6 +523,7 @@ func (r *Supervisor) State(ctx context.Context) AudioState {
 	status, err := client.Status(ctx)
 	if err != nil {
 		state.Error = err.Error()
+		state.ErrorCode = ErrorCodeNotRunning
 		return state
 	}
 	if status != nil {
@@ -515,11 +531,13 @@ func (r *Supervisor) State(ctx context.Context) AudioState {
 		state.DeviceName = status.DeviceName
 		state.DeviceType = status.DeviceType
 		state.Error = ""
+		state.ErrorCode = ""
 		return state
 	}
 	code, err := client.AuthCode(ctx)
 	if err != nil {
 		state.Error = err.Error()
+		state.ErrorCode = ErrorCodeNotRunning
 		return state
 	}
 	if code != nil {
@@ -603,6 +621,7 @@ func (r *Supervisor) notify() {
 	running := r.running
 	client := r.client
 	lastError := r.lastError
+	lastErrorCode := r.lastErrorCode
 	configDir := r.configDir
 	engineVersion := r.engineVersion
 	r.mu.Unlock()
@@ -612,7 +631,7 @@ func (r *Supervisor) notify() {
 	state := AudioState{
 		Available: available, Running: running, Engine: Name, EngineVersion: engineVersion,
 		DeviceName: r.deviceName, AudioBackend: r.audioBackend, Error: lastError,
-		BinaryPath: r.binaryPath, ConfigDirectory: configDir,
+		ErrorCode: lastErrorCode, BinaryPath: r.binaryPath, ConfigDirectory: configDir,
 	}
 	if running && client != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -621,6 +640,7 @@ func (r *Supervisor) notify() {
 			state.DeviceName = status.DeviceName
 			state.DeviceType = status.DeviceType
 			state.Error = ""
+			state.ErrorCode = ""
 		}
 		cancel()
 	}

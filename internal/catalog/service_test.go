@@ -2,6 +2,7 @@ package catalog_test
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -53,6 +54,25 @@ func TestGetStateDisabledReturnsDemoState(t *testing.T) {
 	}
 	if state.Error != "The local audio engine is disabled in demo mode." {
 		t.Fatalf("error = %q, want the demo-mode error", state.Error)
+	}
+	if state.ErrorCode != engine.ErrorCodeDisabled {
+		t.Fatalf("error code = %q, want %q", state.ErrorCode, engine.ErrorCodeDisabled)
+	}
+}
+
+func TestEngineOperationReportsNotRunningCode(t *testing.T) {
+	service := catalog.NewService(catalog.Options{
+		Supervisor: engine.NewSupervisor(engine.Options{}),
+		Enabled:    true,
+	})
+
+	_, err := service.Playlists(0, 10)
+	var coded *engine.CodedError
+	if !errors.As(err, &coded) {
+		t.Fatalf("error = %v, want an engine.CodedError", err)
+	}
+	if coded.Code != engine.ErrorCodeNotRunning {
+		t.Fatalf("error code = %q, want %q", coded.Code, engine.ErrorCodeNotRunning)
 	}
 }
 

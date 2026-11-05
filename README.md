@@ -23,6 +23,7 @@ Cadence is a desktop **Spotify player** with a compact single window, an expanda
 - **The library lives inside Cadence.** Playlists, saved albums, followed artists and Liked Songs are browsed and started from the Library panel.
 - **Discover new music.** Search the Spotify catalog for tracks, albums, artists and playlists, then play them or start a radio from any result.
 - **Spotify radio, locally.** Start a radio station from a track, album, artist or playlist and keep it playing through the local engine.
+- **English and Spanish, switchable at runtime.** Choose the language in Browse Settings; the compact player and Browse window update together and the choice persists.
 - **Skins are declarative.** The built-in Clarity skin is native; third-party skins are JSON layouts, CSS and local assets with no JavaScript. Skins can also create shaped, transparent windows and use declarative boxes, text, local images and custom action buttons.
 - **The demo player remains available.** Run `cadence --demo` to use the app without Spotify or network access.
 

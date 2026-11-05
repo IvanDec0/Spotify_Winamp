@@ -700,6 +700,24 @@ body {
   font-size: 10px;
 }
 
+.engine-gate-detail {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.engine-gate-detail summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.engine-gate-detail p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+  user-select: text;
+}
+
 /* Settings */
 
 .settings-view {
