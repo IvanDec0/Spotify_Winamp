@@ -65,7 +65,8 @@
 | Release workflow: assert `./bin/cadence --version` matches `build/config.yml` before checksums | Done | `release.yml` diff | `8da22dc` |
 | Docs: 0.2.0 installation/Browse tour/visualizer paths, README v2 architecture/features, development release flow, docs index and architecture badge fixes | Done | `rg` consistency checks, `git diff --check` | `77225f1` |
 | Tracker update for R1/R2 | Done | This file | `8da22dc` |
-| Packaging and artifact verification | Done | `task package` exit 0; `sha256sum -c` OK; AppImage and tarball print `Cadence 0.2.0 (77225f1)`; tarball engine byte-identical to `bin/go-librespot`; AppImage engine has the same BuildID and patch markers; Go tests/race/vet/gofmt, `audio:check`, bindings, frontend gates, `task build` and `git diff --check` green | this commit |
+| Packaging and artifact verification | Done | `task package` exit 0; `sha256sum -c` OK; AppImage and tarball print `Cadence 0.2.0 (<short commit>)`; tarball engine byte-identical to `bin/go-librespot`; AppImage engine has the same BuildID and patch markers; Go tests/race/vet/gofmt, `audio:check`, bindings, frontend gates, `task build` and `git diff --check` green | `5e81c81` |
+| Follow-up rebuild after the AppImage icon and compact-skin fixes | Done | Icon/desktop entry installed in `usr/share`; Lumina/Afterglow duplicate controls removed; Vanta cockpit and display fixed; artifacts rebuilt and checksums re-verified | follow-up commit |
 
 ## Acceptance
 

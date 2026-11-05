@@ -1,6 +1,7 @@
 # Compact player skin review
 
-> **Status:** In progress.
+> **Status:** Complete — compact layout fixes and AppImage packaging verified;
+> the live visual sign-off remains pending the user.
 > **Branch:** `feat/cadence-v2`
 > **Scope:** review the four declarative skins in the compact player and fix
 > the redundant controls and layout defects found in the review.
@@ -50,9 +51,11 @@ S1 and S2 ship in one work-unit commit:
 
 - [x] Go tests/vet/gofmt (no Go change expected), frontend i18n check, check,
       lint, format, test, build, `task build`.
-- [ ] `task package` and inspect that the AppImage still bundles all four
-      skins with the updated layouts/styles. Deferred to the orchestrator; not
-      run in this work unit.
+- [x] `task package` and inspect that the AppImage still bundles all four
+      skins with the updated layouts/styles. Verified: Lumina and Afterglow
+      have no `device-picker`/`settings-button` in their control rows; Vanta
+      ships the `190px` cockpit and `84px`/`0.55` display visualizer; Nightstar
+      is unchanged.
 - [x] `git diff --check`.
 - [ ] Live visual check pending user: compact window at 100% and 200% scale,
       each skin, queue open and closed.
@@ -61,10 +64,10 @@ S1 and S2 ship in one work-unit commit:
 
 | Work unit | Scope | Verification | Commit |
 |-----------|-------|--------------|--------|
-| Compact skin fixes | S1: remove duplicated `device-picker`/`settings-button` from the Lumina and Afterglow control rows. S2: Vanta cockpit `192px` → `190px`; display visualizer `56px`/`0.8` → `84px`/`0.55`. | JSON parse of all three layouts; frontend i18n check, check, lint, format, test and build; Go tests and vet; `task build`; `git diff --check`. | reported in session |
+| Compact skin fixes | S1: remove duplicated `device-picker`/`settings-button` from the Lumina and Afterglow control rows. S2: Vanta cockpit `192px` → `190px`; display visualizer `56px`/`0.8` → `84px`/`0.55`. | JSON parse of all three layouts; frontend i18n check, check, lint, format, test and build; Go tests and vet; `task build`; `git diff --check`. | `a88c4c4` |
+| Packaging inspection | `task package` with the updated skins; AppImage and tarball checksums; skin layouts/styles inspected inside the AppImage. | AppImage/tarball built; `sha256sum -c` OK; layouts and CSS match the fixes; Nightstar unchanged. | orchestrator |
 
-AppImage packaging inspection is deferred to the orchestrator. The live visual
-check remains pending the user.
+The live visual check remains pending the user.
 
 ## Acceptance
 

@@ -1357,7 +1357,7 @@ codes. No live-process readiness test was added.
       fallback, XDG paths, clean-machine checklist), README, development,
       docs index and architecture fixes.
 - [x] `task package` produced the AppImage, tarball and SHA-256 checksums;
-      both version commands print `Cadence 0.2.0 (77225f1)` and checksums
+      both version commands print `Cadence 0.2.0 (<short commit>)` and checksums
       verify. The tarball engine is byte-identical to `bin/go-librespot`; the
       AppImage engine differs only by linuxdeploy's ELF RPATH adjustment (same
       BuildID and the same four-patch markers).
@@ -1368,8 +1368,8 @@ codes. No live-process readiness test was added.
 |---|---|
 | `task package` | exit 0; AppImage, tarball and checksums in `bin/` |
 | `sha256sum -c cadence-0.2.0-SHA256SUMS` | both artifacts `OK` |
-| AppImage `--appimage-extract-and-run --version` | `Cadence 0.2.0 (77225f1)`, exit 0 |
-| Extracted tarball `./cadence --version` | `Cadence 0.2.0 (77225f1)`, exit 0 |
+| AppImage `--appimage-extract-and-run --version` | `Cadence 0.2.0 (<short commit>)`, exit 0 |
+| Extracted tarball `./cadence --version` | `Cadence 0.2.0 (<short commit>)`, exit 0 |
 | Artifact inspection | tarball: binary, engine, docs, changelog, licenses, four skins; AppImage: `usr/bin/go-librespot`, docs and changelog |
 | `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
 | `go test -race ./internal/visualizer/... ./internal/wailsapi/visualizer/... ./internal/buildinfo/...` | exit 0 |
@@ -1387,7 +1387,9 @@ codes. No live-process readiness test was added.
   AppImage, tarball and checksums built locally.
 - **Verification:** full Go, engine patch, binding, frontend, build and
   packaging gates green; both artifacts report `0.2.0` and the checksums
-  verify.
+  verify. A follow-up rebuild after the AppImage icon and compact-skin fixes
+  replaced the local artifacts; the final version string contains the current
+  release commit.
 - **Known limitations:** the visualizer captures the system-wide default
   monitor (other apps can affect it) and needs `parec`; without it the
   simulated fallback is used. The AppImage assumes FUSE or
@@ -1463,4 +1465,4 @@ codes. No live-process readiness test was added.
 | 2026-11-05 | T7.3 | `feat(i18n): add typed engine error states and the i18n guide` | `AudioState.errorCode` with seven stable engine codes set in supervisor/catalog and cleared when healthy, regenerated bindings, translated EngineGate headline plus raw detail, Go code tests, `docs/i18n.md` and final docs/ADR/tracker; all gates green, live GTK/locale smoke pending user |
 | 2026-11-05 | Phase 8 R1/R2 | `8da22dc` | Version stamped 0.2.0 in the Taskfiles/config/frontend package; `internal/buildinfo` and `--version`; `-X` version/commit injection; `CHANGELOG.md`; AppImage/tarball include the changelog and docs; release workflow asserts the artifact version |
 | 2026-11-05 | Phase 8 R3 | `77225f1` | Installation, README, development, docs index and architecture updated for the v2 Browse UI, `parec` visualizer paths, XDG state and the 0.2.0 release flow |
-| 2026-11-05 | Phase 8 R4 | this commit | `task package` built the AppImage, tarball and checksums; both artifacts print `Cadence 0.2.0 (77225f1)`; `sha256sum -c` OK; engine contents verified; full Go/engine/binding/frontend/build/diff gates green; live Arch VM checklist pending user |
+| 2026-11-05 | Phase 8 R4 | `5e81c81` | `task package` built the AppImage, tarball and checksums; both artifacts print `Cadence 0.2.0 (<short commit>)`; `sha256sum -c` OK; engine contents verified; full Go/engine/binding/frontend/build/diff gates green; live Arch VM checklist pending user |
