@@ -793,11 +793,12 @@ four original groups, so the new groups are lost before the HTTP response.
 
 ### T5.4 — Verification
 
-- [ ] `go test`, race on the touched packages, `go vet`, `gofmt`,
+- [x] `go test`, race on the touched packages, `go vet`, `gofmt`,
       `task audio:check`, `task audio:build`, bindings regeneration with no
       diff, frontend check/lint/format/test/build.
-- [ ] Live read-only search verification; write actions need the user's
-      explicit account check.
+- [x] Live read-only search verification (`/search` 5 shows + 5 episodes) and
+      collection `contains` for album/artist/show. Actual saves/follows still
+      need the user's explicit account check.
 - Commit: `docs: record Phase 5 verification`
 
 ### Phase 5 acceptance
@@ -814,9 +815,51 @@ four original groups, so the new groups are lost before the HTTP response.
 | Task | Commit |
 |---|---|
 | T5.1 | `ed74d9d` |
-| T5.2 | `feat(library): add collection writes and podcast helpers` |
-| T5.2 correction | `fix(library): use the show collection set for saved shows` |
-| T5.3 | `feat(settings): expose engine playback and cache options` |
+| T5.2 | `8d069d3` |
+| T5.2 correction | `b01bfcb` |
+| T5.3 | `1d845ee` |
+
+## Phase 5 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0, all packages ok |
+| `go test -race ./internal/engine/... ./internal/catalog/... ./internal/settings/... ./internal/wailsapi/audio/...` | exit 0 |
+| `go vet`, `gofmt -l` | exit 0, no findings |
+| `./scripts/build-go-librespot.sh --check` | exit 0; all four patches apply with `--fuzz=0` |
+| `task audio:build` | exit 0; engine rebuilt |
+| `wails3 generate bindings -clean=true -ts -i .` | exit 0; 4 services, 52 methods, 40 models; no diff after commit |
+| `npm run check` | exit 0, 0 errors/warnings |
+| `npm run lint`, `npm run format` | exit 0 |
+| `npm run test` | exit 0, 28 files / 143 tests |
+| `npm run build` | exit 0, 232 modules |
+| `git diff --check` | exit 0 |
+
+Live read-only checks (copied config/state, temp dir removed, no secrets
+printed):
+
+- `/search?q=podcast&limit=5` returned shows=5, episodes=5, tracks=5,
+  playlists=5; show hits carry `showType`/`musicAndTalk`, episode hits
+  `explicit`.
+- `/library/collection/contains` returned 200 for `collection` + album,
+  `artist` + followed artist, and `collection` + show.
+- Saved shows use the `show` set: The Wild Project returned true while three
+  other shows returned false; `collection` returned false for all four.
+
+## Phase 5 status
+
+- **Code:** complete at `1d845ee`.
+- **Search:** the third engine patch exposes `shows`/`episodes`; the original
+  four groups are unchanged and artwork is still rewritten by the catalog.
+- **Library:** the fourth engine patch adds generic collection write/contains;
+  the catalog has like/save/follow/show helpers, playlist add/remove and
+  `YourEpisodes`. Saved shows use the `show` set.
+- **Settings:** engine playback/cache options persist in the Cadence settings
+  store and apply on an explicit engine restart; no settings UI yet.
+- **Not yet exercised:** actual save/follow/unfollow writes against the real
+  account, and the saved-shows listing. The UI for all new surfaces is Phase 6.
+- **Next:** Phase 6 (Browse UI) after the user decides D1 (separate Browse
+  window vs expanded compact window).
 
 ## Progress log
 
@@ -855,9 +898,10 @@ four original groups, so the new groups are lost before the HTTP response.
 
 | 2026-11-04 | Phase 4 verification | `e301b99` | Static gates green; idle structure is 0.067 req/s; after-baseline pending reference-machine run |
 | 2026-11-04 | T4.4 after-baseline | `docs: record the Phase 4 after-baseline` | Measured 0.067 req/s (4/60 s), 541 B/event, 0 idle events; CPU/RSS caveats recorded; Phase 5 not started |
-| 2026-11-05 | T5.1 | `feat(search): expose podcast shows and episodes` | Third engine patch maps `audioepisodes` to `episodes` and adds show/episode hit fields; search DTOs, artwork rewriting, catalog test and frontend mapping extended; `audio:check`/`audio:build`, Go and frontend gates green; live `/search` verification pending parent |
 
 | 2026-11-05 | T5.1 | `ed74d9d` | Search-groups patch exposes shows/episodes (raw `audioepisodes` mapped to `episodes`), new hit fields, catalog artwork rewriting, frontend store mapping; live `/search` returned 5 shows + 5 episodes |
-| 2026-11-05 | T5.2 | `feat(library): add collection writes and podcast helpers` | Fourth engine patch adds generic `collection`/`artist`/`show` write and contains routes; engine client, catalog typed use cases (`SetLiked`, `SaveAlbum`, `SaveShow`, `FollowArtist`, playlist add/remove, `YourEpisodes`), adapter, bindings, fake-engine tests and docs; no live writes performed |
-| 2026-11-05 | T5.2 correction | `fix(library): use the show collection set for saved shows` | Live read-only `contains` check: `set:"show"` returned `true` for `spotify:show:5iKz9gAsyuQ1xLG6MFLtQg` (The Wild Project) and `false` for three other shows, while `set:"collection"` returned `false` for all four. `SaveShow`/`IsShowSaved` now use `show`; liked tracks/albums stay on `collection`, follows on `artist`; saved-shows listing stays Phase 6 |
-| 2026-11-05 | T5.3 | `feat(settings): expose engine playback and cache options` | `settings.EngineState` persists bitrate/crossfade/normalisation/cache/FLAC/MPRIS/device-group/image-size with defaults; engine `PlaybackConfig` normalizes and applies under the supervisor mutex; generated config emits the new keys; adapter `Get`/`SetEngineSettings` persists without restarting; bindings and typed facade ready; tests for defaults, round-trip, normalization, config generation and adapter persistence |
+| 2026-11-05 | T5.2 | `8d069d3` | Fourth engine patch adds generic `collection`/`artist`/`show` write and contains routes; engine client, catalog typed use cases (`SetLiked`, `SaveAlbum`, `SaveShow`, `FollowArtist`, playlist add/remove, `YourEpisodes`), adapter, bindings, fake-engine tests and docs; no live writes performed |
+| 2026-11-05 | T5.2 correction | `b01bfcb` | Live read-only `contains` check: `set:"show"` returned `true` for `spotify:show:5iKz9gAsyuQ1xLG6MFLtQg` (The Wild Project) and `false` for three other shows, while `set:"collection"` returned `false` for all four. `SaveShow`/`IsShowSaved` now use `show`; liked tracks/albums stay on `collection`, follows on `artist`; saved-shows listing stays Phase 6 |
+| 2026-11-05 | T5.3 | `1d845ee` | `settings.EngineState` persists bitrate/crossfade/normalisation/cache/FLAC/MPRIS/device-group/image-size with defaults; engine `PlaybackConfig` normalizes and applies under the supervisor mutex; generated config emits the new keys; adapter `Get`/`SetEngineSettings` persists without restarting; bindings and typed facade ready; tests for defaults, round-trip, normalization, config generation and adapter persistence |
+
+| 2026-11-05 | T5.4 | `docs(odd): record Phase 5 verification` | All Go/engine/binding/frontend gates green; live read-only search and collection checks passed; actual writes and UI remain Phase 6 |
