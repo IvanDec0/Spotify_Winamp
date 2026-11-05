@@ -113,7 +113,9 @@ collection routes: `SetLiked`/`IsLiked`, `SaveAlbum`/`IsAlbumSaved`,
 user-scoped collection URI from `/status`. The patched engine serves
 `POST /library/collection/write` and `POST /library/collection/contains` for
 the `collection`, `artist` and `show` sets; the original `/library/liked`
-and playlist routes keep their behavior. Phase 6 adds the UI controls.
+and playlist routes keep their behavior. Saved shows use the `show` set, while
+liked tracks and saved albums use `collection` and followed artists use
+`artist`. The saved-shows listing UI is Phase 6.
 
 ## Generated bindings
 

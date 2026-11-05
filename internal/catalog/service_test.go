@@ -409,7 +409,7 @@ func TestLibraryWritesAndYourEpisodes(t *testing.T) {
 	if err := service.SaveShow("spotify:show:1", true); err != nil {
 		t.Fatalf("SaveShow() error = %v", err)
 	}
-	assertWrite("collection", false, "spotify:show:1")
+	assertWrite("show", false, "spotify:show:1")
 
 	if err := service.FollowArtist("spotify:artist:1", true); err != nil {
 		t.Fatalf("FollowArtist() error = %v", err)
@@ -430,7 +430,7 @@ func TestLibraryWritesAndYourEpisodes(t *testing.T) {
 	if err != nil || !savedShow {
 		t.Fatalf("IsShowSaved() = %v, %v", savedShow, err)
 	}
-	assertContains("collection", "spotify:show:1")
+	assertContains("show", "spotify:show:1")
 	followed, err := service.IsArtistFollowed("spotify:artist:1")
 	if err != nil || !followed {
 		t.Fatalf("IsArtistFollowed() = %v, %v", followed, err)

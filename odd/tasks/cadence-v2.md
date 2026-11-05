@@ -815,6 +815,7 @@ four original groups, so the new groups are lost before the HTTP response.
 |---|---|
 | T5.1 | `ed74d9d` |
 | T5.2 | `feat(library): add collection writes and podcast helpers` |
+| T5.2 correction | `fix(library): use the show collection set for saved shows` |
 
 ## Progress log
 
@@ -857,3 +858,4 @@ four original groups, so the new groups are lost before the HTTP response.
 
 | 2026-11-05 | T5.1 | `ed74d9d` | Search-groups patch exposes shows/episodes (raw `audioepisodes` mapped to `episodes`), new hit fields, catalog artwork rewriting, frontend store mapping; live `/search` returned 5 shows + 5 episodes |
 | 2026-11-05 | T5.2 | `feat(library): add collection writes and podcast helpers` | Fourth engine patch adds generic `collection`/`artist`/`show` write and contains routes; engine client, catalog typed use cases (`SetLiked`, `SaveAlbum`, `SaveShow`, `FollowArtist`, playlist add/remove, `YourEpisodes`), adapter, bindings, fake-engine tests and docs; no live writes performed |
+| 2026-11-05 | T5.2 correction | `fix(library): use the show collection set for saved shows` | Live read-only `contains` check: `set:"show"` returned `true` for `spotify:show:5iKz9gAsyuQ1xLG6MFLtQg` (The Wild Project) and `false` for three other shows, while `set:"collection"` returned `false` for all four. `SaveShow`/`IsShowSaved` now use `show`; liked tracks/albums stay on `collection`, follows on `artist`; saved-shows listing stays Phase 6 |

@@ -229,11 +229,12 @@ func (s *Service) AddToQueue(uri string) error {
 	return client.AddToQueue(ctx, uri)
 }
 
-// collectionSet and artistSet are the collection sets for saved media and
-// followed artists.
+// collectionSet, artistSet and showSet are the collection sets for saved
+// media, followed artists and saved shows.
 const (
 	collectionSet = "collection"
 	artistSet     = "artist"
+	showSet       = "show"
 )
 
 // SetLiked adds or removes a track in the user's collection.
@@ -256,15 +257,15 @@ func (s *Service) IsAlbumSaved(uri string) (bool, error) {
 	return s.collectionContains(collectionSet, uri)
 }
 
-// SaveShow saves or removes a show in the user's collection. Saved-show
-// support depends on the engine accepting show URIs in the collection set.
+// SaveShow saves or removes a show in the user's show set. The saved-shows
+// listing UI lands in Phase 6.
 func (s *Service) SaveShow(uri string, saved bool) error {
-	return s.collectionWrite(collectionSet, uri, !saved)
+	return s.collectionWrite(showSet, uri, !saved)
 }
 
-// IsShowSaved reports whether a show is in the user's collection.
+// IsShowSaved reports whether a show is in the user's show set.
 func (s *Service) IsShowSaved(uri string) (bool, error) {
-	return s.collectionContains(collectionSet, uri)
+	return s.collectionContains(showSet, uri)
 }
 
 // FollowArtist follows or unfollows an artist.
