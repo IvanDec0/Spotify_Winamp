@@ -22,7 +22,8 @@
 
 ### O1 — Prune the unused GTK3/WebKit4.1 stack
 
-- [x] After `wails3 generate appimage`, remove
+- [x] Remove the AppDir before `wails3 generate appimage` so stale WebKit
+      generations cannot leak into a later package. After generation, remove
       `usr/lib/webkit2gtk-4.1`, `usr/lib/girepository-1.0`,
       `usr/lib/gtk-3.0` and the `libwebkit2gtk-4.1`,
       `libjavascriptcoregtk-4.1`, `libgtk-3` and `libgdk-3` libraries before
@@ -55,7 +56,7 @@
 
 | Work unit | Changes | Verification | Commit |
 |---|---|---|---|
-| Prune unused WebKit/GTK3 stack | `build/linux/Taskfile.yml` removes `usr/lib/webkit2gtk-4.1`, `usr/lib/girepository-1.0`, `usr/lib/gtk-3.0`, the 4.1/GTK3 libraries and the AppImage docs screenshots before the final linuxdeploy pack. | AppDir 484 → 323 MB; AppImage 171 → 110 MB; no `webkit2gtk-4.1`/`gtk-3` files; `ldd` over `cadence` and all WebKit helpers reports no missing libraries. | `6f5ba1f` |
+| Prune unused WebKit/GTK3 stack | `build/linux/Taskfile.yml` starts from a clean AppDir and removes `usr/lib/webkit2gtk-4.1`, `usr/lib/girepository-1.0`, `usr/lib/gtk-3.0`, the 4.1/GTK3 libraries and the AppImage docs screenshots before the final linuxdeploy pack. | AppDir 484 → 323 MB; AppImage 171 → 110 MB; no `webkit2gtk-4.1`/`gtk-3` files; `ldd` over `cadence` and all WebKit helpers reports no missing libraries. | `6f5ba1f` |
 | Strip the audio engine | `scripts/build-go-librespot.sh` adds `-s -w`; engine rebuilt. | 26 → 18 MB; stripped ELF; `--help` exit 0. | `6f5ba1f` |
 | Final verification | `task package`, checksums, versions, full Go/frontend/build gates. | `sha256sum -c` OK; AppImage **110 MB** and tarball **16 MB**; both report `0.2.0`; no `webkit2gtk-4.1`/`gtk-3`; engine stripped; docs screenshots absent; icon/desktop present; no missing libraries; 239 frontend tests; Go tests/vet/gofmt; `task build`; `git diff --check`. | `6f5ba1f` |
 | Final release packaging | Rebuilt at the release commit after the tracker update. | AppImage/tarball/checksums rebuilt; `--version` reports `0.2.0`; live GTK smoke pending user. | this commit |

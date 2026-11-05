@@ -46,6 +46,9 @@ tasks:
       - cp "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}" "{{.APP_NAME}}"
       - cp "{{.ROOT_DIR}}/build/appicon.png" "{{.APP_NAME}}.png"
       - mkdir -p out
+      # Start from a clean AppDir so stale WebKit generations and libraries from
+      # a previous package run cannot leak into the new artifact.
+      - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir"
       - wails3 generate appimage -binary "{{.APP_NAME}}" -icon "{{.APP_NAME}}.png" -desktopfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -outputdir "{{.ROOT_DIR}}/build/linux/appimage/out" -builddir "{{.ROOT_DIR}}/build/linux/appimage/build"
       - rm -f "{{.ROOT_DIR}}/build/linux/appimage/out/{{.APP_NAME}}-{{.ARCH}}.AppImage"
       # Wails beta.34 copies every WebKit helper generation it finds, so the
