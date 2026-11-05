@@ -97,8 +97,8 @@
   right: 0;
   bottom: 0;
   left: 0;
-  height: 56px;
-  opacity: 0.8;
+  height: 84px;
+  opacity: 0.55;
   mask-image: linear-gradient(180deg, transparent, #000 32%);
   -webkit-mask-image: linear-gradient(180deg, transparent, #000 32%);
 }
@@ -329,9 +329,9 @@
 [data-name="cockpit"] {
   position: relative;
   display: flex;
-  height: 192px;
+  height: 190px;
   min-height: 0;
-  flex: 0 0 192px;
+  flex: 0 0 190px;
   gap: 12px;
   padding: 8px 14px 9px 10px;
   overflow: hidden;
