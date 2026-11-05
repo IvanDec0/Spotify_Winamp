@@ -2,9 +2,9 @@
 
 > **Design source:** [`../plan/cadence-v2.md`](../plan/cadence-v2.md)
 > **Branch:** `feat/cadence-v2`
-> **Authorized scope:** Phase 4 (user approved on 2026-11-04) after Phases 0-3.
-> The measured idle baseline is recorded in `docs/performance-baseline.md`:
-> **2.5 engine req/s**, 396 B/request, 0.87 ms/request.
+> **Authorized scope:** Phase 5 (user approved on 2026-11-05) after Phases 0-4.
+> Phase 4 is closed with the after-baseline recorded; Phase 5 starts from
+> `e05297b`.
 > **TDD:** off — no project or session TDD configuration exists. Ordinary functional
 > checks apply (`go test`, `go vet`, `gofmt`, frontend checks when touched).
 > **Delivery:** one work-unit commit per task on the feature branch. Push, PRs and
@@ -728,6 +728,84 @@ the context list without nested scrolling or sticky-header regressions.
 - **Next:** **stopped here by user instruction.** Phase 5 has not started.
   When work resumes, the open decisions are Phase 5 catalog work and D1 (Browse
   surface) for Phase 6.
+
+## Phase 5 tasks
+
+### Spike result — 2026-11-05
+
+A standalone engine run with a copied config/state (credentials never printed,
+temp dir removed) queried the internal searchview for `podcast`. The raw
+`results` keys are:
+
+`tracks`, `albums`, `artists`, `playlists`, `shows`, **`audioepisodes`**,
+`profiles`, `genres`, `topHit`.
+
+`shows.hits[0]` has `name`, `uri`, `image`, `showType`, `musicAndTalk`.
+`audioepisodes.hits[0]` has `name`, `uri`, `image`, `explicit`, `duration` (0 in
+search), `musicAndTalk`. The public `/search` patch currently decodes only the
+four original groups, so the new groups are lost before the HTTP response.
+
+### T5.1 — Search groups (shows and episodes)
+
+- [ ] Add `build/patches/go-librespot-search-groups.patch`, applied after the
+      search/radio patch: decode `shows` and `audioepisodes` from the raw
+      searchview, expose them as `shows` and `episodes` in `/search`, and add
+      `showType`, `musicAndTalk` and `explicit` to search hits.
+- [ ] Add the patch to `scripts/build-go-librespot.sh`, the Taskfile
+      `audio:ensure` status list and the engine docs/notices.
+- [ ] Extend `internal/engine` search DTOs and the catalog test with show and
+      episode hits, including artwork rewriting.
+- [ ] Add `shows`/`episodes` to the frontend `SearchResultsView` mapping; the
+      tabs land in Phase 6.
+- [ ] Live-verify the patched `/search` returns non-empty `shows` and `episodes`
+      (parent-run with copied credentials; no secrets in output).
+- Commit: `feat(search): expose podcast shows and episodes`
+
+### T5.2 — Library collection writes and podcasts
+
+- [ ] Add `build/patches/go-librespot-library-collection.patch`: generic
+      collection write/contains routes for the `collection` (liked tracks and
+      saved albums) and `artist` (followed artists) sets, plus a `show` set if
+      the engine accepts it. Keep the existing liked/playlist routes.
+- [ ] Add engine REST methods and `catalog`/`library` use cases: like/unlike a
+      track, save/remove an album, follow/unfollow an artist, save/remove a
+      show, check saved state.
+- [ ] Add `YourEpisodes()` to the catalog: build the user-scoped collection URI
+      from `/status` and return the context listing.
+- [ ] Add playlist add/remove use cases on top of the existing routes.
+- [ ] Expose the write methods through `wailsapi/audio`, regenerate bindings,
+      and add fake-engine tests. Defer the like/save buttons to Phase 6.
+- Commit: `feat(library): add collection writes and podcast helpers`
+
+### T5.3 — Engine settings surface
+
+- [ ] Extend `engine.Options`/`writeConfig` with bitrate, crossfade,
+      normalization (disabled/album gain/pregain), disk audio cache
+      (enabled/dir/size), FLAC, MPRIS and device-group/image-size.
+- [ ] Persist engine settings in Cadence's settings store and expose
+      `GetEngineSettings`/`SetEngineSettings` through a Wails adapter; apply on
+      an explicit engine restart, never silently mid-playback.
+- [ ] Tests for config generation, defaults and persistence. Defer the settings
+      UI to Phase 6/7; the bindings and typed facade are ready.
+- Commit: `feat(settings): expose engine playback and cache options`
+
+### T5.4 — Verification
+
+- [ ] `go test`, race on the touched packages, `go vet`, `gofmt`,
+      `task audio:check`, `task audio:build`, bindings regeneration with no
+      diff, frontend check/lint/format/test/build.
+- [ ] Live read-only search verification; write actions need the user's
+      explicit account check.
+- Commit: `docs: record Phase 5 verification`
+
+### Phase 5 acceptance
+
+- `/search` returns `shows`/`episodes` with artwork keys and the original four
+  groups unchanged.
+- Library writes use the generic collection route and degrade with a clear error
+  when the engine lacks it.
+- Engine settings persist and apply on restart; no silent restart.
+- No frontend regression; UI for the new surfaces remains Phase 6.
 
 ## Progress log
 
