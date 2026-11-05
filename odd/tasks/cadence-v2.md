@@ -923,26 +923,46 @@ compute `:host` custom properties inside a shadow root, so the declarative
 shadow probe is not unit-tested; it mirrors the working `SkinHost.svelte`
 pattern and needs a live window check.
 
+### T6.2 — Search, library, entities and podcasts
+
+- [x] Browse store/API: search with tracks/albums/artists/playlists/shows/
+      episodes; library pages for playlists/albums/artists/Your Episodes;
+      entity pages via `contextTracks`; navigation back stack. Saved-shows
+      listing stays deferred as planned.
+- [x] Use `VirtualList` for long context lists (the Browse window owns the scroll
+      container, so this also closes the 800-row gate).
+- [x] Entity actions: play, add to queue, like/save/follow/remove using the
+      Phase 5 APIs; playlist add/remove; show save/remove.
+- [x] Podcast show pages and Your Episodes; now-playing bar controls.
+- [x] Use `t()` for all new strings and add the `browse.*` keys to `en`/`es`.
+- [x] Tests for the browse store, search mapping, entity actions and the
+      virtualized list.
+- Commit: `feat(browse): add search, library and podcast surfaces`
+
+#### T6.2 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0, 0 errors and 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0, all files match Prettier |
+| `npm run test` | exit 0, 35 files / 164 tests |
+| `npm run build` | exit 0, 256 modules; `browse-*.js` 46.45 kB |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0, unchanged |
+| `git diff --check` | exit 0, no whitespace errors |
+
+Live UI behavior is **not** claimed: this environment cannot open the Browse
+window. The store is covered with mocked audio calls (latest-search-wins,
+paging, context retry/cancel, save/follow rollback, playlist add/remove) and
+the views are covered with component tests including a virtualized long-list
+case. No Go API was missing; no bindings changed.
+
 ### Commit map — Phase 6
 
 | Task | Commit |
 |---|---|
 | T6.1 | `feat(browse): add the separate skin-aware Browse window` |
-
-### T6.2 — Search, library, entities and podcasts
-
-- [ ] Browse store/API: search with tracks/albums/artists/playlists/shows/
-      episodes; library pages for playlists/albums/artists/shows/Your Episodes;
-      entity pages via `contextTracks`; navigation back stack.
-- [ ] Use `VirtualList` for long context lists (the Browse window owns the scroll
-      container, so this also closes the 800-row gate).
-- [ ] Entity actions: play, add to queue, like/save/follow/remove using the
-      Phase 5 APIs; playlist add/remove; show save/remove.
-- [ ] Podcast show pages and Your Episodes; now-playing bar controls.
-- [ ] Use `t()` for all new strings and add the `browse.*` keys to `en`/`es`.
-- [ ] Tests for the browse store, search mapping, entity actions and the
-      virtualized list.
-- Commit: `feat(browse): add search, library and podcast surfaces`
+| T6.2 | `feat(browse): add search, library and podcast surfaces` |
 
 ### T6.3 — Settings, accessibility and polish
 
@@ -1017,3 +1037,4 @@ pattern and needs a live window check.
 
 | 2026-11-05 | T5.4 | `docs(odd): record Phase 5 verification` | All Go/engine/binding/frontend gates green; live read-only search and collection checks passed; actual writes and UI remain Phase 6 |
 | 2026-11-05 | T6.1 | `feat(browse): add the separate skin-aware Browse window` | Separate `browse` window host (open/close/status, focus instead of duplicate), `?surface=browse` dynamic entry, app-owned Browse shell with sidebar/top bar/now-playing, hidden shadow/Clarity token probe applied inline with storage re-sync, optional manifest `browse.css` with schema/validation/runtime URL, Lumina example; Go and frontend checks green; live window smoke not run |
+| 2026-11-05 | T6.2 | `feat(browse): add search, library and podcast surfaces` | Browse store with latest-wins six-group search, paged library tabs, retried entity contexts and back stack; Search/Library/Podcasts/Entity views, VirtualList context rows (44 px), save/follow/like and playlist add/remove with optimistic rollback, now-playing heart and playlist picker; no Go or binding changes; 35 files / 164 frontend tests green; live UI not run |

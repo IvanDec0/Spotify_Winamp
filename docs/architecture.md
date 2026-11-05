@@ -97,9 +97,18 @@ The catalog has its own native window, separate from the compact player.
 - `frontend/src/main.ts` branches on `surface=browse` and dynamically imports
   the Browse entry, so the compact window never downloads the Browse chunk.
   `initI18n()` stays shared by both surfaces.
-- `frontend/src/app/browse/BrowseApp.svelte` is app-owned: sidebar, top bar,
-  content placeholder and now-playing bar use `shared/ui`, `shared/i18n` and
-  the existing player/skin stores. It does not import `lib/components`.
+- `frontend/src/app/browse/BrowseApp.svelte` is app-owned: sidebar, search
+  field, section views and the now-playing bar use `shared/ui`, `shared/i18n`
+  and the existing player/skin stores. It does not import `lib/components`.
+- `frontend/src/app/browse/browse.svelte.ts` owns the Browse state: latest-wins
+  search across the six groups, paged library tabs (playlists, albums, artists
+  and Your Episodes), the entity back stack, retried `contextTracks` loading,
+  save/follow/like state and playlist add/remove actions. Search, library,
+  podcast and entity rendering live in `SearchView`, `LibraryView`,
+  `PodcastsView`, `EntityView`, `NowPlayingBar` and `PlaylistPicker`.
+- Long entity lists use `shared/ui/VirtualList` with a 44 px row pitch. The
+  entity panel is `flex:1; min-height:0` and the virtual list owns the scroll
+  container at `height:100%`, so the Browse window never nests scroll areas.
 - `frontend/src/app/browse/theme.svelte.ts` probes the active skin in a hidden
   shadow host (declarative) or a hidden `.clarity[data-theme]` element
   (built-in), then applies the known token list inline to `.cadence-browse`.

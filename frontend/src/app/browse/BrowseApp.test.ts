@@ -25,6 +25,33 @@ const mocks = vi.hoisted(() => ({
     queueHeight: 460,
   },
   loading: false,
+  audio: {
+    search: vi.fn(),
+    playlists: vi.fn(),
+    albums: vi.fn(),
+    artists: vi.fn(),
+    contextTracks: vi.fn(),
+    yourEpisodes: vi.fn(),
+    startRadio: vi.fn(),
+    playContext: vi.fn(),
+    playTrack: vi.fn(),
+    addToQueue: vi.fn(),
+    setLiked: vi.fn(),
+    isLiked: vi.fn(),
+    saveAlbum: vi.fn(),
+    isAlbumSaved: vi.fn(),
+    saveShow: vi.fn(),
+    isShowSaved: vi.fn(),
+    followArtist: vi.fn(),
+    isArtistFollowed: vi.fn(),
+    addToPlaylist: vi.fn(),
+    removeFromPlaylist: vi.fn(),
+  },
+}));
+
+vi.mock("../../shared/api", () => ({
+  audio: mocks.audio,
+  toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
 }));
 
 vi.mock("../../lib/player.svelte", async () => {
@@ -43,9 +70,13 @@ vi.mock("../../lib/skins.svelte", () => ({
 }));
 
 import BrowseApp from "./BrowseApp.svelte";
+import { browse } from "./browse.svelte";
 
 describe("Browse shell", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.audio.isLiked.mockResolvedValue(false);
+    browse.reset();
     preferences.setTheme("graphite");
     playerMock.state = { ...playerMock.state, canControl: true };
     playerMock.toggle.mockClear();
@@ -54,7 +85,7 @@ describe("Browse shell", () => {
     playerMock.setVolume.mockClear();
   });
 
-  it("renders the sidebar, theme label and now-playing bar", () => {
+  it("renders the sidebar, search field, theme label and now-playing bar", () => {
     render(BrowseApp);
 
     expect(screen.getByRole("navigation", { name: "Browse sections" })).not.toBeNull();
@@ -62,6 +93,11 @@ describe("Browse shell", () => {
     expect(screen.getByRole("button", { name: "Library" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Podcasts" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Settings" })).not.toBeNull();
+    expect(
+      screen.getByRole("searchbox", {
+        name: "Search tracks, albums, artists, playlists, shows and episodes",
+      }),
+    ).not.toBeNull();
 
     expect(screen.getByText("Clarity · graphite")).not.toBeNull();
     expect(screen.getByText("Neon Meridian")).not.toBeNull();
@@ -70,7 +106,7 @@ describe("Browse shell", () => {
     expect(screen.getByRole("slider", { name: "Volume" })).not.toBeNull();
   });
 
-  it("switches the placeholder section and forwards transport controls", async () => {
+  it("switches to settings and forwards transport controls", async () => {
     render(BrowseApp);
 
     await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
