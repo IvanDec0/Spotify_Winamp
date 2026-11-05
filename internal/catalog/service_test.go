@@ -325,6 +325,172 @@ func TestPlaybackActionsSendExpectedBodies(t *testing.T) {
 	}
 }
 
+func TestLibraryWritesAndYourEpisodes(t *testing.T) {
+	var mu sync.Mutex
+	var requests []capturedRequest
+	service := newTestService(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, _ := io.ReadAll(request.Body)
+		decoded := map[string]any{}
+		if len(body) > 0 {
+			_ = json.Unmarshal(body, &decoded)
+		}
+		mu.Lock()
+		requests = append(requests, capturedRequest{path: request.URL.Path, body: decoded})
+		mu.Unlock()
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case "/status":
+			_, _ = writer.Write([]byte(`{"username":"listener"}`))
+		case "/library/collection/contains":
+			_, _ = writer.Write([]byte(`{"contains":[true]}`))
+		case "/context/tracks":
+			if got := request.URL.Query().Get("uri"); got != "spotify:user:listener:collection:your-episodes" {
+				t.Errorf("your-episodes context uri = %q", got)
+			}
+			_, _ = writer.Write([]byte(`{"uri":"spotify:user:listener:collection:your-episodes","ready":true,"length":1,"cached":1,"tracks":[{"uri":"spotify:episode:1","track":{"uri":"spotify:episode:1","name":"Episode","artist_names":["Host"],"album_name":"Show","duration":1800000,"album_cover_url":"https://images.example/ep.jpg"}}]}`))
+		default:
+			writer.WriteHeader(http.StatusOK)
+		}
+	}))
+
+	lastRequest := func() capturedRequest {
+		t.Helper()
+		mu.Lock()
+		defer mu.Unlock()
+		if len(requests) == 0 {
+			t.Fatal("no request captured")
+		}
+		return requests[len(requests)-1]
+	}
+	uris := func(body map[string]any) []string {
+		raw, _ := body["uris"].([]any)
+		out := make([]string, len(raw))
+		for index, value := range raw {
+			out[index], _ = value.(string)
+		}
+		return out
+	}
+	assertWrite := func(wantSet string, wantRemove bool, wantURI string) {
+		t.Helper()
+		request := lastRequest()
+		if request.path != "/library/collection/write" || request.body["set"] != wantSet || request.body["remove"] != wantRemove {
+			t.Fatalf("collection write request = %#v", request)
+		}
+		if got := uris(request.body); len(got) != 1 || got[0] != wantURI {
+			t.Fatalf("collection write uris = %#v, want %q", got, wantURI)
+		}
+	}
+	assertContains := func(wantSet, wantURI string) {
+		t.Helper()
+		request := lastRequest()
+		if request.path != "/library/collection/contains" || request.body["set"] != wantSet {
+			t.Fatalf("collection contains request = %#v", request)
+		}
+		if got := uris(request.body); len(got) != 1 || got[0] != wantURI {
+			t.Fatalf("collection contains uris = %#v, want %q", got, wantURI)
+		}
+	}
+
+	if err := service.SetLiked("spotify:track:1", true); err != nil {
+		t.Fatalf("SetLiked() error = %v", err)
+	}
+	assertWrite("collection", false, "spotify:track:1")
+
+	if err := service.SetLiked("spotify:track:1", false); err != nil {
+		t.Fatalf("SetLiked(remove) error = %v", err)
+	}
+	assertWrite("collection", true, "spotify:track:1")
+
+	if err := service.SaveAlbum("spotify:album:1", true); err != nil {
+		t.Fatalf("SaveAlbum() error = %v", err)
+	}
+	assertWrite("collection", false, "spotify:album:1")
+
+	if err := service.SaveShow("spotify:show:1", true); err != nil {
+		t.Fatalf("SaveShow() error = %v", err)
+	}
+	assertWrite("collection", false, "spotify:show:1")
+
+	if err := service.FollowArtist("spotify:artist:1", true); err != nil {
+		t.Fatalf("FollowArtist() error = %v", err)
+	}
+	assertWrite("artist", false, "spotify:artist:1")
+
+	liked, err := service.IsLiked("spotify:track:1")
+	if err != nil || !liked {
+		t.Fatalf("IsLiked() = %v, %v", liked, err)
+	}
+	assertContains("collection", "spotify:track:1")
+	savedAlbum, err := service.IsAlbumSaved("spotify:album:1")
+	if err != nil || !savedAlbum {
+		t.Fatalf("IsAlbumSaved() = %v, %v", savedAlbum, err)
+	}
+	assertContains("collection", "spotify:album:1")
+	savedShow, err := service.IsShowSaved("spotify:show:1")
+	if err != nil || !savedShow {
+		t.Fatalf("IsShowSaved() = %v, %v", savedShow, err)
+	}
+	assertContains("collection", "spotify:show:1")
+	followed, err := service.IsArtistFollowed("spotify:artist:1")
+	if err != nil || !followed {
+		t.Fatalf("IsArtistFollowed() = %v, %v", followed, err)
+	}
+	assertContains("artist", "spotify:artist:1")
+
+	if err := service.AddToPlaylist("spotify:playlist:1", "spotify:episode:1"); err != nil {
+		t.Fatalf("AddToPlaylist() error = %v", err)
+	}
+	request := lastRequest()
+	if request.path != "/library/playlists/add_tracks" || request.body["playlist_uri"] != "spotify:playlist:1" {
+		t.Fatalf("playlist add request = %#v", request)
+	}
+	if got := uris(request.body); len(got) != 1 || got[0] != "spotify:episode:1" {
+		t.Fatalf("playlist add uris = %#v", got)
+	}
+
+	if err := service.RemoveFromPlaylist("spotify:playlist:1", "spotify:track:1"); err != nil {
+		t.Fatalf("RemoveFromPlaylist() error = %v", err)
+	}
+	request = lastRequest()
+	if request.path != "/library/playlists/remove_track" ||
+		request.body["playlist_uri"] != "spotify:playlist:1" || request.body["uri"] != "spotify:track:1" {
+		t.Fatalf("playlist remove request = %#v", request)
+	}
+
+	episodes, err := service.YourEpisodes()
+	if err != nil {
+		t.Fatalf("YourEpisodes() error = %v", err)
+	}
+	if episodes.URI != "spotify:user:listener:collection:your-episodes" || !episodes.Ready || episodes.Length != 1 {
+		t.Fatalf("your episodes = %#v", episodes)
+	}
+	if len(episodes.Items) != 1 {
+		t.Fatalf("your episodes items = %d, want 1", len(episodes.Items))
+	}
+	episode := episodes.Items[0]
+	if episode.URI != "spotify:episode:1" || episode.Title != "Episode" || episode.Album != "Show" ||
+		len(episode.Artists) != 1 || episode.Artists[0] != "Host" || episode.DurationMS != 1800000 {
+		t.Fatalf("your episodes item = %#v", episode)
+	}
+	assertArtKey(t, episode.Cover)
+}
+
+func TestYourEpisodesRequiresUsername(t *testing.T) {
+	service := newTestService(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		if request.URL.Path != "/status" {
+			t.Errorf("unexpected request %s", request.URL.Path)
+			writer.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_, _ = writer.Write([]byte(`{"username":""}`))
+	}))
+
+	if _, err := service.YourEpisodes(); err == nil || err.Error() != "the engine did not report a username" {
+		t.Fatalf("YourEpisodes() error = %v, want the engine did not report a username", err)
+	}
+}
+
 func TestLibraryRouteErrorsPropagate(t *testing.T) {
 	service := newTestService(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusInternalServerError)

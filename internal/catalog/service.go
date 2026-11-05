@@ -154,6 +154,12 @@ func (s *Service) ContextTracks(uri string) (LibraryContext, error) {
 	if err != nil {
 		return LibraryContext{}, err
 	}
+	return s.libraryContext(tracks), nil
+}
+
+// libraryContext maps an engine context listing to the frontend model and
+// rewrites its covers through the artwork cache.
+func (s *Service) libraryContext(tracks engine.ContextTracks) LibraryContext {
 	result := LibraryContext{URI: tracks.URI, Ready: tracks.Ready, Length: tracks.Length, Cached: tracks.Cached}
 	for _, item := range tracks.Items {
 		track := item.Track
@@ -170,7 +176,29 @@ func (s *Service) ContextTracks(uri string) (LibraryContext, error) {
 			DurationMS: track.Duration,
 		})
 	}
-	return result, nil
+	return result
+}
+
+// YourEpisodes returns the user's saved podcast episodes.
+func (s *Service) YourEpisodes() (LibraryContext, error) {
+	client, err := s.client()
+	if err != nil {
+		return LibraryContext{}, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	status, err := client.Status(ctx)
+	if err != nil {
+		return LibraryContext{}, err
+	}
+	if status == nil || strings.TrimSpace(status.Username) == "" {
+		return LibraryContext{}, errors.New("the engine did not report a username")
+	}
+	tracks, err := client.ContextTracks(ctx, "spotify:user:"+status.Username+":collection:your-episodes")
+	if err != nil {
+		return LibraryContext{}, err
+	}
+	return s.libraryContext(tracks), nil
 }
 
 // PlayContext starts playback of a playlist, album, artist, show or Liked
@@ -199,6 +227,104 @@ func (s *Service) AddToQueue(uri string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return client.AddToQueue(ctx, uri)
+}
+
+// collectionSet and artistSet are the collection sets for saved media and
+// followed artists.
+const (
+	collectionSet = "collection"
+	artistSet     = "artist"
+)
+
+// SetLiked adds or removes a track in the user's collection.
+func (s *Service) SetLiked(uri string, liked bool) error {
+	return s.collectionWrite(collectionSet, uri, !liked)
+}
+
+// IsLiked reports whether a track is in the user's collection.
+func (s *Service) IsLiked(uri string) (bool, error) {
+	return s.collectionContains(collectionSet, uri)
+}
+
+// SaveAlbum saves or removes an album in the user's collection.
+func (s *Service) SaveAlbum(uri string, saved bool) error {
+	return s.collectionWrite(collectionSet, uri, !saved)
+}
+
+// IsAlbumSaved reports whether an album is in the user's collection.
+func (s *Service) IsAlbumSaved(uri string) (bool, error) {
+	return s.collectionContains(collectionSet, uri)
+}
+
+// SaveShow saves or removes a show in the user's collection. Saved-show
+// support depends on the engine accepting show URIs in the collection set.
+func (s *Service) SaveShow(uri string, saved bool) error {
+	return s.collectionWrite(collectionSet, uri, !saved)
+}
+
+// IsShowSaved reports whether a show is in the user's collection.
+func (s *Service) IsShowSaved(uri string) (bool, error) {
+	return s.collectionContains(collectionSet, uri)
+}
+
+// FollowArtist follows or unfollows an artist.
+func (s *Service) FollowArtist(uri string, following bool) error {
+	return s.collectionWrite(artistSet, uri, !following)
+}
+
+// IsArtistFollowed reports whether the user follows an artist.
+func (s *Service) IsArtistFollowed(uri string) (bool, error) {
+	return s.collectionContains(artistSet, uri)
+}
+
+// AddToPlaylist appends a track or episode to a playlist.
+func (s *Service) AddToPlaylist(playlistURI, uri string) error {
+	client, err := s.client()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	return client.AddToPlaylist(ctx, playlistURI, uri)
+}
+
+// RemoveFromPlaylist removes the first occurrence of a track or episode from a
+// playlist.
+func (s *Service) RemoveFromPlaylist(playlistURI, uri string) error {
+	client, err := s.client()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	return client.RemoveFromPlaylist(ctx, playlistURI, uri)
+}
+
+func (s *Service) collectionWrite(set, uri string, remove bool) error {
+	client, err := s.client()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	return client.CollectionWrite(ctx, set, []string{uri}, remove)
+}
+
+func (s *Service) collectionContains(set, uri string) (bool, error) {
+	client, err := s.client()
+	if err != nil {
+		return false, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	contains, err := client.CollectionContains(ctx, set, []string{uri})
+	if err != nil {
+		return false, err
+	}
+	if len(contains) != 1 {
+		return false, errors.New("the engine returned an incomplete collection response")
+	}
+	return contains[0], nil
 }
 
 // Search finds tracks, albums, artists, playlists, shows and episodes in the

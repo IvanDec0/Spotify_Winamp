@@ -50,6 +50,7 @@ tasks:
       - test -x "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot"
       - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/build/patches/go-librespot-search-radio.patch"
       - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/build/patches/go-librespot-search-groups.patch"
+      - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/build/patches/go-librespot-library-collection.patch"
       - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/build/patches/go-librespot-http-proxy.patch"
       - test "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" -nt "{{.ROOT_DIR}}/scripts/build-go-librespot.sh"
     cmds:

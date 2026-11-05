@@ -122,6 +122,11 @@ func (s *Service) ContextTracks(uri string) (LibraryContext, error) {
 	return s.catalog.ContextTracks(uri)
 }
 
+// YourEpisodes returns the user's saved podcast episodes.
+func (s *Service) YourEpisodes() (LibraryContext, error) {
+	return s.catalog.YourEpisodes()
+}
+
 // PlayContext starts playback of a playlist, album, artist, show or Liked
 // Songs collection. skipToURI selects a track inside the context.
 func (s *Service) PlayContext(uri, skipToURI string) error {
@@ -136,6 +141,56 @@ func (s *Service) PlayTrack(uri string) error {
 // AddToQueue appends a track to the go-librespot queue.
 func (s *Service) AddToQueue(uri string) error {
 	return s.catalog.AddToQueue(uri)
+}
+
+// SetLiked adds or removes a track in the user's collection.
+func (s *Service) SetLiked(uri string, liked bool) error {
+	return s.catalog.SetLiked(uri, liked)
+}
+
+// IsLiked reports whether a track is in the user's collection.
+func (s *Service) IsLiked(uri string) (bool, error) {
+	return s.catalog.IsLiked(uri)
+}
+
+// SaveAlbum saves or removes an album in the user's collection.
+func (s *Service) SaveAlbum(uri string, saved bool) error {
+	return s.catalog.SaveAlbum(uri, saved)
+}
+
+// IsAlbumSaved reports whether an album is in the user's collection.
+func (s *Service) IsAlbumSaved(uri string) (bool, error) {
+	return s.catalog.IsAlbumSaved(uri)
+}
+
+// SaveShow saves or removes a show in the user's collection.
+func (s *Service) SaveShow(uri string, saved bool) error {
+	return s.catalog.SaveShow(uri, saved)
+}
+
+// IsShowSaved reports whether a show is in the user's collection.
+func (s *Service) IsShowSaved(uri string) (bool, error) {
+	return s.catalog.IsShowSaved(uri)
+}
+
+// FollowArtist follows or unfollows an artist.
+func (s *Service) FollowArtist(uri string, following bool) error {
+	return s.catalog.FollowArtist(uri, following)
+}
+
+// IsArtistFollowed reports whether the user follows an artist.
+func (s *Service) IsArtistFollowed(uri string) (bool, error) {
+	return s.catalog.IsArtistFollowed(uri)
+}
+
+// AddToPlaylist appends a track or episode to a playlist.
+func (s *Service) AddToPlaylist(playlistURI, uri string) error {
+	return s.catalog.AddToPlaylist(playlistURI, uri)
+}
+
+// RemoveFromPlaylist removes a track or episode from a playlist.
+func (s *Service) RemoveFromPlaylist(playlistURI, uri string) error {
+	return s.catalog.RemoveFromPlaylist(playlistURI, uri)
 }
 
 // Search finds tracks, albums, artists and playlists in the Spotify catalog.

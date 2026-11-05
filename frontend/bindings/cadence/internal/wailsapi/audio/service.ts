@@ -16,6 +16,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * AddToPlaylist appends a track or episode to a playlist.
+ */
+export function AddToPlaylist(playlistURI: string, uri: string): $CancellablePromise<void> {
+    return $Call.ByID(3621846925, playlistURI, uri);
+}
+
+/**
  * AddToQueue appends a track to the go-librespot queue.
  */
 export function AddToQueue(uri: string): $CancellablePromise<void> {
@@ -45,10 +52,45 @@ export function ContextTracks(uri: string): $CancellablePromise<$models.LibraryC
 }
 
 /**
+ * FollowArtist follows or unfollows an artist.
+ */
+export function FollowArtist(uri: string, following: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2700484361, uri, following);
+}
+
+/**
  * GetState returns the engine and pairing state.
  */
 export function GetState(): $CancellablePromise<$models.AudioState> {
     return $Call.ByID(2632866718);
+}
+
+/**
+ * IsAlbumSaved reports whether an album is in the user's collection.
+ */
+export function IsAlbumSaved(uri: string): $CancellablePromise<boolean> {
+    return $Call.ByID(1907674669, uri);
+}
+
+/**
+ * IsArtistFollowed reports whether the user follows an artist.
+ */
+export function IsArtistFollowed(uri: string): $CancellablePromise<boolean> {
+    return $Call.ByID(2938680644, uri);
+}
+
+/**
+ * IsLiked reports whether a track is in the user's collection.
+ */
+export function IsLiked(uri: string): $CancellablePromise<boolean> {
+    return $Call.ByID(1893530960, uri);
+}
+
+/**
+ * IsShowSaved reports whether a show is in the user's collection.
+ */
+export function IsShowSaved(uri: string): $CancellablePromise<boolean> {
+    return $Call.ByID(255628985, uri);
 }
 
 /**
@@ -82,6 +124,13 @@ export function Playlists(offset: number, limit: number): $CancellablePromise<$m
 }
 
 /**
+ * RemoveFromPlaylist removes a track or episode from a playlist.
+ */
+export function RemoveFromPlaylist(playlistURI: string, uri: string): $CancellablePromise<void> {
+    return $Call.ByID(2783910165, playlistURI, uri);
+}
+
+/**
  * ResetSession removes the stored go-librespot credentials and starts a new
  * pairing flow.
  */
@@ -97,10 +146,31 @@ export function Restart(): $CancellablePromise<$models.AudioState> {
 }
 
 /**
+ * SaveAlbum saves or removes an album in the user's collection.
+ */
+export function SaveAlbum(uri: string, saved: boolean): $CancellablePromise<void> {
+    return $Call.ByID(476587533, uri, saved);
+}
+
+/**
+ * SaveShow saves or removes a show in the user's collection.
+ */
+export function SaveShow(uri: string, saved: boolean): $CancellablePromise<void> {
+    return $Call.ByID(820548083, uri, saved);
+}
+
+/**
  * Search finds tracks, albums, artists and playlists in the Spotify catalog.
  */
 export function Search(query: string, limit: number): $CancellablePromise<$models.SearchResults> {
     return $Call.ByID(1121661771, query, limit);
+}
+
+/**
+ * SetLiked adds or removes a track in the user's collection.
+ */
+export function SetLiked(uri: string, liked: boolean): $CancellablePromise<void> {
+    return $Call.ByID(3017416338, uri, liked);
 }
 
 /**
@@ -109,4 +179,11 @@ export function Search(query: string, limit: number): $CancellablePromise<$model
  */
 export function StartRadio(uri: string): $CancellablePromise<void> {
     return $Call.ByID(181944504, uri);
+}
+
+/**
+ * YourEpisodes returns the user's saved podcast episodes.
+ */
+export function YourEpisodes(): $CancellablePromise<$models.LibraryContext> {
+    return $Call.ByID(3354886750);
 }

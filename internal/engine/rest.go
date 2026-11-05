@@ -129,6 +129,40 @@ func (c *Client) AddToQueue(ctx context.Context, uri string) error {
 	return c.request(ctx, http.MethodPost, "/player/add_to_queue", nil, map[string]any{"uri": uri}, nil)
 }
 
+// CollectionWrite adds uris to, or removes them from, one of the user's
+// collection sets.
+func (c *Client) CollectionWrite(ctx context.Context, set string, uris []string, remove bool) error {
+	body := map[string]any{"set": set, "uris": uris, "remove": remove}
+	return c.request(ctx, http.MethodPost, "/library/collection/write", nil, body, nil)
+}
+
+type collectionContainsResponse struct {
+	Contains []bool `json:"contains"`
+}
+
+// CollectionContains reports for each uri whether it belongs to one collection
+// set, in request order.
+func (c *Client) CollectionContains(ctx context.Context, set string, uris []string) ([]bool, error) {
+	var response collectionContainsResponse
+	body := map[string]any{"set": set, "uris": uris}
+	if err := c.request(ctx, http.MethodPost, "/library/collection/contains", nil, body, &response); err != nil {
+		return nil, err
+	}
+	return response.Contains, nil
+}
+
+// AddToPlaylist appends uri to a playlist.
+func (c *Client) AddToPlaylist(ctx context.Context, playlistURI, uri string) error {
+	body := map[string]any{"playlist_uri": playlistURI, "uris": []string{uri}}
+	return c.request(ctx, http.MethodPost, "/library/playlists/add_tracks", nil, body, nil)
+}
+
+// RemoveFromPlaylist removes the first occurrence of uri from a playlist.
+func (c *Client) RemoveFromPlaylist(ctx context.Context, playlistURI, uri string) error {
+	body := map[string]any{"playlist_uri": playlistURI, "uri": uri}
+	return c.request(ctx, http.MethodPost, "/library/playlists/remove_track", nil, body, nil)
+}
+
 // Search queries the engine's internal Spotify search.
 func (c *Client) Search(ctx context.Context, query string, limit int) (SearchResults, error) {
 	var results SearchResults

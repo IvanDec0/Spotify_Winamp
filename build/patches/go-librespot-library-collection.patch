@@ -1,0 +1,150 @@
+diff -ruN a/daemon/api_server.go b/daemon/api_server.go
+--- a/daemon/api_server.go	2026-11-05 08:46:45.736977904 -0300
++++ b/daemon/api_server.go	2026-11-05 08:46:59.156977853 -0300
+@@ -141,6 +141,8 @@
+ 	ApiRequestTypeRadio               ApiRequestType = "radio"
+ 	ApiRequestTypeSetLiked            ApiRequestType = "set_liked"
+ 	ApiRequestTypeGetLiked            ApiRequestType = "get_liked"
++	ApiRequestTypeCollectionWrite     ApiRequestType = "collection_write"
++	ApiRequestTypeCollectionContains  ApiRequestType = "collection_contains"
+ 	ApiRequestTypePlaylistAddTracks   ApiRequestType = "playlist_add_tracks"
+ 	ApiRequestTypePlaylistRemoveTrack ApiRequestType = "playlist_remove_track"
+ 	ApiRequestTypePlaylistContains    ApiRequestType = "playlist_contains"
+@@ -892,6 +894,8 @@
+ 	m := http.NewServeMux()
+ 	m.HandleFunc("GET /search", s.HandleSearch)
+ 	m.HandleFunc("POST /player/radio", s.HandlePlayerRadio)
++	m.HandleFunc("POST /library/collection/write", s.HandleCollectionWrite)
++	m.HandleFunc("POST /library/collection/contains", s.HandleCollectionContains)
+ 	handler := HandlerFromMux(s, m)
+ 
+ 	c := cors.New(cors.Options{
+diff -ruN a/daemon/library_collection.go b/daemon/library_collection.go
+--- a/daemon/library_collection.go	1969-12-31 21:00:00.000000000 -0300
++++ b/daemon/library_collection.go	2026-11-05 08:46:59.123977853 -0300
+@@ -0,0 +1,81 @@
++package daemon
++
++import (
++	"net/http"
++
++	librespot "github.com/devgianlu/go-librespot"
++	"github.com/devgianlu/go-librespot/spclient"
++)
++
++// collectionSetShows is the collection set holding saved shows.
++const collectionSetShows = "show"
++
++// ApiCollectionWrite carries a generic collection write: the set to change,
++// the URIs and whether to remove them.
++type ApiCollectionWrite struct {
++	Set    string   `json:"set"`
++	Uris   []string `json:"uris"`
++	Remove bool     `json:"remove"`
++}
++
++// ApiCollectionContains carries the set and URIs of a contains request.
++type ApiCollectionContains struct {
++	Set  string   `json:"set"`
++	Uris []string `json:"uris"`
++}
++
++// ApiCollectionContainsResult answers one boolean per requested URI, in
++// request order.
++type ApiCollectionContainsResult struct {
++	Contains []bool `json:"contains"`
++}
++
++// validCollectionSet reports whether set is one of the sets the generic
++// library routes may write or read.
++func validCollectionSet(set string) bool {
++	switch set {
++	case spclient.CollectionSetLikedSongs, spclient.CollectionSetArtists, collectionSetShows:
++		return true
++	default:
++		return false
++	}
++}
++
++// validCollectionUris reports whether uris holds 1 to maxLibraryUris Spotify
++// URIs of any type, so albums, artists and shows can use the same routes as
++// tracks.
++func validCollectionUris(uris []string) bool {
++	if len(uris) == 0 || len(uris) > maxLibraryUris {
++		return false
++	}
++	for _, uri := range uris {
++		if _, err := librespot.SpotifyIdFromUri(uri); err != nil {
++			return false
++		}
++	}
++	return true
++}
++
++// HandleCollectionWrite accepts POST /library/collection/write and changes one
++// user collection set.
++func (s *ConcreteApiServer) HandleCollectionWrite(w http.ResponseWriter, r *http.Request) {
++	var data ApiCollectionWrite
++	if err := jsonDecode(r, &data); err != nil || !validCollectionSet(data.Set) || !validCollectionUris(data.Uris) {
++		w.WriteHeader(http.StatusBadRequest)
++		return
++	}
++
++	s.handleRequest(ApiRequest{Type: ApiRequestTypeCollectionWrite, Data: data}, w)
++}
++
++// HandleCollectionContains accepts POST /library/collection/contains and
++// answers whether each URI is in one collection set.
++func (s *ConcreteApiServer) HandleCollectionContains(w http.ResponseWriter, r *http.Request) {
++	var data ApiCollectionContains
++	if err := jsonDecode(r, &data); err != nil || !validCollectionSet(data.Set) || !validCollectionUris(data.Uris) {
++		w.WriteHeader(http.StatusBadRequest)
++		return
++	}
++
++	s.handleRequest(ApiRequest{Type: ApiRequestTypeCollectionContains, Data: data}, w)
++}
+diff -ruN a/daemon/player.go b/daemon/player.go
+--- a/daemon/player.go	2026-11-05 08:46:45.737813269 -0300
++++ b/daemon/player.go	2026-11-05 08:47:02.915977838 -0300
+@@ -997,6 +997,40 @@
+ 		})
+ 
+ 		return nil, errReplyDeferred
++	case ApiRequestTypeCollectionWrite:
++		data := req.Data.(ApiCollectionWrite)
++		reply := apiReply(req)
++		spc, username := p.sess.Spclient(), p.sess.Username()
++		p.goDetached(libraryRequestTimeout, func(ctx context.Context) {
++			if err := spc.CollectionWrite(ctx, username, data.Set, data.Uris, data.Remove); err != nil {
++				reply.done(nil, libraryError("failed writing collection", err))
++				return
++			}
++
++			if data.Set == spclient.CollectionSetLikedSongs {
++				for _, uri := range likedSongsContextUris(username) {
++					p.app.contextLists.invalidate(uri)
++				}
++			}
++			reply.done(nil, nil)
++		})
++
++		return nil, errReplyDeferred
++	case ApiRequestTypeCollectionContains:
++		data := req.Data.(ApiCollectionContains)
++		reply := apiReply(req)
++		spc, username := p.sess.Spclient(), p.sess.Username()
++		p.goDetached(libraryRequestTimeout, func(ctx context.Context) {
++			contains, err := spc.CollectionContains(ctx, username, data.Set, data.Uris)
++			if err != nil {
++				reply.done(nil, libraryError("failed reading collection", err))
++				return
++			}
++
++			reply.done(&ApiCollectionContainsResult{Contains: contains}, nil)
++		})
++
++		return nil, errReplyDeferred
+ 	case ApiRequestTypePlaylistRemoveTrack:
+ 		data := req.Data.(ApiPlaylistRemoveTrack)
+ 		reply := apiReply(req)

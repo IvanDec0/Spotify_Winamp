@@ -765,17 +765,17 @@ four original groups, so the new groups are lost before the HTTP response.
 
 ### T5.2 — Library collection writes and podcasts
 
-- [ ] Add `build/patches/go-librespot-library-collection.patch`: generic
+- [x] Add `build/patches/go-librespot-library-collection.patch`: generic
       collection write/contains routes for the `collection` (liked tracks and
       saved albums) and `artist` (followed artists) sets, plus a `show` set if
       the engine accepts it. Keep the existing liked/playlist routes.
-- [ ] Add engine REST methods and `catalog`/`library` use cases: like/unlike a
+- [x] Add engine REST methods and `catalog`/`library` use cases: like/unlike a
       track, save/remove an album, follow/unfollow an artist, save/remove a
       show, check saved state.
-- [ ] Add `YourEpisodes()` to the catalog: build the user-scoped collection URI
+- [x] Add `YourEpisodes()` to the catalog: build the user-scoped collection URI
       from `/status` and return the context listing.
-- [ ] Add playlist add/remove use cases on top of the existing routes.
-- [ ] Expose the write methods through `wailsapi/audio`, regenerate bindings,
+- [x] Add playlist add/remove use cases on top of the existing routes.
+- [x] Expose the write methods through `wailsapi/audio`, regenerate bindings,
       and add fake-engine tests. Defer the like/save buttons to Phase 6.
 - Commit: `feat(library): add collection writes and podcast helpers`
 
@@ -813,7 +813,8 @@ four original groups, so the new groups are lost before the HTTP response.
 
 | Task | Commit |
 |---|---|
-| T5.1 | `feat(search): expose podcast shows and episodes` |
+| T5.1 | `ed74d9d` |
+| T5.2 | `feat(library): add collection writes and podcast helpers` |
 
 ## Progress log
 
@@ -855,3 +856,4 @@ four original groups, so the new groups are lost before the HTTP response.
 | 2026-11-05 | T5.1 | `feat(search): expose podcast shows and episodes` | Third engine patch maps `audioepisodes` to `episodes` and adds show/episode hit fields; search DTOs, artwork rewriting, catalog test and frontend mapping extended; `audio:check`/`audio:build`, Go and frontend gates green; live `/search` verification pending parent |
 
 | 2026-11-05 | T5.1 | `ed74d9d` | Search-groups patch exposes shows/episodes (raw `audioepisodes` mapped to `episodes`), new hit fields, catalog artwork rewriting, frontend store mapping; live `/search` returned 5 shows + 5 episodes |
+| 2026-11-05 | T5.2 | `feat(library): add collection writes and podcast helpers` | Fourth engine patch adds generic `collection`/`artist`/`show` write and contains routes; engine client, catalog typed use cases (`SetLiked`, `SaveAlbum`, `SaveShow`, `FollowArtist`, playlist add/remove, `YourEpisodes`), adapter, bindings, fake-engine tests and docs; no live writes performed |

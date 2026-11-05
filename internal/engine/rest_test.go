@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -157,6 +158,133 @@ func TestClientSearchAndRadio(t *testing.T) {
 	if lastRadio["uri"] != "spotify:artist:1" {
 		t.Fatalf("radio payload = %#v", lastRadio)
 	}
+}
+
+type collectionCall struct {
+	path string
+	body map[string]any
+}
+
+func TestClientCollectionWrites(t *testing.T) {
+	var mu sync.Mutex
+	var calls []collectionCall
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		raw, _ := io.ReadAll(request.Body)
+		body := map[string]any{}
+		if len(raw) > 0 {
+			_ = json.Unmarshal(raw, &body)
+		}
+		mu.Lock()
+		calls = append(calls, collectionCall{path: request.URL.Path, body: body})
+		mu.Unlock()
+		writer.Header().Set("Content-Type", "application/json")
+		if request.URL.Path == "/library/collection/contains" {
+			_, _ = writer.Write([]byte(`{"contains":[true,false]}`))
+			return
+		}
+		writer.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	client := NewClient(server.URL, server.Client())
+
+	lastCall := func() collectionCall {
+		t.Helper()
+		mu.Lock()
+		defer mu.Unlock()
+		if len(calls) == 0 {
+			t.Fatal("no request captured")
+		}
+		return calls[len(calls)-1]
+	}
+	assertSetAndUris := func(wantSet string, wantUris ...string) {
+		t.Helper()
+		call := lastCall()
+		if call.body["set"] != wantSet {
+			t.Fatalf("set = %#v, want %q", call.body["set"], wantSet)
+		}
+		uris, ok := call.body["uris"].([]any)
+		if !ok || len(uris) != len(wantUris) {
+			t.Fatalf("uris = %#v, want %#v", call.body["uris"], wantUris)
+		}
+		for index, uri := range wantUris {
+			if uris[index] != uri {
+				t.Fatalf("uris = %#v, want %#v", uris, wantUris)
+			}
+		}
+	}
+
+	if err := client.CollectionWrite(context.Background(), "collection", []string{"spotify:album:1"}, false); err != nil {
+		t.Fatalf("CollectionWrite() error = %v", err)
+	}
+	call := lastCall()
+	if call.path != "/library/collection/write" || call.body["remove"] != false {
+		t.Fatalf("collection write request = %#v", call)
+	}
+	assertSetAndUris("collection", "spotify:album:1")
+
+	if err := client.CollectionWrite(context.Background(), "artist", []string{"spotify:artist:1"}, true); err != nil {
+		t.Fatalf("CollectionWrite(remove) error = %v", err)
+	}
+	call = lastCall()
+	if call.path != "/library/collection/write" || call.body["remove"] != true {
+		t.Fatalf("collection remove request = %#v", call)
+	}
+	assertSetAndUris("artist", "spotify:artist:1")
+
+	contains, err := client.CollectionContains(context.Background(), "collection", []string{"spotify:album:1", "spotify:show:1"})
+	if err != nil {
+		t.Fatalf("CollectionContains() error = %v", err)
+	}
+	if len(contains) != 2 || !contains[0] || contains[1] {
+		t.Fatalf("contains = %#v, want [true false]", contains)
+	}
+	call = lastCall()
+	if call.path != "/library/collection/contains" {
+		t.Fatalf("contains path = %q", call.path)
+	}
+	assertSetAndUris("collection", "spotify:album:1", "spotify:show:1")
+
+	if err := client.AddToPlaylist(context.Background(), "spotify:playlist:1", "spotify:episode:1"); err != nil {
+		t.Fatalf("AddToPlaylist() error = %v", err)
+	}
+	call = lastCall()
+	if call.path != "/library/playlists/add_tracks" || call.body["playlist_uri"] != "spotify:playlist:1" {
+		t.Fatalf("playlist add request = %#v", call)
+	}
+	uris, ok := call.body["uris"].([]any)
+	if !ok || len(uris) != 1 || uris[0] != "spotify:episode:1" {
+		t.Fatalf("playlist add uris = %#v", call.body["uris"])
+	}
+
+	if err := client.RemoveFromPlaylist(context.Background(), "spotify:playlist:1", "spotify:track:1"); err != nil {
+		t.Fatalf("RemoveFromPlaylist() error = %v", err)
+	}
+	call = lastCall()
+	if call.path != "/library/playlists/remove_track" || call.body["playlist_uri"] != "spotify:playlist:1" || call.body["uri"] != "spotify:track:1" {
+		t.Fatalf("playlist remove request = %#v", call)
+	}
+}
+
+func TestClientCollectionErrorsPropagate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusForbidden)
+		_, _ = writer.Write([]byte("forbidden"))
+	}))
+	defer server.Close()
+	client := NewClient(server.URL, server.Client())
+
+	wantError := func(label string, err error) {
+		t.Helper()
+		if err == nil || (!strings.Contains(err.Error(), "forbidden") && !strings.Contains(err.Error(), "403")) {
+			t.Fatalf("%s error = %v, want 403 forbidden", label, err)
+		}
+	}
+
+	wantError("CollectionWrite()", client.CollectionWrite(context.Background(), "collection", []string{"spotify:album:1"}, false))
+	_, err := client.CollectionContains(context.Background(), "collection", []string{"spotify:album:1"})
+	wantError("CollectionContains()", err)
+	wantError("AddToPlaylist()", client.AddToPlaylist(context.Background(), "spotify:playlist:1", "spotify:track:1"))
+	wantError("RemoveFromPlaylist()", client.RemoveFromPlaylist(context.Background(), "spotify:playlist:1", "spotify:track:1"))
 }
 
 func TestClientAPIError(t *testing.T) {

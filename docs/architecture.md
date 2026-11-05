@@ -53,7 +53,7 @@ directly because they are the same frontend-facing shape; it owns the compact
 | Package | Files |
 |---|---|
 | `internal/engine` | `supervisor.go` (process, config, version, pairing state), `rest.go` (typed REST client, `APIError`), `dtos.go` (raw engine JSON) |
-| `internal/catalog` | `service.go` (GetState, ResetSession, Restart, Playlists, Albums, Artists, ContextTracks, Search with tracks/albums/artists/playlists/shows/episodes, PlayContext, PlayTrack, AddToQueue, StartRadio, artwork URL mapping) |
+| `internal/catalog` | `service.go` (GetState, ResetSession, Restart, Playlists, Albums, Artists, ContextTracks, YourEpisodes, Search with tracks/albums/artists/playlists/shows/episodes, PlayContext, PlayTrack, AddToQueue, StartRadio, SetLiked/IsLiked, SaveAlbum/IsAlbumSaved, SaveShow/IsShowSaved, FollowArtist/IsArtistFollowed, AddToPlaylist/RemoveFromPlaylist, artwork URL mapping) |
 | `internal/playback` | `provider.go` (`Provider` interface), `state.go` (`PlayerState`, `Track`, `Device`, `QueueItem`, `PlayerError`), `demo.go` (`DemoProvider`), `engine_provider.go` (`EngineProvider`) |
 | `internal/artwork` | `cache.go` (memory 256 entries / 64 MiB, disk LRU of resized variants, single-flight per `key@size`, diagnostics counters, `GET /art/{key}?size=64\|128\|240\|640`) |
 | `internal/skins` | domain only: `manager.go`, `types.go`, `validate.go`, `css.go`, `layout.go`, `zip.go`, `asset.go` |
@@ -103,6 +103,17 @@ services expose plain Go methods and never touch `application.App`.
    model exports in `frontend/src/shared/api/types.ts` if needed.
 6. Update `vi.mock` paths only when a new generated module is introduced. The
    facade names stay stable for stores and components.
+
+## Library write surface
+
+The catalog exposes typed write/read pairs over the engine's generic
+collection routes: `SetLiked`/`IsLiked`, `SaveAlbum`/`IsAlbumSaved`,
+`SaveShow`/`IsShowSaved`, `FollowArtist`/`IsArtistFollowed`,
+`AddToPlaylist`/`RemoveFromPlaylist`, and `YourEpisodes`, which resolves the
+user-scoped collection URI from `/status`. The patched engine serves
+`POST /library/collection/write` and `POST /library/collection/contains` for
+the `collection`, `artist` and `show` sets; the original `/library/liked`
+and playlist routes keep their behavior. Phase 6 adds the UI controls.
 
 ## Generated bindings
 
