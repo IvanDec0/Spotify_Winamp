@@ -63,9 +63,13 @@ jobs:
       - name: Build release artifacts
         run: task package
 
-      - name: Verify checksums
+      - name: Verify checksums and version
         run: |
           version="$(sed -n 's/^  version: "\(.*\)"/\1/p' build/config.yml)"
+          test -n "$version"
+          reported="$(./bin/cadence --version)"
+          echo "$reported"
+          test "$(printf '%s\n' "$reported" | cut -d' ' -f1-2)" = "Cadence $version"
           cd bin
           sha256sum -c "cadence-$version-SHA256SUMS"
 

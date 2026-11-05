@@ -15,7 +15,7 @@ tasks:
     cmds:
       - go build {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -X cadence/internal/buildinfo.Version={{.APP_VERSION}} -X cadence/internal/buildinfo.Commit={{.GIT_COMMIT}}"{{end}}'
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
       OUTPUT: '{{.OUTPUT | default .DEFAULT_OUTPUT}}'
     env:
@@ -51,8 +51,8 @@ tasks:
       - cp "{{.ROOT_DIR}}/{{.BIN_DIR}}/go-librespot" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/bin/go-librespot"
       - chmod 755 "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/bin/go-librespot"
       - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence"
-      - cp "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
-      - cp -R "{{.ROOT_DIR}}/LICENSES" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
+      - cp "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/CHANGELOG.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
+      - cp -R "{{.ROOT_DIR}}/docs" "{{.ROOT_DIR}}/LICENSES" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence/"
       - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/cadence/skins"
       - cp -R "{{.ROOT_DIR}}/skins-dev/lumina" "{{.ROOT_DIR}}/skins-dev/afterglow" "{{.ROOT_DIR}}/skins-dev/vanta" "{{.ROOT_DIR}}/skins-dev/nightstar" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/cadence/skins/"
       - chmod -R a+rX "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence"
@@ -71,7 +71,7 @@ tasks:
       - cp "go-librespot" "{{.APP_NAME}}-{{.APP_VERSION}}/"
       - cp "{{.ROOT_DIR}}/build/appicon.png" "{{.APP_NAME}}-{{.APP_VERSION}}/{{.APP_NAME}}.png"
       - cp "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" "{{.APP_NAME}}-{{.APP_VERSION}}/"
-      - cp "{{.ROOT_DIR}}/LICENSE" "{{.ROOT_DIR}}/LICENSE-ASSETS" "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.APP_NAME}}-{{.APP_VERSION}}/"
+      - cp "{{.ROOT_DIR}}/LICENSE" "{{.ROOT_DIR}}/LICENSE-ASSETS" "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/CHANGELOG.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.APP_NAME}}-{{.APP_VERSION}}/"
       - cp -R "{{.ROOT_DIR}}/docs" "{{.ROOT_DIR}}/LICENSES" "{{.APP_NAME}}-{{.APP_VERSION}}/"
       - mkdir -p "{{.APP_NAME}}-{{.APP_VERSION}}/skins"
       - cp -R "{{.ROOT_DIR}}/skins-dev/lumina" "{{.ROOT_DIR}}/skins-dev/afterglow" "{{.ROOT_DIR}}/skins-dev/vanta" "{{.ROOT_DIR}}/skins-dev/nightstar" "{{.APP_NAME}}-{{.APP_VERSION}}/skins/"

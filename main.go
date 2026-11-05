@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"cadence/internal/artwork"
+	"cadence/internal/buildinfo"
 	"cadence/internal/catalog"
 	"cadence/internal/diagnostics"
 	"cadence/internal/engine"
@@ -78,7 +80,13 @@ func main() {
 	demoMode := flag.Bool("demo", false, "use the simulated player instead of Spotify")
 	devSkins := flag.String("skins-dev", "", "directory containing development skins")
 	diagnosticsEnabled := flag.Bool("diagnostics", false, "expose local diagnostics and pprof on a loopback port")
+	printVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+
+	if *printVersion {
+		fmt.Printf("Cadence %s\n", buildinfo.String())
+		return
+	}
 
 	if *demoMode {
 		log.Println("demo mode: using the simulated player")

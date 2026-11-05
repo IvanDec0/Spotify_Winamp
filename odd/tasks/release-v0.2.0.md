@@ -8,24 +8,26 @@
 
 ### R1 — Version stamping
 
-- [ ] Bump the version to `0.2.0` in `Taskfile.yml` (`APP_VERSION`) and
+- [x] Bump the version to `0.2.0` in `Taskfile.yml` (`APP_VERSION`) and
       `build/config.yml`; the release tag must be `v0.2.0`.
-- [ ] Add `internal/buildinfo` (`Version`, `Commit`, `String`) and a
+- [x] Add `internal/buildinfo` (`Version`, `Commit`, `String`) and a
       `--version` flag in `main.go` that prints and exits before Wails starts.
-- [ ] Inject `-X cadence/internal/buildinfo.Version` and `.Commit` in the Linux
+- [x] Inject `-X cadence/internal/buildinfo.Version` and `.Commit` in the Linux
       build flags, with a `GIT_COMMIT` task variable.
 - [ ] Update the artifact/version references in README, docs/installation and
-      the release workflow expectations.
+      the release workflow expectations. The release workflow is updated in
+      this slice; README and docs/installation are owned by the docs slice.
 
 ### R2 — Packaging contents
 
-- [ ] AppImage and tarball include `go-librespot` built with all four patches,
+- [x] AppImage and tarball include `go-librespot` built with all four patches,
       the bundled skins, README, notices, licenses, docs and `CHANGELOG.md`.
-- [ ] Add `CHANGELOG.md` with a 0.2.0 entry covering the v2 work (modular Go,
+- [x] Add `CHANGELOG.md` with a 0.2.0 entry covering the v2 work (modular Go,
       event-driven state, catalog/podcasts, Browse window, i18n, real
       visualizer, settings, engine patches).
 - [ ] Verify the AppImage's `usr/bin/go-librespot` and the tarball engine are the
-      rebuilt four-patch binary.
+      rebuilt four-patch binary. The orchestrator runs `task package` and
+      inspects both artifacts after this commit.
 
 ### R3 — Docs and installation
 
@@ -50,6 +52,16 @@
 - [ ] Clean-machine install checklist documented; live Arch VM test pending the
       user if unavailable here.
 - Commit: `chore(release): prepare v0.2.0`
+
+## Progress log
+
+| Work unit | Status | Verification | Commit |
+|---|---|---|---|
+| Version stamping: `APP_VERSION`/`info.version` 0.2.0, frontend package 0.2.0, `internal/buildinfo`, `--version` flag, `GIT_COMMIT` and `-X` ldflags | Done | `go test ./internal/buildinfo`, `task build`, `./bin/cadence --version` prints `0.2.0 (<short hash>)` | reported in session |
+| `CHANGELOG.md` 0.2.0 entry covering the v2 work | Done | Reviewed against `git log` and `plan/cadence-v2.md` | reported in session |
+| Packaging contents: AppImage `usr/share/doc/cadence` and tarball include `CHANGELOG.md` and `docs/` | Done | Taskfile diff; artifact inspection deferred to the orchestrator's `task package` | reported in session |
+| Release workflow: assert `./bin/cadence --version` matches `build/config.yml` before checksums | Done | `release.yml` diff | reported in session |
+| Tracker update for R1/R2 | Done | This file | reported in session |
 
 ## Acceptance
 

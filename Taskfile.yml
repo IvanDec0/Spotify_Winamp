@@ -2,10 +2,12 @@ version: '3'
 
 vars:
   APP_NAME: cadence
-  APP_VERSION: 0.1.0
+  APP_VERSION: 0.2.0
   ARCH: x86_64
   BIN_DIR: bin
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo unknown
 
 includes:
   common: ./build/Taskfile.yml

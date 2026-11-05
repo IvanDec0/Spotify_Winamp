@@ -9,7 +9,7 @@ info:
   description: "A compact local Spotify player with declarative skins"
   copyright: "© 2026 Cadence contributors"
   comments: "Built with Go, Wails and Svelte."
-  version: "0.1.0"
+  version: "0.2.0"
 
 # Dev mode configuration
 dev_mode:
