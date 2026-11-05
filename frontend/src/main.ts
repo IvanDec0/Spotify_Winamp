@@ -5,4 +5,11 @@ import "./app.css";
 
 await initI18n();
 
-mount(App, { target: document.getElementById("app")! });
+// The dedicated Browse window shares the runtime and i18n but loads its own
+// entry chunk. The compact window never downloads the Browse shell.
+if (new URLSearchParams(location.search).get("surface") === "browse") {
+  const { mountBrowse } = await import("./app/browse");
+  mountBrowse();
+} else {
+  mount(App, { target: document.getElementById("app")! });
+}

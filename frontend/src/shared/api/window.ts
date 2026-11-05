@@ -14,6 +14,9 @@ export const appWindow = {
   minimise: () => call(() => Window.Minimise()),
   close: () => call(() => Window.Close()),
   setSize: (width: number, height: number) => call(() => WindowService.SetSize(width, height)),
+  openBrowse: () => call(() => WindowService.OpenBrowse()),
+  closeBrowse: () => call(() => WindowService.CloseBrowse()),
+  browseOpen: () => call(() => WindowService.BrowseOpen()),
 };
 
 export const screens = {

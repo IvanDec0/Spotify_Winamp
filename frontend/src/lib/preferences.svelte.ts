@@ -107,6 +107,11 @@ class PreferencesStore {
     writeStorage(THEME_KEY, theme);
   }
 
+  /** Applies a theme from another window without writing storage back. */
+  syncTheme(theme: ThemeId): void {
+    this.theme = theme;
+  }
+
   setVisualizer(mode: VisualizerMode): void {
     this.visualizer = mode;
     writeStorage(VISUALIZER_KEY, mode);

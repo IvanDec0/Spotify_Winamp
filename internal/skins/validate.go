@@ -279,13 +279,37 @@ func validateLayoutAssets(layout *Layout, files map[string]os.FileInfo) error {
 	return nil
 }
 
-// skinStylesheets returns styles.css plus any optional theme stylesheet that
-// matches a manifest theme name. Extra CSS files are rejected so authors do
-// not assume that an unloaded file affects the skin.
+// skinStylesheets returns styles.css, the optional Browse stylesheet and any
+// optional theme stylesheet that matches a manifest theme name. Extra CSS
+// files are rejected so authors do not assume that an unloaded file affects
+// the skin.
 func skinStylesheets(files map[string]os.FileInfo, manifest *Manifest) ([]string, error) {
 	result := []string{"styles.css"}
+
+	browseStylesheet := ""
+	if manifest.Browse != nil {
+		browseStylesheet = manifest.Browse.CSS
+		if browseStylesheet == "" {
+			return nil, validationError("browse.css must be a root-level filename")
+		}
+		if browseStylesheet == "styles.css" {
+			return nil, validationError("browse.css must be a separate stylesheet")
+		}
+		if strings.ContainsAny(browseStylesheet, `/\`) || strings.Contains(browseStylesheet, "..") {
+			return nil, validationError(fmt.Sprintf("invalid browse stylesheet: %s", browseStylesheet))
+		}
+		info, ok := files[browseStylesheet]
+		if !ok {
+			return nil, validationError(fmt.Sprintf("declared browse stylesheet is missing: %s", browseStylesheet))
+		}
+		if info.Size() > maxCSSSize {
+			return nil, validationError(fmt.Sprintf("%s exceeds 1 MB", browseStylesheet))
+		}
+		result = append(result, browseStylesheet)
+	}
+
 	for relative := range files {
-		if !strings.HasSuffix(strings.ToLower(relative), ".css") || relative == "styles.css" {
+		if !strings.HasSuffix(strings.ToLower(relative), ".css") || relative == "styles.css" || relative == browseStylesheet {
 			continue
 		}
 		if strings.HasPrefix(relative, "themes/") && !strings.Contains(strings.TrimPrefix(relative, "themes/"), "/") {

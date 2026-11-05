@@ -15,8 +15,78 @@ import (
 // Cadence needs a real resize for the queue expansion.
 type WindowService struct{}
 
+// browseWindowName is the stable Wails name used to focus an existing Browse
+// window instead of opening a duplicate.
+const browseWindowName = "browse"
+
 func NewWindowService() *WindowService {
 	return &WindowService{}
+}
+
+// OpenBrowse opens the dedicated Browse window, or focuses it when it already
+// exists. Window creation runs on the GTK main thread through Wails; the
+// window is opaque and keeps a normal frame so it behaves like a regular
+// second window.
+func (s *WindowService) OpenBrowse() error {
+	app := application.Get()
+	if app == nil {
+		return errors.New("application is not ready")
+	}
+
+	if window, ok := app.Window.GetByName(browseWindowName); ok {
+		return application.InvokeSyncWithError(func() error {
+			window.Show()
+			window.Focus()
+			return nil
+		})
+	}
+
+	return application.InvokeSyncWithError(func() error {
+		app.Window.NewWithOptions(application.WebviewWindowOptions{
+			Name:             browseWindowName,
+			Title:            "Cadence Browse",
+			Width:            960,
+			Height:           640,
+			MinWidth:         720,
+			MinHeight:        480,
+			URL:              "/?surface=browse",
+			Zoom:             1,
+			Frameless:        false,
+			BackgroundType:   application.BackgroundTypeSolid,
+			BackgroundColour: application.NewRGBA(9, 11, 15, 255),
+			Linux: application.LinuxWindow{
+				WebviewGpuPolicy: application.WebviewGpuPolicyOnDemand,
+			},
+		})
+		return nil
+	})
+}
+
+// CloseBrowse closes the Browse window. It is a no-op when the window is not
+// open.
+func (s *WindowService) CloseBrowse() error {
+	app := application.Get()
+	if app == nil {
+		return errors.New("application is not ready")
+	}
+	window, ok := app.Window.GetByName(browseWindowName)
+	if !ok {
+		return nil
+	}
+	return application.InvokeSyncWithError(func() error {
+		window.Close()
+		return nil
+	})
+}
+
+// BrowseOpen reports whether the Browse window currently exists.
+func (s *WindowService) BrowseOpen() bool {
+	app := application.Get()
+	if app == nil {
+		return false
+	}
+	_, ok := app.Window.GetByName(browseWindowName)
+	return ok
 }
 
 // ServiceStartup makes the GTK4 window itself transparent. Wails v3 beta.34

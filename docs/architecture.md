@@ -61,7 +61,7 @@ directly because they are the same frontend-facing shape; it owns the compact
 | `internal/wailsapi/audio` | `service.go` (startup/shutdown/emitter/browser + delegated catalog methods), `types.go` aliases |
 | `internal/wailsapi/player` | `service.go` (500 ms ticker, mutations, emit), `types.go` aliases |
 | `internal/wailsapi/skins` | `service.go` (dialogs/events/manager calls), `types.go` aliases |
-| `internal/platform` | native window/GTK code; the only non-adapter Wails boundary |
+| `internal/platform` | native window/GTK code, main-window resize and the dedicated Browse window host; the only non-adapter Wails boundary |
 
 ## Event flow
 
@@ -85,6 +85,30 @@ Event names and payload shapes are unchanged from v1:
 
 The Wails adapters own application lifecycle and event emission; domain
 services expose plain Go methods and never touch `application.App`.
+
+## Browse window
+
+The catalog has its own native window, separate from the compact player.
+
+- `internal/platform.WindowService.OpenBrowse` creates the window named
+  `browse` on demand (`GetByName` shows and focuses an existing instance) with
+  a normal frame, 960×640 logical size, 720×480 minimum and the URL
+  `/?surface=browse`. `CloseBrowse` and `BrowseOpen` complete the host API.
+- `frontend/src/main.ts` branches on `surface=browse` and dynamically imports
+  the Browse entry, so the compact window never downloads the Browse chunk.
+  `initI18n()` stays shared by both surfaces.
+- `frontend/src/app/browse/BrowseApp.svelte` is app-owned: sidebar, top bar,
+  content placeholder and now-playing bar use `shared/ui`, `shared/i18n` and
+  the existing player/skin stores. It does not import `lib/components`.
+- `frontend/src/app/browse/theme.svelte.ts` probes the active skin in a hidden
+  shadow host (declarative) or a hidden `.clarity[data-theme]` element
+  (built-in), then applies the known token list inline to `.cadence-browse`.
+  Re-application follows `skins:changed`, theme changes and cross-window
+  `storage` events for `cadence.theme`.
+- The compact skin `styles.css` is never injected into the Browse document. A
+  skin may declare an optional `browse.css`; the manager exposes it as
+  `SkinRuntime.browseStylesheetUrl` and the Browse app loads it as
+  `<link id="cadence-browse-skin">` after the app-owned base stylesheet.
 
 ## Adding a catalog surface
 

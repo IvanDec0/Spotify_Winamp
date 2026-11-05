@@ -60,6 +60,12 @@ Start with one theme and one visualizer mode while iterating:
 
 `capabilities` must cover every component in the layout. A component's required capabilities are listed in the [component table](skin-format.md#components).
 
+The optional `browse` block styles the separate Browse window:
+
+```json
+  "browse": { "css": "browse.css" }
+```
+
 ## 3. Build `layout.json`
 
 A practical starting point:
@@ -174,6 +180,28 @@ You do not need to define structural defaults for rows, columns, grids, titlebar
 
 Declare `sunset` in `themes` and set `defaultTheme` to it. The theme file is loaded after `styles.css`, so it can override palette rules. If the file is omitted, the theme ID still works, but you must define `[data-theme="sunset"]` rules in `styles.css`.
 
+### Optional Browse stylesheet
+
+The Catalog opens in its own window. Cadence applies the active theme tokens to
+`.cadence-browse`, but it never injects the compact `styles.css` there. To
+restyle the Browse shell, add a root-level `browse.css` and declare it:
+
+```css
+/* browse.css */
+.cadence-browse .sidebar {
+  border-right-color: color-mix(in srgb, var(--accent) 20%, var(--line));
+}
+
+.cadence-browse .card {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+```
+
+Use the same theme variables as `styles.css`. They are read from the active
+theme, so a light theme stays readable without extra light-specific rules.
+`browse.css` is validated like `styles.css`, must stay inside the package and
+should scope every rule to `.cadence-browse`.
+
 ### Assets
 
 Reference assets with paths relative to the stylesheet that uses them:
@@ -217,6 +245,8 @@ Create a ZIP with the required files at the archive root:
 ```bash
 cd skins-dev/my-skin
 zip -r ../my-skin.zip manifest.json layout.json styles.css themes assets
+# Include browse.css when the manifest declares it:
+zip -r ../my-skin.zip browse.css
 ```
 
 Then use **Install .zip…** in the skin library. Installation does not activate the skin automatically; select **Use** after it appears.
@@ -230,6 +260,8 @@ Test checklist:
 - The queue displays current and upcoming items.
 - Play/pause, seek, volume, shuffle and repeat controls work.
 - The window can still be dragged from the titlebar, minimised and closed.
+- **Browse** opens the dedicated window and follows the active theme; an
+  optional `browse.css` loads only there.
 - Reduced motion stops animated movement.
 - Invalid props, unknown components, remote URLs or unsupported assets are rejected.
 

@@ -17,5 +17,6 @@ Planned documents:
 
 [`architecture.md`](architecture.md) is the current source of truth for the
 implemented architecture. The v2 plan is the roadmap and plan-time baseline;
-phases 4-8 remain. The original design document is kept for visual and
-skin-system rationale; its Spotify Connect sections are historical.
+phases 6-8 remain. Phase 6 started with the dedicated Browse window. The
+original design document is kept for visual and skin-system rationale; its
+Spotify Connect sections are historical.

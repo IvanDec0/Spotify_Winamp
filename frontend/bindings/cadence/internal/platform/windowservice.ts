@@ -14,6 +14,31 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 /**
+ * BrowseOpen reports whether the Browse window currently exists.
+ */
+export function BrowseOpen(): $CancellablePromise<boolean> {
+    return $Call.ByID(4092845533);
+}
+
+/**
+ * CloseBrowse closes the Browse window. It is a no-op when the window is not
+ * open.
+ */
+export function CloseBrowse(): $CancellablePromise<void> {
+    return $Call.ByID(3772327875);
+}
+
+/**
+ * OpenBrowse opens the dedicated Browse window, or focuses it when it already
+ * exists. Window creation runs on the GTK main thread through Wails; the
+ * window is opaque and keeps a normal frame so it behaves like a regular
+ * second window.
+ */
+export function OpenBrowse(): $CancellablePromise<void> {
+    return $Call.ByID(828243989);
+}
+
+/**
  * SetSize resizes the main window in physical pixels. It must run on the GTK
  * main thread, hence the InvokeSyncWithError wrapper.
  */

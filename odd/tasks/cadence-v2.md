@@ -876,29 +876,58 @@ compact pixel layout and the skin's `styles.css` are never injected into Browse.
 
 ### T6.1 — Browse window host and skin theme bridge
 
-- [ ] `platform.WindowService`: `OpenBrowse`, `CloseBrowse`, `BrowseOpen`.
+- [x] `platform.WindowService`: `OpenBrowse`, `CloseBrowse`, `BrowseOpen`.
       Create an opaque 960×640 (min 720×480) window named `browse` with
       `URL:"/?surface=browse"`, `Zoom:1`, and a normal frame; focus an existing
       one instead of duplicating.
-- [ ] `main.ts`: branch on `?surface=browse` with a dynamic import so the
+- [x] `main.ts`: branch on `?surface=browse` with a dynamic import so the
       compact window does not load the Browse chunk.
-- [ ] `app/browse/BrowseApp.svelte` + shell: sidebar, top bar, content area and
+- [x] `app/browse/BrowseApp.svelte` + shell: sidebar, top bar, content area and
       now-playing bar placeholders using `shared/ui`, i18n and the theme tokens.
       No full search/library yet (T6.2).
-- [ ] Compact app: a Browse button/shortcut that calls `openBrowse` through
+- [x] Compact app: a Browse button/shortcut that calls `openBrowse` through
       `shared/api/window`.
-- [ ] Theme bridge: hidden shadow probe for declarative skins (load
+- [x] Theme bridge: hidden shadow probe for declarative skins (load
       `stylesheetUrl` + theme stylesheet, read the token list) and a hidden
       `.clarity[data-theme]` probe for the built-in skin. Apply tokens as inline
       custom properties on `.cadence-browse`; re-apply on `skins:changed`,
       theme changes and cross-window `storage` changes.
-- [ ] Optional skin `browse.css`: manifest schema `browse:{css}`, Go
+- [x] Optional skin `browse.css`: manifest schema `browse:{css}`, Go
       `Manifest.Browse`/validation/allowed-stylesheet handling, `SkinRuntime`
       `browseStylesheetUrl`, and a Browse `<link>` loaded after the base style.
       Existing skins stay valid; Clarity uses the default Browse styling.
-- [ ] Tests: manifest validation for `browse.css`, token extraction helper,
+- [x] Tests: manifest validation for `browse.css`, token extraction helper,
       theme re-application, Browse shell render, window-service compile.
 - Commit: `feat(browse): add the separate skin-aware Browse window`
+
+#### T6.1 verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `go vet $(go list ./... \| grep -v '/node_modules/')` | exit 0, no findings |
+| `gofmt -l $(go list -f '{{.Dir}}' ./... \| grep -v '/node_modules/')` | exit 0, no files listed |
+| `wails3 generate bindings -clean=true -ts -i .` | exit 0; 4 services, 55 methods, 40 models; only Windows service and SkinRuntime changed |
+| `npm run check` | exit 0, 0 errors and 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0, all files match Prettier |
+| `npm run test` | exit 0, 30 files / 149 tests |
+| `npm run build` | exit 0 |
+| `./scripts/build-go-librespot.sh --check` | exit 0, all patches apply |
+| `git diff --check` | exit 0, no whitespace errors |
+
+Live window smoke testing is **not** claimed: this environment cannot open the
+GTK window. The unit and DOM checks cover the service's no-application path,
+the Browse shell render and the Clarity token re-application. jsdom does not
+compute `:host` custom properties inside a shadow root, so the declarative
+shadow probe is not unit-tested; it mirrors the working `SkinHost.svelte`
+pattern and needs a live window check.
+
+### Commit map — Phase 6
+
+| Task | Commit |
+|---|---|
+| T6.1 | `feat(browse): add the separate skin-aware Browse window` |
 
 ### T6.2 — Search, library, entities and podcasts
 
@@ -987,3 +1016,4 @@ compact pixel layout and the skin's `styles.css` are never injected into Browse.
 | 2026-11-05 | T5.3 | `1d845ee` | `settings.EngineState` persists bitrate/crossfade/normalisation/cache/FLAC/MPRIS/device-group/image-size with defaults; engine `PlaybackConfig` normalizes and applies under the supervisor mutex; generated config emits the new keys; adapter `Get`/`SetEngineSettings` persists without restarting; bindings and typed facade ready; tests for defaults, round-trip, normalization, config generation and adapter persistence |
 
 | 2026-11-05 | T5.4 | `docs(odd): record Phase 5 verification` | All Go/engine/binding/frontend gates green; live read-only search and collection checks passed; actual writes and UI remain Phase 6 |
+| 2026-11-05 | T6.1 | `feat(browse): add the separate skin-aware Browse window` | Separate `browse` window host (open/close/status, focus instead of duplicate), `?surface=browse` dynamic entry, app-owned Browse shell with sidebar/top bar/now-playing, hidden shadow/Clarity token probe applied inline with storage re-sync, optional manifest `browse.css` with schema/validation/runtime URL, Lumina example; Go and frontend checks green; live window smoke not run |

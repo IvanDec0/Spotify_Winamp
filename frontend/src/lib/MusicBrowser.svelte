@@ -3,7 +3,9 @@
   import LibrarySkeleton from "./components/LibrarySkeleton.svelte";
   import MediaCover from "./components/MediaCover.svelte";
   import SearchRow from "./components/SearchRow.svelte";
+  import { appWindow } from "../shared/api";
   import type { SearchHit } from "../shared/api/types";
+  import { t } from "../shared/i18n";
   import { player } from "./player.svelte";
   import { music } from "./music.svelte";
   import { formatTime } from "./format";
@@ -173,6 +175,14 @@
           Restart
         </button>
       {/if}
+      <button
+        class="head-button browse-button"
+        type="button"
+        onclick={() => void appWindow.openBrowse()}
+      >
+        {t("browse.open")}
+        <span class="browse-arrow" aria-hidden="true">↗</span>
+      </button>
       <button class="close" type="button" aria-label="Close music library" onclick={close}>
         <Icon name="close" size={12} />
       </button>
@@ -898,6 +908,17 @@
     background: color-mix(in srgb, var(--accent) 6%, transparent);
     color: var(--accent);
     transform: translateY(-1px);
+  }
+
+  .browse-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .browse-arrow {
+    font-size: 8px;
+    line-height: 1;
   }
 
   .head-button-icon {
