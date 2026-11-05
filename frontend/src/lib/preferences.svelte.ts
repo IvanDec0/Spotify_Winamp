@@ -79,12 +79,39 @@ class PreferencesStore {
   systemReducedMotion = $state(false);
 
   #query: MediaQueryList | null = null;
+  #storageAttached = false;
   #onSystemMotionChange = (event: MediaQueryListEvent): void => {
     this.systemReducedMotion = event.matches;
+  };
+  #onStorage = (event: StorageEvent): void => {
+    if (event.key === THEME_KEY && isThemeId(event.newValue)) {
+      this.theme = event.newValue;
+    } else if (event.key === VISUALIZER_KEY && isVisualizerMode(event.newValue)) {
+      this.visualizer = event.newValue;
+    } else if (event.key === MOTION_KEY && isMotionPreference(event.newValue)) {
+      this.motion = event.newValue;
+    }
   };
 
   get reducedMotion(): boolean {
     return this.motion === "reduced" || (this.motion === "system" && this.systemReducedMotion);
+  }
+
+  /**
+   * Mirrors preference writes from another window. The handler updates local
+   * state only, so it never writes storage back or starts a feedback loop.
+   */
+  startStorageSync(): () => void {
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function") {
+      return () => {};
+    }
+    if (this.#storageAttached) return () => {};
+    this.#storageAttached = true;
+    window.addEventListener("storage", this.#onStorage);
+    return () => {
+      window.removeEventListener("storage", this.#onStorage);
+      this.#storageAttached = false;
+    };
   }
 
   syncSystemMotion(): () => void {
@@ -105,11 +132,6 @@ class PreferencesStore {
   setTheme(theme: ThemeId): void {
     this.theme = theme;
     writeStorage(THEME_KEY, theme);
-  }
-
-  /** Applies a theme from another window without writing storage back. */
-  syncTheme(theme: ThemeId): void {
-    this.theme = theme;
   }
 
   setVisualizer(mode: VisualizerMode): void {

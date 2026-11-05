@@ -25,7 +25,6 @@
     compact = false,
   }: Props = $props();
 
-  let providerLabel = $derived(player.state.provider === "demo" ? "DEMO" : "LOCAL");
   let deviceLabel = $derived(player.state.device.name || "No device");
 
   function minimise(): void {
@@ -60,7 +59,7 @@
         aria-label={t("browse.openWindow")}
         onclick={() => skins.openMusic()}
       >
-        {providerLabel}
+        {t("browse.open")}
       </button>
     {/if}
   </div>
@@ -84,8 +83,8 @@
   <button
     class="cad-title-button"
     type="button"
-    title="Skins and appearance"
-    aria-label="Open skin settings"
+    title={t("browse.settings")}
+    aria-label={t("browse.settings")}
     onclick={() => skins.openSettings()}
   >
     <Icon name="settings" size={14} />

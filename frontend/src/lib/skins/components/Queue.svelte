@@ -25,7 +25,9 @@
   let isLoading = $derived(loading ?? player.queueLoading);
   let trackUri = $derived(player.state.track.uri);
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
-  let queueNote = $derived(player.state.provider === "demo" ? "Demo queue" : "Local queue");
+  let queueNote = $derived(
+    player.state.provider === "demo" ? t("queue.demo") : t("queue.playback"),
+  );
   let failedCovers = $state<string[]>([]);
 
   $effect(() => {
@@ -54,7 +56,7 @@
     {#if isLoading}
       <p class="cad-queue-empty" role="status">{t("ui.loading")}</p>
     {:else}
-      <p class="cad-queue-empty">Nothing queued. Start a track in the Library.</p>
+      <p class="cad-queue-empty">Nothing queued. Start a track in Browse.</p>
     {/if}
   {:else}
     <ol class="cad-queue-list">

@@ -2,7 +2,7 @@
   import { onMount, tick } from "svelte";
   import { music } from "../../lib/music.svelte";
   import { player } from "../../lib/player.svelte";
-  import { isThemeId, preferences } from "../../lib/preferences.svelte";
+  import { preferences } from "../../lib/preferences.svelte";
   import { skins } from "../../lib/skins.svelte";
   import { appWindow, onBrowseNavigate } from "../../shared/api";
   import { t } from "../../shared/i18n";
@@ -85,19 +85,13 @@
   });
 
   onMount(() => {
-    const onStorage = (event: StorageEvent): void => {
-      if (event.key !== "cadence.theme") return;
-      if (isThemeId(event.newValue)) preferences.syncTheme(event.newValue);
-    };
     const unsubscribeNavigate = onBrowseNavigate((section) => {
       const next = normalizeSection(section, "library");
       if (music.authenticated) browse.setSection(next);
       else browse.setInitialSection(next);
     });
-    window.addEventListener("storage", onStorage);
     return () => {
       unsubscribeNavigate();
-      window.removeEventListener("storage", onStorage);
       if (searchTimer) clearTimeout(searchTimer);
     };
   });

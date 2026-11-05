@@ -303,7 +303,7 @@ The native window uses a transparent background, so a declarative skin can leave
 }
 ```
 
-Set `window.height` to the square or tall logical canvas the silhouette needs. Keep the titlebar inside the visible shape so the window can be moved. Interactive primitives remain native buttons; do not put controls outside the opaque silhouette. Overlays such as the Library and Skin Manager are always rectangular and opaque, and expand the window vertically when opened.
+Set `window.height` to the square or tall logical canvas the silhouette needs. Keep the titlebar inside the visible shape so the window can be moved. Interactive primitives remain native buttons; do not put controls outside the opaque silhouette. App-owned surfaces such as the Browse window remain rectangular and opaque; opening Browse hides the compact window instead of expanding it.
 
 The bundled **Nightstar** skin uses this approach with a four-blade star chassis, a custom sigil image, decorative boxes, text labels and custom arm buttons. It is a concrete example of primitives and a shaped window.
 

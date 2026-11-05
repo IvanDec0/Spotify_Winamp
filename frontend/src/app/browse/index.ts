@@ -3,6 +3,7 @@ import "./browse.css";
 import BrowseApp from "./BrowseApp.svelte";
 import { music } from "../../lib/music.svelte";
 import { player } from "../../lib/player.svelte";
+import { preferences } from "../../lib/preferences.svelte";
 import { skins } from "../../lib/skins.svelte";
 import { browse, normalizeSection } from "./browse.svelte";
 
@@ -19,6 +20,7 @@ export function mountBrowse(): void {
   mounted = true;
   const section = normalizeSection(new URLSearchParams(location.search).get("section"), "library");
   browse.setInitialSection(section);
+  preferences.startStorageSync();
   void player.start();
   void music.start();
   void skins.start();

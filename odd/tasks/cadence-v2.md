@@ -966,6 +966,7 @@ case. No Go API was missing; no bindings changed.
 | T6.3 | `b55a8c1` |
 | Correction: LOCAL opens Browse | `fix(browse): route LOCAL directly to the Browse window` |
 | Correction: one visible window | `fix(browse): show one window at a time` |
+| Correction: one settings surface | `fix(settings): unify appearance and engine settings in Browse` |
 
 ### T6.3 — Settings, accessibility and polish
 
@@ -1047,19 +1048,21 @@ restart behavior were not exercised.
 - **Surfaces:** six-group search (tracks/albums/artists/playlists/shows/episodes),
   paged library (playlists/albums/artists/Your Episodes, Liked Songs card),
   entity pages with a back stack, show/episode browsing, like/save/follow,
-  playlist add/remove, a now-playing bar and engine settings with an explicit
-  restart confirmation.
+  playlist add/remove, a now-playing bar and unified Browse settings: engine
+  playback/cache/features with an explicit restart confirmation, appearance
+  (theme/visualizer/motion) and skins management.
 - **Performance:** entity track lists use `VirtualList` at a 44 px pitch; the
   Browse window owns its scroll container.
 - **Pending live smoke:** the environment cannot open the GTK window. The user
-  should run `./bin/cadence`, click `LOCAL` to hide the compact player and open
-  Browse directly, use `Back to player`/native close to restore the compact
-  player, then search podcasts, play an episode, save/follow an
-  album/artist/show, change a skin/theme and restart the engine from Settings.
+  should run `./bin/cadence`, confirm the compact badge says Browse, open Browse
+  from it, restore the compact player with `Back to player`/native close, then
+  open Settings from the compact button and change appearance/skins; also
+  search podcasts, play an episode, save/follow and restart the engine.
 - **Deferred:** saved-shows listing (the `show` collection set is identified),
   per-row liked hearts (the now-playing bar has the current-track like), any
   native window resize/frame polish if the live smoke finds it, and removal of
-  the now-unused `frontend/src/lib/MusicBrowser.svelte` in Phase 7.
+  the now-unused `MusicBrowser.svelte`, `SettingsPopover.svelte` and
+  `SkinManager.svelte` in Phase 7.
 - **Next:** live smoke, then Phase 7 (i18n sweep/tests/docs) or Phase 8
   (packaging).
 
@@ -1143,6 +1146,43 @@ state survive. Closing Browse restores it.
 The live hide/show swap is not claimed; the user will verify that opening
 Browse hides the compact player and closing Browse restores it.
 
+### Correction — 2026-11-05: one settings surface in Browse
+
+The compact settings button and skin settings actions now open Browse Settings;
+the compact settings/skin overlays are no longer reachable.
+
+- [x] Compact provider badge shows `Browse`/`Explorar` for every provider; queue
+      notes use localized playback/demo labels; compact player engine copy no
+      longer says “Local”.
+- [x] Compact App opens `openBrowse("settings")` from the settings button and
+      skin handlers; removed `settingsOpen`/`skinManagerOpen`, the popover and
+      SkinManager renders, and all window sizing/keyboard references.
+- [x] Browse `SettingsView` adds appearance (theme, visualizer, motion) and
+      skins (catalog, activate, install, uninstall, reset, third-party toggle)
+      alongside the engine settings. Appearance and skins stay available if the
+      engine settings fail to load. Engine restart confirmation is unchanged.
+- [x] Preferences mirror theme, visualizer and motion across windows through
+      `startStorageSync()` called by both surfaces; the Browse-only storage
+      listener was removed.
+- [x] Tests updated for the Browse Settings redirect, appearance/skins actions
+      and preference storage sync.
+- Commit: `fix(settings): unify appearance and engine settings in Browse`
+
+#### Correction verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint`, `npm run format` | exit 0 |
+| `npm run test` | exit 0, 38 files / 188 tests |
+| `npm run build` | exit 0, 248 modules; `browse-*.js` 83.36 kB |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+Live GTK behavior is not claimed; the user will verify the Browse badge label,
+the compact settings redirect and the appearance/skin controls.
+
 ## Progress log
 
 | Date | Task | Commit | Result |
@@ -1193,3 +1233,5 @@ Browse hides the compact player and closing Browse restores it.
 
 | 2026-11-05 | T6.4 | `docs(odd): record Phase 6 verification` | Go/engine/binding/frontend gates green; full `task build` produces `bin/cadence`; Browse window, search/library/entities/podcasts/settings code complete; live GTK smoke pending user |
 | 2026-11-05 | Correction: LOCAL opens Browse | `fix(browse): route LOCAL directly to the Browse window` | `OpenBrowse(section)` + `browse:navigate`, compact App redirect without the MusicBrowser panel, Browse-owned music/pairing `EngineGate`, initial section parsing, provider/pair copy and tests; Go/frontend gates green; live GTK flow pending user |
+| 2026-11-05 | Correction: one visible window | `fix(browse): show one window at a time` | Opening Browse hides the non-destroyed compact window; Browse close (native or `Back to player`) restores/focuses it, with an explicit `CloseBrowse` fallback; docs/tests updated; live GTK swap pending user |
+| 2026-11-05 | Correction: one settings surface | `fix(settings): unify appearance and engine settings in Browse` | Compact badge says Browse; queue notes localized; compact settings/skin overlays replaced by `openBrowse("settings")`; Browse Settings adds appearance and skins management; cross-window preference storage sync; tests updated; live GTK redirect pending user |

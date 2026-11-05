@@ -188,17 +188,14 @@ describe("App shell", () => {
     await waitFor(() => expect(playerMock.loadQueue).toHaveBeenCalledTimes(2));
   });
 
-  it("opens appearance settings, changes the theme and closes with Escape", async () => {
+  it("opens Browse Settings from the compact settings button", async () => {
     render(App);
 
-    await fireEvent.click(screen.getByRole("button", { name: "Open appearance settings" }));
-    expect(screen.getByRole("dialog", { name: "Appearance settings" })).not.toBeNull();
+    await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
 
-    await fireEvent.click(screen.getByRole("button", { name: "Ice theme" }));
-    expect(document.querySelector('[data-theme="ice"]')).not.toBeNull();
-
-    await fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(mocks.openBrowse).toHaveBeenCalledWith("settings"));
     expect(screen.queryByRole("dialog", { name: "Appearance settings" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Skin library" })).toBeNull();
   });
 
   it("transfers playback to another device", async () => {
@@ -247,21 +244,12 @@ describe("App shell", () => {
     expect(playerMock.toggle).not.toHaveBeenCalled();
   });
 
-  it("opens the skin library from appearance settings", async () => {
-    render(App);
-
-    await fireEvent.click(screen.getByRole("button", { name: "Open appearance settings" }));
-    await fireEvent.click(screen.getByRole("button", { name: "Skins" }));
-
-    expect(screen.getByRole("dialog", { name: "Skin library" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Close skin library" })).not.toBeNull();
-    await waitFor(() => expect(mocks.setSize).toHaveBeenCalledWith(840, 920));
-  });
-
   it("opens the Browse window directly from the provider badge", async () => {
     render(App);
 
-    await fireEvent.click(screen.getByRole("button", { name: "Open Browse" }));
+    const browseBadge = screen.getByRole("button", { name: "Open Browse" });
+    expect(browseBadge.textContent).toContain("Browse");
+    await fireEvent.click(browseBadge);
 
     await waitFor(() => expect(mocks.openBrowse).toHaveBeenCalledWith("library"));
     expect(screen.queryByRole("dialog", { name: "Music library" })).toBeNull();

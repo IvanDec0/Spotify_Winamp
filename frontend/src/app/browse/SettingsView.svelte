@@ -1,5 +1,14 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import {
+    preferences,
+    themes,
+    visualizerModes,
+    type MotionPreference,
+    type ThemeId,
+    type VisualizerMode,
+  } from "../../lib/preferences.svelte";
+  import { skins } from "../../lib/skins.svelte";
   import { t } from "../../shared/i18n";
   import Button from "../../shared/ui/Button.svelte";
   import Dialog from "../../shared/ui/Dialog.svelte";
@@ -10,13 +19,64 @@
   const BITRATES = [96, 160, 320] as const;
   const CACHE_LIMITS = ["512MB", "1GB", "2GB", "4GB", "8GB"] as const;
   const IMAGE_SIZES = ["default", "small", "large", "xlarge"] as const;
+  const MOTION_OPTIONS = [
+    { id: "system", label: "browse.appearance.motionSystem" },
+    { id: "reduced", label: "browse.appearance.motionReduced" },
+  ] as const;
 
   let confirmRestart = $state(false);
   let form = $derived(browseSettings.settings);
+  let declarative = $derived(skins.isDeclarative);
+  let themeOptions = $derived(
+    declarative
+      ? (skins.runtime?.themes ?? []).map((id) => ({ id, label: labelFromSlug(id) }))
+      : themes.map((theme) => ({ id: theme.id, label: theme.label })),
+  );
+  let activeTheme = $derived(declarative ? skins.theme : preferences.theme);
+  let skinList = $derived(skins.catalog?.skins ?? []);
 
   onMount(() => {
     void browseSettings.load();
   });
+
+  function labelFromSlug(value: string): string {
+    return value.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function sourceLabel(source: string): Parameters<typeof t>[0] {
+    if (source === "builtin") return "browse.skins.builtin";
+    if (source === "development") return "browse.skins.development";
+    return "browse.skins.installed";
+  }
+
+  function chooseTheme(theme: string): void {
+    if (declarative) {
+      void skins.setTheme(theme);
+      return;
+    }
+    preferences.setTheme(theme as ThemeId);
+  }
+
+  function chooseVisualizer(mode: string): void {
+    preferences.setVisualizer(mode as VisualizerMode);
+  }
+
+  function chooseMotion(motion: string): void {
+    preferences.setMotion(motion as MotionPreference);
+  }
+
+  function visualizerLabel(mode: string): Parameters<typeof t>[0] {
+    switch (mode) {
+      case "radial":
+        return "browse.appearance.visualizerRadial";
+      case "oscilloscope":
+        return "browse.appearance.visualizerOscilloscope";
+      case "grid":
+        return "browse.appearance.visualizerGrid";
+      default:
+        return "browse.appearance.visualizerSpectrum";
+    }
+  }
 
   function imageLabel(size: (typeof IMAGE_SIZES)[number]): Parameters<typeof t>[0] {
     switch (size) {
@@ -80,49 +140,49 @@
     {/if}
   </header>
 
-  {#if browseSettings.loading && !form}
-    <div class="skeleton-wrap" aria-busy="true" aria-label={t("browse.settingsLoading")}>
-      <Skeleton rows={9} height={16} />
-    </div>
-  {:else if !form}
-    <div class="empty-panel" role="alert">
-      <Icon name="settings" size={22} />
-      <h2>{t("browse.settingsLoadError")}</h2>
-      {#if browseSettings.error}<p>{browseSettings.error}</p>{/if}
-      <Button variant="secondary" size="sm" onclick={() => void browseSettings.load(true)}>
-        {t("ui.retry")}
-      </Button>
-    </div>
-  {:else}
-    <div class="settings-feedback" aria-live="polite" aria-atomic="true">
-      {#if browseSettings.notice}
-        <p class="settings-notice is-success">{t(browseSettings.notice)}</p>
-      {/if}
-    </div>
-
-    {#if browseSettings.error}
-      <div class="settings-notice is-error" role="alert" aria-live="assertive">
-        <span>{t("browse.settingsError")} {browseSettings.error}</span>
-        <button
-          class="settings-dismiss"
-          type="button"
-          title={t("ui.dismiss")}
-          aria-label={t("ui.dismiss")}
-          onclick={() => browseSettings.dismissError()}
-        >
-          ×
-        </button>
+  <form
+    class="settings-grid"
+    aria-busy={browseSettings.saving || browseSettings.restarting}
+    onsubmit={(event) => {
+      event.preventDefault();
+      void browseSettings.save();
+    }}
+  >
+    {#if browseSettings.loading && !form}
+      <div class="skeleton-wrap is-wide" aria-busy="true" aria-label={t("browse.settingsLoading")}>
+        <Skeleton rows={9} height={16} />
       </div>
-    {/if}
+    {:else if !form}
+      <div class="empty-panel is-wide" role="alert">
+        <Icon name="settings" size={22} />
+        <h2>{t("browse.settingsLoadError")}</h2>
+        {#if browseSettings.error}<p>{browseSettings.error}</p>{/if}
+        <Button variant="secondary" size="sm" onclick={() => void browseSettings.load(true)}>
+          {t("ui.retry")}
+        </Button>
+      </div>
+    {:else}
+      <div class="settings-feedback is-wide" aria-live="polite" aria-atomic="true">
+        {#if browseSettings.notice}
+          <p class="settings-notice is-success">{t(browseSettings.notice)}</p>
+        {/if}
+      </div>
 
-    <form
-      class="settings-grid"
-      aria-busy={browseSettings.saving || browseSettings.restarting}
-      onsubmit={(event) => {
-        event.preventDefault();
-        void browseSettings.save();
-      }}
-    >
+      {#if browseSettings.error}
+        <div class="settings-notice is-error is-wide" role="alert" aria-live="assertive">
+          <span>{t("browse.settingsError")} {browseSettings.error}</span>
+          <button
+            class="settings-dismiss"
+            type="button"
+            title={t("ui.dismiss")}
+            aria-label={t("ui.dismiss")}
+            onclick={() => browseSettings.dismissError()}
+          >
+            ×
+          </button>
+        </div>
+      {/if}
+
       <fieldset class="settings-section">
         <legend>{t("browse.settingsEngine")}</legend>
 
@@ -409,8 +469,205 @@
           </p>
         </div>
       </fieldset>
-    </form>
-  {/if}
+    {/if}
+
+    <fieldset class="settings-section is-wide">
+      <legend>{t("browse.appearance.title")}</legend>
+      <p class="settings-help is-lead">{t("browse.appearance.immediate")}</p>
+
+      <div class="settings-row">
+        <label class="settings-label" for="settings-theme">
+          {t("browse.appearance.theme")}
+        </label>
+        <div class="settings-control">
+          <select
+            id="settings-theme"
+            value={activeTheme}
+            onchange={(event) => chooseTheme((event.currentTarget as HTMLSelectElement).value)}
+          >
+            {#each themeOptions as option (option.id)}
+              <option value={option.id}>{option.label}</option>
+            {/each}
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <label class="settings-label" for="settings-visualizer">
+          {t("browse.appearance.visualizer")}
+        </label>
+        <div class="settings-control">
+          <select
+            id="settings-visualizer"
+            value={preferences.visualizer}
+            onchange={(event) => chooseVisualizer((event.currentTarget as HTMLSelectElement).value)}
+          >
+            {#each visualizerModes as mode (mode.id)}
+              <option value={mode.id}>{t(visualizerLabel(mode.id))}</option>
+            {/each}
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <label class="settings-label" for="settings-motion">
+          {t("browse.appearance.motion")}
+        </label>
+        <div class="settings-control">
+          <select
+            id="settings-motion"
+            value={preferences.motion}
+            aria-describedby="settings-motion-help"
+            onchange={(event) => chooseMotion((event.currentTarget as HTMLSelectElement).value)}
+          >
+            {#each MOTION_OPTIONS as option (option.id)}
+              <option value={option.id}>{t(option.label)}</option>
+            {/each}
+          </select>
+        </div>
+        <p class="settings-help" id="settings-motion-help">
+          {t("browse.appearance.motionHelp")}
+          {#if preferences.motion === "system" && preferences.systemReducedMotion}
+            {t("browse.appearance.systemReduced")}
+          {/if}
+        </p>
+      </div>
+    </fieldset>
+
+    <fieldset class="settings-section is-wide" aria-busy={skins.loading}>
+      <legend>{t("browse.skins.title")}</legend>
+      <p class="settings-help is-lead">{t("browse.skins.description")}</p>
+
+      {#if skins.loading}
+        <div class="skeleton-wrap" aria-busy="true" aria-label={t("browse.skins.loading")}>
+          <Skeleton rows={3} height={14} />
+        </div>
+      {:else}
+        {#if skins.catalog?.safeMode}
+          <p class="settings-notice is-error" role="status">{t("browse.skins.safeMode")}</p>
+        {/if}
+        {#if skins.error}
+          <div class="settings-notice is-error" role="alert" aria-live="assertive">
+            <span>{skins.error}</span>
+            <button
+              class="settings-dismiss"
+              type="button"
+              title={t("ui.dismiss")}
+              aria-label={t("ui.dismiss")}
+              onclick={() => skins.dismissError()}
+            >
+              ×
+            </button>
+          </div>
+        {/if}
+        {#if skins.notice}
+          <div class="settings-notice is-success" role="status" aria-live="polite">
+            <span>{skins.notice}</span>
+            <button
+              class="settings-dismiss"
+              type="button"
+              title={t("ui.dismiss")}
+              aria-label={t("ui.dismiss")}
+              onclick={() => skins.dismissNotice()}
+            >
+              ×
+            </button>
+          </div>
+        {/if}
+
+        <div class="skin-actions">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={skins.loading || skins.catalog?.safeMode}
+            onclick={() => void skins.installZip()}
+          >
+            {t("browse.skins.installZip")}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={skins.loading || skins.catalog?.safeMode}
+            onclick={() => void skins.installDirectory()}
+          >
+            {t("browse.skins.installFolder")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={skins.loading}
+            onclick={() => void skins.reset()}
+          >
+            {t("browse.skins.reset")}
+          </Button>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="settings-third-party">
+            {t("browse.skins.thirdPartyDisabled")}
+          </label>
+          <div class="settings-control">
+            <input
+              id="settings-third-party"
+              type="checkbox"
+              checked={skins.catalog?.thirdPartyDisabled ?? false}
+              disabled={skins.catalog?.safeMode}
+              onchange={(event) =>
+                void skins.setThirdPartyDisabled((event.currentTarget as HTMLInputElement).checked)}
+            />
+          </div>
+          <p class="settings-help">{t("browse.skins.thirdPartyHelp")}</p>
+        </div>
+
+        {#if skinList.length === 0}
+          <p class="empty-panel">{t("browse.skins.empty")}</p>
+        {:else}
+          <ul class="skin-list">
+            {#each skinList as skin (skin.id)}
+              <li class="skin-row" class:is-active={skin.active}>
+                <div class="skin-copy">
+                  <span class="skin-name">
+                    {skin.name}
+                    <span class="skin-version">{skin.version}</span>
+                  </span>
+                  <span class="skin-meta">
+                    {t(sourceLabel(skin.source))} · {skin.author} · {skin.description}
+                  </span>
+                </div>
+                <div class="skin-row-actions">
+                  {#if skin.active}
+                    <span class="skin-active">{t("browse.skins.active")}</span>
+                  {:else}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={skins.loading || !skins.catalog?.canChangeActiveSkin}
+                      ariaLabel={t("browse.skins.activateNamed", { name: skin.name })}
+                      onclick={() => void skins.activate(skin.id)}
+                    >
+                      {t("browse.skins.activate")}
+                    </Button>
+                  {/if}
+                  {#if skin.removable}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      class="skin-remove"
+                      disabled={skins.loading || skins.catalog?.safeMode}
+                      ariaLabel={t("browse.skins.uninstallNamed", { name: skin.name })}
+                      onclick={() => void skins.uninstall(skin.id)}
+                    >
+                      {t("browse.skins.uninstall")}
+                    </Button>
+                  {/if}
+                </div>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      {/if}
+    </fieldset>
+  </form>
 
   <Dialog
     open={confirmRestart}

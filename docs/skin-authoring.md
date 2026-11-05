@@ -222,7 +222,7 @@ task dev
 wails3 build && ./bin/cadence
 ```
 
-Open **Skins** from the titlebar or the appearance panel, select **My Skin**, then **Use**. Development skins are rescanned at startup, so restart Cadence after editing `manifest.json`, `layout.json` or `styles.css`.
+Open Browse **Settings** from the compact titlebar, find **My Skin** under Skins, then **Activate**. Development skins are rescanned at startup, so restart Cadence after editing `manifest.json`, `layout.json` or `styles.css`.
 
 Keyboard shortcuts while iterating:
 

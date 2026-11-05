@@ -13,7 +13,7 @@
   let { items, provider = "demo", loading = false }: Props = $props();
 
   let countLabel = $derived(items.length.toString().padStart(2, "0"));
-  let queueNote = $derived(provider === "demo" ? "Demo queue" : "Local queue");
+  let queueNote = $derived(provider === "demo" ? t("queue.demo") : t("queue.playback"));
 </script>
 
 <section class="queue" aria-label="Playback queue" aria-busy={loading}>
@@ -29,7 +29,7 @@
     {#if loading}
       <p class="queue-empty" role="status">{t("ui.loading")}</p>
     {:else}
-      <p class="queue-empty">Nothing queued. Start a track in the Library.</p>
+      <p class="queue-empty">Nothing queued. Start a track in Browse.</p>
     {/if}
   {:else}
     <ol class="queue-list">

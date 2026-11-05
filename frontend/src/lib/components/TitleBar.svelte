@@ -3,7 +3,6 @@
   import Icon from "./Icon.svelte";
 
   interface Props {
-    provider: string;
     deviceName: string;
     queueOpen: boolean;
     onToggleQueue: () => void;
@@ -15,7 +14,6 @@
   }
 
   let {
-    provider,
     deviceName,
     queueOpen,
     onToggleQueue,
@@ -26,7 +24,6 @@
     onClose,
   }: Props = $props();
 
-  let providerLabel = $derived(provider === "demo" ? "DEMO" : "LOCAL");
   let deviceLabel = $derived(deviceName || "No device");
 </script>
 
@@ -50,7 +47,7 @@
       aria-label={t("browse.openWindow")}
       onclick={onOpenMusic}
     >
-      {providerLabel}
+      {t("browse.open")}
     </button>
   </div>
 
@@ -71,8 +68,8 @@
   <button
     class="title-button"
     type="button"
-    title="Appearance and motion"
-    aria-label="Open appearance settings"
+    title={t("browse.settings")}
+    aria-label={t("browse.settings")}
     onclick={onOpenSettings}
   >
     <Icon name="settings" size={14} />

@@ -107,6 +107,15 @@ The catalog has its own native window, separate from the compact player.
   covers native X/Alt+F4/WM paths, and `CloseBrowse` restores `main` explicitly
   as a fallback. The hidden main window keeps the app alive while Browse is
   open; closing Browse restores it, and closing the main window quits normally.
+- The compact settings button and the skin `open-settings` handlers call
+  `openBrowse("settings")`; `SettingsPopover` and `SkinManager` are no longer
+  rendered. Browse `SettingsView` is the single settings surface: engine
+  playback/cache/features (with the explicit restart confirmation), appearance
+  (theme, visualizer, motion) and skins (activate/install/uninstall/reset,
+  third-party toggle).
+- Theme, visualizer and motion preferences mirror across windows through the
+  `storage` listener installed by `preferences.startStorageSync()`; declarative
+  skin/theme changes still propagate through `skins:changed`.
 - `frontend/src/main.ts` branches on `surface=browse` and dynamically imports
   the Browse entry, so the compact window never downloads the Browse chunk.
   `initI18n()` stays shared by both surfaces. The entry reads `section=` before

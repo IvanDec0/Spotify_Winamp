@@ -49,7 +49,7 @@
       (state.error?.code === "not_authenticated"
         ? "Pair Spotify in Browse"
         : state.error?.code === "audio_unavailable"
-          ? "Local audio engine unavailable"
+          ? "Audio engine unavailable"
           : "Unknown artist"),
   );
   let displayTitle = $derived(

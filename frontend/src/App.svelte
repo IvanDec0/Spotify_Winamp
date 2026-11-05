@@ -5,12 +5,10 @@
   import Icon from "./lib/components/Icon.svelte";
   import Player from "./lib/components/Player.svelte";
   import Queue from "./lib/components/Queue.svelte";
-  import SettingsPopover from "./lib/components/SettingsPopover.svelte";
   import TitleBar from "./lib/components/TitleBar.svelte";
   import { player } from "./lib/player.svelte";
   import { preferences, themes, visualizerModes, type ThemeId } from "./lib/preferences.svelte";
   import SkinHost from "./lib/skins/SkinHost.svelte";
-  import SkinManager from "./lib/skins/SkinManager.svelte";
   import { skins } from "./lib/skins.svelte";
   import {
     DEFAULT_UI_SCALE,
@@ -23,9 +21,7 @@
   } from "./lib/layout";
 
   let queueClosing = $state(false);
-  let settingsOpen = $state(false);
   let devicesOpen = $state(false);
-  let skinManagerOpen = $state(false);
   let browseOpenError = $state<string | null>(null);
   let uiScale = $state(DEFAULT_UI_SCALE);
   let baseNativeWidth = Math.round(WINDOW_WIDTH * DEFAULT_UI_SCALE);
@@ -72,7 +68,7 @@
       // The window mode may have changed while Size() was resolving.
       if (currentLogicalHeight() !== logicalHeight) return;
       const next = roundedUiScale(fitUiScale(size.width, size.height, logicalHeight));
-      if (!queueOpen && !skinManagerOpen) {
+      if (!queueOpen) {
         baseNativeWidth = size.width;
         baseNativeHeight = size.height;
       }
@@ -136,45 +132,28 @@
     }
   }
 
-  function openSettings(): void {
-    if (declarative) {
-      openSkinManager();
-      return;
-    }
-    devicesOpen = false;
-    skinManagerOpen = false;
-    settingsOpen = true;
-  }
-
-  function openSkinManager(): void {
-    devicesOpen = false;
-    settingsOpen = false;
-    if (queueOpen) setQueue(false);
-    skinManagerOpen = true;
-  }
-
-  function closeSkinManager(): void {
-    skinManagerOpen = false;
-  }
-
-  function openBrowse(): void {
+  function openBrowseSection(section: "library" | "settings"): void {
     closePopovers();
     browseOpenError = null;
-    void appWindow.openBrowse("library").catch((error: unknown) => {
+    void appWindow.openBrowse(section).catch((error: unknown) => {
       browseOpenError = error instanceof Error ? error.message : String(error);
     });
   }
 
+  function openBrowse(): void {
+    openBrowseSection("library");
+  }
+
+  function openSettings(): void {
+    openBrowseSection("settings");
+  }
+
   function openDevices(): void {
-    settingsOpen = false;
-    skinManagerOpen = false;
     devicesOpen = true;
   }
 
   function closePopovers(): void {
-    settingsOpen = false;
     devicesOpen = false;
-    skinManagerOpen = false;
   }
 
   function setQueue(open: boolean): void {
@@ -251,9 +230,7 @@
     if (event.metaKey || event.ctrlKey || event.altKey) return;
 
     if (event.key === "Escape") {
-      if (skinManagerOpen) {
-        skinManagerOpen = false;
-      } else if (settingsOpen || devicesOpen) {
+      if (devicesOpen) {
         closePopovers();
       } else if (queueOpen) {
         setQueue(false);
@@ -338,20 +315,18 @@
     );
     baseNativeWidth = Math.round(WINDOW_WIDTH * scale);
     baseNativeHeight = Math.round(height * scale);
-    if (skinManagerOpen || queueOpen) return;
+    if (queueOpen) return;
     void restoreBaseWindow();
   });
 
   $effect(() => {
     if (skins.loading) return;
-    const expanded = skinManagerOpen;
-    const height = expanded ? EXPANDED_HEIGHT : queueOpen ? expandedHeight : baseHeight;
-    if (!expanded && !queueOpen) {
+    if (!queueOpen) {
       void restoreBaseWindow();
       return;
     }
     const scale = untrack(() => uiScale);
-    void resizeWindow(height, scale);
+    void resizeWindow(expandedHeight, scale);
   });
 
   $effect(() => {
@@ -376,10 +351,12 @@
     void player.start();
     void skins.start();
     const cleanupMotion = preferences.syncSystemMotion();
+    const cleanupPreferenceStorage = preferences.startStorageSync();
     globalThis.addEventListener("resize", scheduleUiScaleSync);
     void syncUiScale();
     return () => {
       cleanupMotion();
+      cleanupPreferenceStorage();
       globalThis.removeEventListener("resize", scheduleUiScaleSync);
       if (scaleSyncTimer) clearTimeout(scaleSyncTimer);
       player.stop();
@@ -407,7 +384,6 @@
     >
       <div class="shell">
         <TitleBar
-          provider={player.state.provider}
           deviceName={player.state.device.name}
           {queueOpen}
           onToggleQueue={toggleQueue}
@@ -447,7 +423,7 @@
           </div>
         {/if}
 
-        {#if settingsOpen || devicesOpen}
+        {#if devicesOpen}
           <div class="popover-layer">
             <button
               class="popover-backdrop"
@@ -457,28 +433,14 @@
               onclick={closePopovers}
             ></button>
             <div class="popover-position">
-              {#if settingsOpen}
-                <SettingsPopover
-                  theme={preferences.theme}
-                  visualizer={preferences.visualizer}
-                  motion={preferences.motion}
-                  systemReducedMotion={preferences.systemReducedMotion}
-                  onTheme={(theme) => preferences.setTheme(theme)}
-                  onVisualizer={(mode) => preferences.setVisualizer(mode)}
-                  onMotion={(motion) => preferences.setMotion(motion)}
-                  onOpenSkins={openSkinManager}
-                  onClose={closePopovers}
-                />
-              {:else}
-                <DevicePopover
-                  devices={player.state.devices ?? []}
-                  onTransfer={(deviceId) => {
-                    closePopovers();
-                    void player.transfer(deviceId);
-                  }}
-                  onClose={closePopovers}
-                />
-              {/if}
+              <DevicePopover
+                devices={player.state.devices ?? []}
+                onTransfer={(deviceId) => {
+                  closePopovers();
+                  void player.transfer(deviceId);
+                }}
+                onClose={closePopovers}
+              />
             </div>
           </div>
         {/if}
@@ -512,17 +474,6 @@
           />
         </div>
       </div>
-    </div>
-  {/if}
-
-  {#if skinManagerOpen}
-    <div
-      class="clarity overlay-layer"
-      class:reduce-motion={preferences.reducedMotion}
-      data-theme={preferences.theme}
-      style={overlayThemeStyle}
-    >
-      <SkinManager onOpenMusic={openBrowse} onClose={closeSkinManager} />
     </div>
   {/if}
 
