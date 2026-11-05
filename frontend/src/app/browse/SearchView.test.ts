@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SearchHit } from "../../shared/api/types";
+import type { SearchHit, SearchResults } from "../../shared/api/types";
 import type { SearchResultsView } from "./browse.svelte";
 import { browse } from "./browse.svelte";
 import SearchView from "./SearchView.svelte";
@@ -58,6 +58,18 @@ function hit(uri: string, name: string, overrides: Partial<SearchHit> = {}): Sea
   };
 }
 
+function emptyResults(): SearchResults {
+  const group = () => ({ hits: [], total: 0 });
+  return {
+    tracks: group(),
+    albums: group(),
+    artists: group(),
+    playlists: group(),
+    shows: group(),
+    episodes: group(),
+  };
+}
+
 function emptyView(overrides: Partial<SearchResultsView> = {}): SearchResultsView {
   return {
     tracks: [],
@@ -73,9 +85,30 @@ function emptyView(overrides: Partial<SearchResultsView> = {}): SearchResultsVie
 describe("SearchView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     browse.reset();
-    mocks.audio.playlists.mockResolvedValue({ total: 0, offset: 0, limit: 100, items: [] });
+    const emptyPage = { total: 0, offset: 0, limit: 50, items: [] };
+    mocks.audio.search.mockResolvedValue(emptyResults());
+    mocks.audio.playlists.mockResolvedValue(emptyPage);
+    mocks.audio.albums.mockResolvedValue(emptyPage);
+    mocks.audio.artists.mockResolvedValue(emptyPage);
+    mocks.audio.yourEpisodes.mockResolvedValue({
+      uri: "",
+      ready: true,
+      length: 0,
+      cached: 0,
+      items: [],
+    });
     mocks.audio.isLiked.mockResolvedValue(false);
+  });
+
+  it("renders Discover when the query is empty", async () => {
+    render(SearchView);
+
+    await waitFor(() => expect(screen.getByText("Your favorites")).not.toBeNull());
+    expect(screen.getByText("Browse by genre")).not.toBeNull();
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByText("One More Time")).toBeNull();
   });
 
   it("shows tab counts and switches result groups", async () => {
@@ -92,6 +125,7 @@ describe("SearchView", () => {
     };
 
     render(SearchView);
+    expect(screen.queryByText("Your favorites")).toBeNull();
     expect(screen.getByRole("tab", { name: /Tracks/ }).textContent).toContain("1");
     expect(screen.getByText("One More Time")).not.toBeNull();
     expect(screen.getByText("Daft Punk")).not.toBeNull();

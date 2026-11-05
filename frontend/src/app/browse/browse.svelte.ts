@@ -10,7 +10,7 @@ import type {
   PlaylistPage,
   SearchHit,
 } from "../../shared/api/types";
-import type { MessageKey, MessageParams } from "../../shared/i18n";
+import { t, type MessageKey, type MessageParams } from "../../shared/i18n";
 import { player } from "../../lib/player.svelte";
 
 export const BROWSE_SECTIONS = ["search", "library", "podcasts", "settings"] as const;
@@ -75,8 +75,108 @@ export interface BrowseNotice {
   params?: MessageParams;
 }
 
+export interface DiscoverState {
+  playlists: LibraryEntry[];
+  albums: LibraryEntry[];
+  artists: LibraryEntry[];
+  episodes: LibraryEntry[];
+  loading: boolean;
+  loaded: boolean;
+  error: string | null;
+}
+
+export interface GenreSearch {
+  query: string;
+  tab: SearchTab;
+}
+
 const PAGE_SIZE = 50;
 const MAX_CONTEXT_RETRIES = 10;
+const MAX_RECENT_ENTITIES = 8;
+const MAX_RECENT_SEARCHES = 6;
+const RECENT_ENTITIES_KEY = "cadence.browse.recentEntities";
+const RECENT_SEARCHES_KEY = "cadence.browse.recentSearches";
+const LIKED_SONGS_URI = "spotify:collection:tracks";
+const ENTITY_KINDS: readonly EntityKind[] = ["playlist", "album", "artist", "show"];
+
+function emptyDiscover(): DiscoverState {
+  return {
+    playlists: [],
+    albums: [],
+    artists: [],
+    episodes: [],
+    loading: false,
+    loaded: false,
+    error: null,
+  };
+}
+
+function readStoredJSON(key: string): unknown {
+  try {
+    const raw = globalThis.localStorage?.getItem(key);
+    return raw ? (JSON.parse(raw) as unknown) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredJSON(key: string, value: unknown): void {
+  try {
+    globalThis.localStorage?.setItem(key, JSON.stringify(value));
+  } catch {
+    // Recents stay in memory when storage is unavailable.
+  }
+}
+
+function isEntityKind(value: unknown): value is EntityKind {
+  return typeof value === "string" && (ENTITY_KINDS as readonly string[]).includes(value);
+}
+
+function sanitizeEntity(value: unknown): EntityRef | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  if (!isEntityKind(record.kind)) return null;
+  if (typeof record.uri !== "string" || !record.uri.trim()) return null;
+  if (typeof record.title !== "string" || !record.title.trim()) return null;
+
+  const ref: EntityRef = {
+    kind: record.kind,
+    uri: record.uri.trim(),
+    title: record.title.trim(),
+  };
+  if (typeof record.subtitle === "string" && record.subtitle) ref.subtitle = record.subtitle;
+  if (typeof record.image === "string" && record.image) ref.image = record.image;
+  if (typeof record.owner === "string" && record.owner) ref.owner = record.owner;
+  if (typeof record.canEdit === "boolean") ref.canEdit = record.canEdit;
+  return ref;
+}
+
+function loadRecentEntities(): EntityRef[] {
+  const stored = readStoredJSON(RECENT_ENTITIES_KEY);
+  if (!Array.isArray(stored)) return [];
+  const entities: EntityRef[] = [];
+  for (const value of stored) {
+    const ref = sanitizeEntity(value);
+    if (!ref || entities.some((entity) => entity.uri === ref.uri)) continue;
+    entities.push(ref);
+    if (entities.length >= MAX_RECENT_ENTITIES) break;
+  }
+  return entities;
+}
+
+function loadRecentSearches(): string[] {
+  const stored = readStoredJSON(RECENT_SEARCHES_KEY);
+  if (!Array.isArray(stored)) return [];
+  const searches: string[] = [];
+  for (const value of stored) {
+    if (typeof value !== "string") continue;
+    const query = value.trim();
+    if (!query || searches.includes(query)) continue;
+    searches.push(query);
+    if (searches.length >= MAX_RECENT_SEARCHES) break;
+  }
+  return searches;
+}
 
 function emptyPage(): LibraryPage {
   return { items: [], total: 0, loading: false, offset: 0, loaded: false };
@@ -228,6 +328,10 @@ export class BrowseStore {
   results = $state<SearchResultsView | null>(null);
   searchSequence = $state(0);
 
+  recentEntities = $state<EntityRef[]>(loadRecentEntities());
+  recentSearches = $state<string[]>(loadRecentSearches());
+  discover = $state<DiscoverState>(emptyDiscover());
+
   pages = $state<Record<LibraryTab, LibraryPage>>(emptyPages());
   libraryError = $state<string | null>(null);
   stack = $state<Route[]>([{ name: "root" }]);
@@ -247,6 +351,7 @@ export class BrowseStore {
   notice = $state<BrowseNotice | null>(null);
   error = $state<string | null>(null);
 
+  #discoverRequest: Promise<void> | null = null;
   #contextTimer: ReturnType<typeof setTimeout> | null = null;
   #contextRequest = 0;
   #contextAttempts = 0;
@@ -300,6 +405,102 @@ export class BrowseStore {
     this.results = null;
     this.searching = false;
     this.searchError = null;
+  }
+
+  recordEntity(ref: EntityRef): void {
+    const entity = sanitizeEntity(ref);
+    if (!entity) return;
+    this.recentEntities = [
+      entity,
+      ...this.recentEntities.filter((item) => item.uri !== entity.uri),
+    ].slice(0, MAX_RECENT_ENTITIES);
+    writeStoredJSON(RECENT_ENTITIES_KEY, this.recentEntities);
+  }
+
+  recordSearch(query: string): void {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    this.recentSearches = [
+      trimmed,
+      ...this.recentSearches.filter((item) => item !== trimmed),
+    ].slice(0, MAX_RECENT_SEARCHES);
+    writeStoredJSON(RECENT_SEARCHES_KEY, this.recentSearches);
+  }
+
+  clearRecentSearches(): void {
+    this.recentSearches = [];
+    writeStoredJSON(RECENT_SEARCHES_KEY, this.recentSearches);
+  }
+
+  ensureDiscover(): Promise<void> {
+    if (this.discover.loaded) return Promise.resolve();
+    if (this.#discoverRequest) return this.#discoverRequest;
+    this.#discoverRequest = this.#loadDiscover().finally(() => {
+      this.#discoverRequest = null;
+    });
+    return this.#discoverRequest;
+  }
+
+  async #loadDiscover(): Promise<void> {
+    this.discover = { ...this.discover, loading: true, error: null };
+    try {
+      const [playlists, albums, artists, episodes] = await Promise.all([
+        audio.playlists(0, 12),
+        audio.albums(0, 12),
+        audio.artists(0, 12),
+        audio.yourEpisodes(),
+      ]);
+      this.discover = {
+        playlists: (playlists.items ?? []).map(playlistEntry),
+        albums: (albums.items ?? []).map(albumEntry),
+        artists: (artists.items ?? []).map(artistEntry),
+        episodes: normalizeContext(episodes).items.map(episodeEntry),
+        loading: false,
+        loaded: true,
+        error: null,
+      };
+    } catch (error) {
+      this.discover = {
+        ...this.discover,
+        loading: false,
+        error: toApiError(error).message,
+      };
+    }
+  }
+
+  async playEntry(entry: LibraryEntry): Promise<void> {
+    if (entry.kind === "episode") {
+      if (entry.showUri) {
+        await this.#run(() => audio.playContext(entry.showUri, entry.uri));
+      } else {
+        await this.playEpisode(entry.uri);
+      }
+      return;
+    }
+    const entity = entityFromLibraryEntry(entry);
+    if (entity) await this.openEntity(entity);
+  }
+
+  openLikedSongs(): void {
+    void this.openEntity({
+      kind: "playlist",
+      uri: LIKED_SONGS_URI,
+      title: t("browse.likedSongs"),
+      canEdit: false,
+    });
+  }
+
+  openYourEpisodes(): void {
+    this.setSection("podcasts");
+  }
+
+  async searchGenre(genre: GenreSearch): Promise<void> {
+    if (this.section !== "search" || this.route.name !== "root") {
+      this.setSection("search");
+    }
+    this.searchTab = genre.tab;
+    this.recordSearch(genre.query);
+    await this.search(genre.query);
   }
 
   async loadLibrary(tab: LibraryTab): Promise<void> {
@@ -385,6 +586,7 @@ export class BrowseStore {
   }
 
   async openEntity(ref: EntityRef): Promise<void> {
+    this.recordEntity(ref);
     this.#cancelEntityContext();
     this.stack = [...this.stack, { name: "entity", entity: ref }];
     this.#beginEntity(ref);
@@ -422,12 +624,14 @@ export class BrowseStore {
   async playEntity(): Promise<void> {
     const entity = this.entity;
     if (!entity) return;
+    this.recordEntity(entity);
     await this.#run(() => audio.playContext(entity.uri, ""));
   }
 
   async playItem(item: ContextTrackInfo): Promise<void> {
     const entity = this.entity;
     if (!entity) return;
+    this.recordEntity(entity);
     await this.#run(() => audio.playContext(entity.uri, item.uri));
   }
 
@@ -614,6 +818,8 @@ export class BrowseStore {
     this.searching = false;
     this.searchError = null;
     this.results = null;
+    this.discover = emptyDiscover();
+    this.#discoverRequest = null;
     this.pages = emptyPages();
     this.libraryError = null;
     this.stack = [{ name: "root" }];

@@ -117,6 +117,16 @@ describe("Browse shell", () => {
     mocks.audio.isLiked.mockResolvedValue(false);
     mocks.audio.getEngineSettings.mockResolvedValue(engineSettings);
     mocks.audio.playlists.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
+    mocks.audio.albums.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
+    mocks.audio.artists.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
+    mocks.audio.search.mockResolvedValue({
+      tracks: { hits: [], total: 0 },
+      albums: { hits: [], total: 0 },
+      artists: { hits: [], total: 0 },
+      playlists: { hits: [], total: 0 },
+      shows: { hits: [], total: 0 },
+      episodes: { hits: [], total: 0 },
+    });
     mocks.audio.yourEpisodes.mockResolvedValue({
       uri: "",
       ready: true,
@@ -147,7 +157,7 @@ describe("Browse shell", () => {
     expect(screen.getByRole("navigation", { name: "Browse sections" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Search" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Library" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Podcasts" })).not.toBeNull();
+    expect(screen.getAllByRole("button", { name: "Podcasts" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Settings" })).not.toBeNull();
     expect(
       screen.getByRole("searchbox", {

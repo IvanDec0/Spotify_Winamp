@@ -17,46 +17,77 @@ library picks, podcasts, recent searches and genre categories.
 
 ### D1 — Store
 
-- [ ] Add persisted `recentEntities` (max 8, deduped by URI) and
+- [x] Add persisted `recentEntities` (max 8, deduped by URI) and
       `recentSearches` (max 6) under `cadence.browse.*`; safe parsing and
       version-tolerant storage.
-- [ ] Record an entity when it is opened/played from Browse; record a search
+- [x] Record an entity when it is opened/played from Browse; record a search
       only on explicit submit (Enter/chip/genre), not on every debounced
       keystroke.
-- [ ] Add a cached `ensureDiscover()` that loads a small library slice
+- [x] Add a cached `ensureDiscover()` that loads a small library slice
       (playlists, albums, artists) plus Your Episodes for the empty state.
-- [ ] Expose `openEntity` reuse for Liked Songs (`spotify:collection:tracks`)
+- [x] Expose `openEntity` reuse for Liked Songs (`spotify:collection:tracks`)
       and a Your Episodes shortcut (Podcasts section).
 
 ### D2 — Discover UI
 
-- [ ] Add `DiscoverView.svelte` under `src/app/browse/`:
+- [x] Add `DiscoverView.svelte` under `src/app/browse/`:
       greeting by time of day; quick favorites (Liked Songs, Your Episodes);
       "Escuchado recientemente" from `recentEntities`; "De tu biblioteca" from
       the cached library slice; "Podcasts para vos" from Your Episodes with a
       search CTA when empty; "Explorá por género" with curated colored cards;
       "Búsquedas recientes" chips with clear.
-- [ ] Genre cards set the query and run the search (music → tracks, podcasts →
+- [x] Genre cards set the query and run the search (music → tracks, podcasts →
       shows) and keep the search input in sync.
-- [ ] Show skeletons/empty/error states; keep the token-based skin-aware
+- [x] Show skeletons/empty/error states; keep the token-based skin-aware
       styling; genre cards may use curated gradients.
-- [ ] Integrate the empty branch in `SearchView.svelte` without changing the
+- [x] Integrate the empty branch in `SearchView.svelte` without changing the
       populated results behavior.
 
 ### D3 — i18n
 
-- [ ] Add `browse.discover.*` and `browse.genre.*` keys to `en`/`es`; keep
+- [x] Add `browse.discover.*` and `browse.genre.*` keys to `en`/`es`; keep
       `i18n:check` at 0 findings. Genre names that are proper/loanwords may stay
       as-is only if they are truly language-neutral.
 
 ### D4 — Tests and verification
 
-- [ ] Store tests: recents persistence/dedupe, explicit search recording,
+- [x] Store tests: recents persistence/dedupe, explicit search recording,
       discover loading/caching, Liked/Your Episodes shortcuts.
-- [ ] `DiscoverView` tests: sections render, genre click searches, recent chip
+- [x] `DiscoverView` tests: sections render, genre click searches, recent chip
       searches, empty library/podcasts CTAs.
-- [ ] `npm run i18n:check`, check/lint/format/test/build, `task build`,
+- [x] `npm run i18n:check`, check/lint/format/test/build, `task build`,
       `git diff --check`.
+
+#### Verification — 2026-11-05
+
+| Command | Result |
+|---|---|
+| `npm run i18n:check` | exit 0, 0 findings |
+| `npm run check` | exit 0, 0 errors / 0 warnings |
+| `npm run lint` | exit 0, no findings |
+| `npm run format` | exit 0 |
+| `npm run test` | exit 0, 39 files / 214 tests |
+| `npm run build` | exit 0, 251 modules |
+| `go test $(go list ./... \| grep -v '/node_modules/')` | exit 0 (unchanged) |
+| `task build` | exit 0; `bin/cadence` produced |
+| `git diff --check` | exit 0 |
+
+## Data sources
+
+- Library slices: `audio.playlists(0,12)`, `audio.albums(0,12)`,
+  `audio.artists(0,12)` and `audio.yourEpisodes()`.
+- Local recents: `cadence.browse.recentEntities` (max 8) and
+  `cadence.browse.recentSearches` (max 6).
+- Quick actions: Liked Songs via `spotify:collection:tracks` and Your Episodes
+  through the Podcasts section.
+- Curated genre cards; clicking one runs a normal catalog search.
+- No algorithmic recommendation endpoint or synthetic "made for you" data.
+
+## Progress log
+
+| Date | Task | Commit | Result |
+|---|---|---|---|
+| 2026-11-05 | Browse Discover | `feat(browse): add a personalized Discover empty state` (hash reported in the session) | Store recents/discover cache, DiscoverView with favorites/recents/library/podcasts/genres/searches, i18n keys and tests; all frontend/Go/build gates green; live GTK verification pending user |
 
 ## Acceptance
 

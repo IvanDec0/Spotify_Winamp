@@ -100,11 +100,11 @@
     if (searchTimer) clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       searchTimer = null;
-      void submitSearch(value);
+      void submitSearch(value, false);
     }, 300);
   }
 
-  async function submitSearch(value = searchInput): Promise<void> {
+  async function submitSearch(value = searchInput, explicit = false): Promise<void> {
     if (searchTimer) {
       clearTimeout(searchTimer);
       searchTimer = null;
@@ -115,6 +115,7 @@
       return;
     }
     if (browse.section !== "search") browse.setSection("search");
+    if (explicit) browse.recordSearch(value);
     await browse.search(value);
   }
 
@@ -195,12 +196,13 @@
       role="search"
       onsubmit={(event) => {
         event.preventDefault();
-        void submitSearch();
+        void submitSearch(undefined, true);
       }}
     >
       <Icon name="search" size={14} />
       <input
         bind:this={searchInputEl}
+        id="browse-search-input"
         type="search"
         value={searchInput}
         placeholder={t("browse.searchPlaceholder")}

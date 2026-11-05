@@ -6,6 +6,7 @@
   import Skeleton from "../../shared/ui/Skeleton.svelte";
   import { coverURL } from "../../lib/artwork";
   import { player } from "../../lib/player.svelte";
+  import DiscoverView from "./DiscoverView.svelte";
   import Icon from "./Icon.svelte";
   import { browse, type SearchTab } from "./browse.svelte";
   import { nextTabIndex, revealTab } from "./tablist";
@@ -218,10 +219,6 @@
       {/if}
     </div>
   {:else}
-    <div class="empty-panel">
-      <Icon name="search" size={22} />
-      <h2>{t("browse.searchPrompt")}</h2>
-      <p>{t("browse.searchBody")}</p>
-    </div>
+    <DiscoverView />
   {/if}
 </section>
