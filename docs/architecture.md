@@ -103,16 +103,22 @@ services expose plain Go methods and never touch `application.App`.
 ## Audio backend selection
 
 `playback.backend` is persisted in `$XDG_CONFIG_HOME/cadence/config.json` under
-`playback`. The accepted values are `librespot` (default) and `soloist`; an
-unknown or missing value normalizes to `librespot`. `main.go` reads it once at
-startup and constructs one provider.
+`playback`. The accepted values are `soloist` (default) and `librespot`
+(explicit fallback); an unknown or missing value normalizes to `soloist`.
+`main.go` reads it once at startup and constructs one provider.
 
 - **Startup selection, no hot-swap.** Changing the backend in Settings persists
   the value but does not switch the running provider. The UI marks the change as
   requiring a Cadence restart.
+- **Automatic Soloist maintenance.** In Soloist mode the audio adapter installs
+  the build when missing, checks for a newer build at startup and every six
+  hours (89-day age or 24 hours to expiry), prunes old versions and restarts the
+  process after an update. The work runs in a background goroutine and never
+  blocks app construction; progress and failures reach the UI through the
+  existing `audio:state` payload.
 - **One Soloist service in both modes.** `soloist.Service` is constructed in both
   modes so Settings can install, update and configure the key before the user
-  switches. Only Soloist mode starts the process.
+  switches. Only Soloist mode starts the process and runs maintenance.
 - **Two seams.** `playback.Provider` and `playback.Streamer` are unchanged.
   `catalog` declares the four methods it consumes in `catalog.Playback`;
   `PlayContext`, `PlayTrack`, `AddToQueue` and `StartRadio` route through the

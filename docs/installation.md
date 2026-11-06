@@ -286,7 +286,7 @@ Use this on a fresh Arch Linux x86_64 machine:
       **Cadence Library** catalog device at `spotify.com/pair`.
 - [ ] Wait for the Soloist download, choose **Generate API key**, generate the
       key at
-      `https://developer.spotify.com/dashboard`, and paste it into the modal.
+      `https://developer.spotify.com/dashboard/soloist`, and paste it into the modal.
 - [ ] Open Spotify on the same Wi-Fi network, choose **Cadence**, approve the
       pairing, and play a track. Confirm audio through the default sink.
 - [ ] Optional fallback for accounts that work with go-librespot: in Settings,

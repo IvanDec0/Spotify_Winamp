@@ -75,7 +75,7 @@ export function GetEngineSettings(): $CancellablePromise<$models.EngineSettings>
 
 /**
  * GetPlaybackSettings returns the persisted audio backend, defaulting to
- * librespot when the settings file has no playback section.
+ * Soloist when the settings file has no playback section.
  */
 export function GetPlaybackSettings(): $CancellablePromise<$models.PlaybackSettings> {
     return $Call.ByID(997209145);

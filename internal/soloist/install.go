@@ -23,7 +23,7 @@ const (
 	// DownloadsURL is Spotify's official Soloist download and update page.
 	DownloadsURL = "https://developer.spotify.com/documentation/soloist/reference/downloads-and-updates"
 	// DashboardURL is where the user creates a Soloist API key.
-	DashboardURL = "https://developer.spotify.com/dashboard"
+	DashboardURL = "https://developer.spotify.com/dashboard/soloist"
 
 	// archivesURL is Spotify's server for the archives DownloadsURL links to.
 	archivesURL = "https://soloist-builds.spotifycdn.com/"

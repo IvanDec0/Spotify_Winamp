@@ -257,10 +257,10 @@ export const es: Record<MessageKey, string> = {
     "Elige qué motor reproduce el audio. El cambio se aplica cuando reinicias Cadence.",
   "browse.settingsBackendLibrespot": "go-librespot",
   "browse.settingsBackendLibrespotHelp":
-    "Motor predeterminado. Reproduce el audio con tu compilación local de go-librespot.",
+    "Motor de respaldo. Reproduce el audio con tu compilación local de go-librespot.",
   "browse.settingsBackendSoloist": "Spotify Soloist",
   "browse.settingsBackendSoloistHelp":
-    "Usa Spotify Soloist para el audio cuando go-librespot no puede obtener las claves de audio. La biblioteca y la búsqueda siguen usando go-librespot.",
+    "Motor predeterminado. El reproductor oficial de Spotify; Cadence lo descarga y actualiza automáticamente. La biblioteca y la búsqueda siguen usando go-librespot.",
   "browse.settingsBackendApply": "Aplicar motor",
   "browse.settingsBackendRestart":
     "Reinicia Cadence para cambiar el motor de audio. Hasta entonces, la reproducción sigue usando el motor actual.",

@@ -237,7 +237,7 @@ The pairing is stored by Soloist, so it survives Cadence restarts.
   after a Cadence restart.
 - **Spotify Soloist**: install state, version, remaining days, **Install
   Soloist**/**Update Soloist**, the API key field, and links to **Spotify
-  dashboard** ([`https://developer.spotify.com/dashboard`](https://developer.spotify.com/dashboard))
+  dashboard** ([`https://developer.spotify.com/dashboard/soloist`](https://developer.spotify.com/dashboard/soloist))
   and **Download page**.
 - **Start**, **Stop** and **Restart** appear only while Soloist is the selected
   backend.

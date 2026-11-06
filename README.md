@@ -231,7 +231,7 @@ restarting Soloist after the update.
 The only manual step is the one-time API key. Spotify requires a signed-in
 dashboard session, accepting the terms and clicking **Generate API key**, so the
 first-run modal opens
-[`developer.spotify.com/dashboard`](https://developer.spotify.com/dashboard) in
+[`developer.spotify.com/dashboard/soloist`](https://developer.spotify.com/dashboard/soloist) in
 your browser and asks for one paste. Cadence validates the key, stores it in
 `$XDG_CONFIG_HOME/cadence/soloist/api-key` (`0600`) and starts Soloist. **Later**
 dismisses the prompt; a Browse banner and the Settings card remain the way back.

@@ -248,10 +248,10 @@ export const en = {
     "Choose which engine plays audio. Changing it takes effect after you restart Cadence.",
   "browse.settingsBackendLibrespot": "go-librespot",
   "browse.settingsBackendLibrespotHelp":
-    "Default engine. Plays audio through your local go-librespot build.",
+    "Fallback engine. Plays audio through your local go-librespot build.",
   "browse.settingsBackendSoloist": "Spotify Soloist",
   "browse.settingsBackendSoloistHelp":
-    "Uses Spotify Soloist for audio when go-librespot cannot retrieve audio keys. Library and search keep using go-librespot.",
+    "Default engine. Spotify's official player; Cadence downloads and updates it automatically. Library and search keep using go-librespot.",
   "browse.settingsBackendApply": "Apply backend",
   "browse.settingsBackendRestart":
     "Restart Cadence to switch the audio backend. Playback keeps using the current engine until then.",
