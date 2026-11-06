@@ -266,19 +266,56 @@ Implementation notes:
 
 ### Phase 2 — Go provider and Web API
 
-- [ ] P2.1 `settings.BackendWeb` + settings tests; default stays Soloist.
-- [ ] P2.2 OAuth PKCE: authorize URL, callback exchange, refresh, token store
+- [x] P2.1 `settings.BackendWeb` + settings tests; default stays Soloist.
+- [x] P2.2 OAuth PKCE: authorize URL, callback exchange, refresh, token store
       `0600`, logout/clear; scopes `streaming`, `user-read-playback-state`,
       `user-modify-playback-state`, `user-read-email`, `user-read-private`.
-- [ ] P2.3 Web API client: devices, transfer, play/pause/next/previous/seek/
+- [x] P2.3 Web API client: devices, transfer, play/pause/next/previous/seek/
       volume/shuffle/repeat/queue; typed errors and retry/backoff on 429/5xx.
-- [ ] P2.4 `webplayer.Provider`: `Provider` + `Streamer`; state/queue mapping;
-      device list from Web API; `CanSeek`/`CanControl`; `Stream` polls
-      `/me/player` (~1s) and emits on change; reconcile after transfer.
-- [ ] P2.5 `main.go`: construct the web provider only when the backend is
+- [x] P2.4 `webplayer.Provider`: `Provider` + `Streamer` + `catalog.Playback`;
+      state/queue mapping; device list from Web API; `CanSeek`/`CanControl`;
+      `Stream` polls `/me/player` (~1s) and emits on change; the helper starts
+      lazily on Play/PlayContext/Transfer, never in `Stream`/`State`.
+- [x] P2.5 `main.go`: construct the web provider only when the backend is
       `web`; no runtime start at boot; player service unchanged.
-- [ ] P2.6 Tests: fake Web API, fake control socket, provider mapping, token
+- [x] P2.6 Tests: fake Web API, fake control socket, provider mapping, token
       store, runtime manifest/checksum; no real account.
+
+## Phase 2 results (2026-11-06) — implemented and played
+
+Real-account E2E passed:
+`CADENCE_WEBPLAYER_E2E=1 go test -tags webplayer_e2e -run TestE2EPlayback -v ./internal/webplayer`.
+
+The test used the stored session, started the real helper, played
+`Never Gonna Give You Up - 2022 Remaster` on the `Cadence Web` device, and
+captured the system monitor with **peak 15005**. The app was also launched with
+`playback.backend = "web"` and the helper did **not** start at boot; the stream
+polled the Web API and the app stayed healthy. The backend was restored to
+Soloist afterwards.
+
+Implementation notes:
+
+- The OAuth callback and the player page share a fixed `127.0.0.1:8888` server,
+  because the dashboard entry is `http://127.0.0.1:8888/callback`. Spotify
+  supports dynamic ports only when the entry omits the port, which the
+  dashboard rejects in practice.
+- The token store is `$XDG_CONFIG_HOME/cadence/webplayer/tokens.json` (`0600`,
+  atomic). Refresh tokens rotate; `invalid_grant` clears the store and maps to
+  `ErrLoginRequired`. No token reaches the frontend, logs or errors.
+- The helper is lazy: `Play`, `PlayContext` and `Transfer("")` call
+  `EnsureStarted`; `Stream`/`State` only poll the Web API. Installing the
+  runtime is an explicit action (`InstallRuntime`): starting the helper never
+  triggers a multi-minute download behind a 15 s catalog action.
+- The provider reports `webplayer_login_required`, `webplayer_runtime_missing`,
+  `webplayer_rate_limited`, `webplayer_premium_required`,
+  `webplayer_device_missing` and `webplayer_api_error` as token-free
+  `PlayerError`s. Commands accept HTTP 200/204 as success.
+- The device id is read from the control `ready` event; it is never persisted.
+- CLI helpers until Phase 3: `cadence -web-login`, `-web-logout` and
+  `-web-install`. They are also useful for support and diagnostics.
+- `main.go` keeps the go-librespot sidecar as the library session in web mode
+  (`Cadence Library`, cache/MPRIS off) and only selects the web provider when
+  the backend is `web`.
 
 ### Phase 3 — UX and settings
 
@@ -314,10 +351,10 @@ New:
 
 - `internal/webplayer/doc.go`, `errors.go`, `manifest.go`, `manifest.json`,
   `extract.go`, `runtime.go`, `process.go`, `log.go`, `control.go`, `server.go`,
-  `smoke_test.go`, `*_test.go`
+  `tokens.go`, `oauth.go`, `webapi.go`, `provider.go`, `service.go`,
+  `smoke_test.go`, `e2e_test.go`, `*_test.go`
 - `internal/webplayer/helper/` (`embed.go`, `assets/page.html`,
   `assets/page.js`, `assets/app/{package.json,main.js,preload.js}`)
-- Phase 2 adds `provider.go`, `webapi.go`, `oauth.go`, `tokens.go`, `state.go`
 - `internal/webplayer/runtime/manifest.json` (pinned castlabs version/checksum)
 - `docs/adr/0005-web-playback-runtime.md`
 - `odd/tasks/spotify-web-player.md` (this plan)
@@ -391,9 +428,9 @@ codec/CDM licensing and a new CI pipeline before the SDK is even proven.
 
 ## Next step
 
-Phase 1 is complete. Start Phase 2: OAuth PKCE with a `0600` token store, the
-Web API client (devices, transfer, play/pause/seek/volume/shuffle/repeat/queue,
-2xx-as-success, 429 backoff), and the `webplayer.Provider` mapping onto
-`playback.Provider`/`playback.Streamer`, wired in `main.go` only when the
-backend is `web`. The control `ready` event supplies the ephemeral device ID;
-never persist it.
+Phase 2 is complete and played a real track. Start Phase 3: expose `web` in the
+settings UI, add "Connect Spotify" (wrapping the existing `Login`, `Logout`,
+`InstallRuntime` and `Status` surface), show the account label, runtime
+status/version and install progress, localize the error codes, and keep the
+player/queue/volume/seek UI working through the existing `PlayerState` and
+`player:state` event.

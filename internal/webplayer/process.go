@@ -141,6 +141,27 @@ func (p *Process) Wait() error {
 	return p.waitErr
 }
 
+// Done returns a channel closed when the helper exits.
+func (p *Process) Done() <-chan struct{} {
+	if p == nil {
+		return nil
+	}
+	return p.done
+}
+
+// Exited reports whether the helper process has exited.
+func (p *Process) Exited() bool {
+	if p == nil {
+		return false
+	}
+	select {
+	case <-p.done:
+		return true
+	default:
+		return false
+	}
+}
+
 // Stop terminates the helper process group: SIGTERM, three seconds, then
 // SIGKILL. It is idempotent and safe to call concurrently.
 func (p *Process) Stop(ctx context.Context) error {

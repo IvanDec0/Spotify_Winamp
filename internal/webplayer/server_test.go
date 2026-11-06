@@ -332,6 +332,40 @@ func TestServerGeneratesNonce(t *testing.T) {
 	}
 }
 
+func TestServerAddrLoopback(t *testing.T) {
+	server, err := NewServer(ServerOptions{Addr: "127.0.0.1:0", Nonce: "test-nonce", Page: []byte("page")})
+	if err != nil {
+		t.Fatalf("new server: %v", err)
+	}
+	defer server.Close()
+	parsed, err := url.Parse(server.PlayerURL())
+	if err != nil {
+		t.Fatalf("parse player URL: %v", err)
+	}
+	if parsed.Hostname() != "127.0.0.1" {
+		t.Fatalf("player host = %q, want 127.0.0.1", parsed.Hostname())
+	}
+	if parsed.Port() == "" || parsed.Port() == "0" {
+		t.Fatalf("player port = %q, want a bound port", parsed.Port())
+	}
+}
+
+func TestServerRejectsNonLoopbackAddr(t *testing.T) {
+	for _, addr := range []string{
+		"0.0.0.0:0",
+		"localhost:0",
+		"192.168.1.10:8888",
+		":8888",
+		"127.0.0.1",
+		"127.0.0.1:not-a-port",
+		"127.0.0.1:70000",
+	} {
+		if _, err := NewServer(ServerOptions{Addr: addr, Page: []byte("page")}); err == nil {
+			t.Fatalf("NewServer(%q) accepted a non-loopback address", addr)
+		}
+	}
+}
+
 func TestServerCloseIsIdempotent(t *testing.T) {
 	server, err := NewServer(ServerOptions{Nonce: "test-nonce", Page: []byte("page")})
 	if err != nil {

@@ -193,6 +193,9 @@ func TestNormalizePlaybackBackend(t *testing.T) {
 		{name: "soloist", value: BackendSoloist, want: BackendSoloist},
 		{name: "padded and upper case soloist", value: " SOLOIST ", want: BackendSoloist},
 		{name: "mixed case soloist", value: "SoLoIsT", want: BackendSoloist},
+		{name: "web", value: BackendWeb, want: BackendWeb},
+		{name: "padded and upper case web", value: " WEB ", want: BackendWeb},
+		{name: "mixed case web", value: "WeB", want: BackendWeb},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -240,6 +243,7 @@ func TestStoreNormalizesStoredPlaybackBackend(t *testing.T) {
 	}{
 		{name: "padded soloist", value: " SOLOIST ", want: BackendSoloist},
 		{name: "explicit librespot", value: " LIBRESPOT ", want: BackendLibrespot},
+		{name: "explicit web", value: " WEB ", want: BackendWeb},
 		{name: "unknown", value: "pulse", want: BackendSoloist},
 		{name: "empty", value: "", want: BackendSoloist},
 	}

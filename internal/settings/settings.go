@@ -20,6 +20,7 @@ const SchemaVersion = 1
 const (
 	BackendLibrespot = "librespot"
 	BackendSoloist   = "soloist"
+	BackendWeb       = "web"
 )
 
 // SkinState is the persisted skin configuration.
@@ -76,13 +77,17 @@ func defaultPlayback() PlaybackState {
 
 // NormalizePlaybackBackend maps an arbitrary stored value to a supported
 // backend. Soloist is the default: empty and unknown values resolve to it,
-// while an explicit "librespot" after trimming and case folding is kept as the
-// opt-out escape hatch.
+// while an explicit "librespot" or "web" after trimming and case folding is
+// kept.
 func NormalizePlaybackBackend(value string) string {
-	if strings.EqualFold(strings.TrimSpace(value), BackendLibrespot) {
+	switch {
+	case strings.EqualFold(strings.TrimSpace(value), BackendLibrespot):
 		return BackendLibrespot
+	case strings.EqualFold(strings.TrimSpace(value), BackendWeb):
+		return BackendWeb
+	default:
+		return BackendSoloist
 	}
-	return BackendSoloist
 }
 
 // Default returns a configuration that always selects the built-in skin, uses

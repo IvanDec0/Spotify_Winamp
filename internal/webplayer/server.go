@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -42,6 +43,7 @@ type CallbackHandler interface {
 
 // ServerOptions configures the loopback HTTP server.
 type ServerOptions struct {
+	Addr     string
 	Nonce    string
 	Page     []byte
 	Script   []byte
@@ -65,9 +67,13 @@ type Server struct {
 	closeErr  error
 }
 
-// NewServer binds 127.0.0.1:0 and starts serving. A missing nonce is
-// generated with crypto/rand.
+// NewServer binds the configured loopback address (127.0.0.1:0 by default) and
+// starts serving. A missing nonce is generated with crypto/rand.
 func NewServer(opts ServerOptions) (*Server, error) {
+	addr, err := normalizeServerAddr(opts.Addr)
+	if err != nil {
+		return nil, err
+	}
 	nonce := opts.Nonce
 	if nonce == "" {
 		generated, err := generateNonce()
@@ -76,7 +82,7 @@ func NewServer(opts ServerOptions) (*Server, error) {
 		}
 		nonce = generated
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("webplayer: cannot bind the local HTTP server: %w", err)
 	}
@@ -229,6 +235,27 @@ func generateNonce() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(buffer), nil
+}
+
+// normalizeServerAddr validates the loopback bind address. Port zero selects an
+// ephemeral port, which is what tests and embedders use by default.
+func normalizeServerAddr(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "127.0.0.1:0", nil
+	}
+	host, port, err := net.SplitHostPort(raw)
+	if err != nil {
+		return "", fmt.Errorf("webplayer: the local HTTP address is not a host:port pair: %w", err)
+	}
+	if host != "127.0.0.1" {
+		return "", fmt.Errorf("webplayer: the local HTTP server must bind 127.0.0.1")
+	}
+	value, err := strconv.Atoi(port)
+	if err != nil || value < 0 || value > 65535 {
+		return "", fmt.Errorf("webplayer: the local HTTP server port is invalid")
+	}
+	return raw, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

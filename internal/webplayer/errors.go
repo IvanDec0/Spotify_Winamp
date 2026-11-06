@@ -5,15 +5,29 @@ import "errors"
 // Stable error codes carried by Error. They are stable identifiers, not
 // messages: callers and the frontend may localize them.
 const (
-	CodeInvalidManifest  = "webplayer_invalid_manifest"
-	CodeUnsupported      = "webplayer_unsupported_platform"
-	CodeDownloadFailed   = "webplayer_download_failed"
-	CodeChecksumMismatch = "webplayer_checksum_mismatch"
-	CodeInstallFailed    = "webplayer_install_failed"
-	CodeNotInstalled     = "webplayer_not_installed"
-	CodeStartFailed      = "webplayer_start_failed"
-	CodeInvalidArgument  = "webplayer_invalid_argument"
-	CodeProtocol         = "webplayer_protocol_error"
+	CodeInvalidManifest     = "webplayer_invalid_manifest"
+	CodeUnsupportedPlatform = "webplayer_unsupported_platform"
+	CodeDownloadFailed      = "webplayer_download_failed"
+	CodeChecksumMismatch    = "webplayer_checksum_mismatch"
+	CodeInstallFailed       = "webplayer_install_failed"
+	CodeNotInstalled        = "webplayer_not_installed"
+	CodeStartFailed         = "webplayer_start_failed"
+	CodeInvalidArgument     = "webplayer_invalid_argument"
+	CodeProtocol            = "webplayer_protocol_error"
+	CodeLoginRequired       = "webplayer_login_required"
+	CodeLoginTimeout        = "webplayer_login_timeout"
+	CodeLoginInProgress     = "webplayer_login_in_progress"
+	CodeRuntimeMissing      = "webplayer_runtime_missing"
+	CodeRuntimeFailed       = "webplayer_runtime_failed"
+	CodeServerFailed        = "webplayer_server_failed"
+	CodeAPI                 = "webplayer_api"
+	CodeRateLimited         = "webplayer_rate_limited"
+	CodePremium             = "webplayer_premium"
+	CodeDeviceMissing       = "webplayer_device_missing"
+	CodeWidevine            = "webplayer_widevine"
+	CodeUnsupported         = "webplayer_unsupported"
+	CodeInvalidState        = "webplayer_invalid_state"
+	CodeNoTokens            = "webplayer_no_tokens"
 )
 
 // Error is a web player error carrying a stable code.
@@ -75,11 +89,20 @@ func CodeOf(err error) string {
 // also works because they are coded errors.
 var (
 	ErrInvalidManifest     = &Error{Code: CodeInvalidManifest, Message: "the web player manifest is invalid"}
-	ErrUnsupportedPlatform = &Error{Code: CodeUnsupported, Message: "the web player runtime is not available for this platform"}
+	ErrUnsupportedPlatform = &Error{Code: CodeUnsupportedPlatform, Message: "the web player runtime is not available for this platform"}
 	ErrChecksumMismatch    = &Error{Code: CodeChecksumMismatch, Message: "the downloaded web player runtime failed SHA-256 verification"}
 	ErrNotInstalled        = &Error{Code: CodeNotInstalled, Message: "the web player runtime is not installed"}
 	ErrNotConnected        = &Error{Code: CodeProtocol, Message: "the web player control socket is not connected"}
 	ErrInvalidArgument     = &Error{Code: CodeInvalidArgument, Message: "the web player argument is invalid"}
+
+	ErrLoginRequired       = &Error{Code: CodeLoginRequired, Message: "connect Spotify to use the web player"}
+	ErrLoginTimeout        = &Error{Code: CodeLoginTimeout, Message: "the Spotify login timed out"}
+	ErrLoginInProgress     = &Error{Code: CodeLoginInProgress, Message: "a Spotify login is already in progress"}
+	ErrRuntimeNotInstalled = &Error{Code: CodeRuntimeMissing, Message: "the web player runtime is not installed"}
+	ErrNoActiveDevice      = &Error{Code: CodeDeviceMissing, Message: "there is no active Spotify device"}
+	ErrPremiumRequired     = &Error{Code: CodePremium, Message: "Spotify Premium is required for web playback"}
+	ErrInvalidState        = &Error{Code: CodeInvalidState, Message: "the Spotify authorization state is invalid"}
+	ErrNoTokens            = &Error{Code: CodeNoTokens, Message: "no Spotify session is stored"}
 )
 
 // codedError builds an Error with a code, a message and an optional cause.
