@@ -171,3 +171,50 @@ Modified:
   loopback.
 - **Log parsing.** If Soloist changes the log line, the `ss` fallback covers it;
   if both fail, the one-tap flow remains.
+
+## Outcome (2026-11-06) — rejected, code removed
+
+The headless ZeroConf pairing was tested against the real Soloist build and
+did not complete the account login. It is not part of the shipped code.
+
+- The official `BlobBuilder` from `SpotifyWebApiPython` (`I/P/Q` markers,
+  AES-ECB with `PBKDF2-SHA1(sha1(deviceID), username, 256, 20)`, outer
+  DH/AES-CTR/HMAC) was used with the library's AP reusable credentials.
+- `tokenType=""`, `default` and `accesstoken` returned HTTP 200 / `status 101`
+  but `auth_state.logged_in` stayed `false`.
+- `tokenType="auth_token"` reached `loginAuthToken` but failed with
+  `session_invalid_connect_auth_token` (HTTP 500).
+- The real `getInfo` returns `tokenType: "default"`, `modelDisplayName:
+  "Soloist"`, `clientID: 334d00fed24f4e7b9abbe02ee28e0b5f`, and an `authInfo`
+  base64 protobuf: a UUID, the client ID, and a nested 32-byte token/secret
+  pair. That is the Soloist/Core Playback SDK client auth material; no public
+  client uses it to create the initial session.
+- `SpotifyWebApiPython` has an explicit Soloist branch stating that the initial
+  session has not been figured out and that an authorized Spotify App must
+  connect first. It records the same `auth_token`/`authorization_code`
+  failures.
+- Conclusion: the API key and librespot credentials are not enough. Soloist's
+  initial account session is an undocumented, proprietary handshake. The
+  auto-pair implementation (`pair.go`, `tryAutoPair`, `EngineCredentials`,
+  `RetryPairing`, `OpenSpotify`) was removed in `1ea7a45`; the proven one-time
+  Spotify app pairing is the only supported path.
+
+### OAuth token matrix
+
+A Spotify OAuth device-flow token (the same account, 446 characters) was also
+tested against the real Soloist:
+
+| Payload | `tokenType` | Result |
+|---|---|---|
+| raw OAuth token | `accesstoken` | HTTP 400, invalid arguments |
+| raw OAuth token | `auth_token` | HTTP 500, invalid token |
+| raw OAuth token | `default` | HTTP 400, invalid arguments |
+| `BlobBuilder`, auth type 3 (OAuth token as password) | `accesstoken` | HTTP 200 / `101`, `logged_in=false` |
+| `BlobBuilder`, auth type 3 | `auth_token` | HTTP 500, `session_invalid_connect_auth_token` |
+| `BlobBuilder`, auth type 3 | `default` | HTTP 200 / `101`, `logged_in=false` |
+
+The `auth_token` attempts are the only ones that reach `loginAuthToken`; they
+fail with `session_invalid_connect_auth_token` and log
+`login failed: make sure --api-key is valid`. The API key may also be invalid;
+either way, no presented combination creates the initial Soloist session. No
+playback was achieved.
