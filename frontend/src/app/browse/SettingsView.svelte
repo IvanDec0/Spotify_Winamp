@@ -339,6 +339,13 @@
               {t("browse.soloistInstallHelp")}
             {/if}
           </p>
+          {#if soloist?.installed && !soloist.expired && soloist.daysLeft >= 0 && soloist.daysLeft <= 14}
+            <p class="settings-help">
+              <span class="soloist-badge is-warn">
+                {t("browse.soloistExpiryWarning", { days: soloist.daysLeft })}
+              </span>
+            </p>
+          {/if}
         </div>
 
         {#if soloist?.installed}

@@ -254,6 +254,8 @@ export const es: Record<MessageKey, string> = {
   "browse.soloistVersion": "Versión {version}",
   "browse.soloistExpiresIn":
     "La compilación caduca en {days, plural, one {# día} other {# días}}.",
+  "browse.soloistExpiryWarning":
+    "Actualiza en {days, plural, one {# día} other {# días}}; esta compilación deja de funcionar después.",
   "browse.soloistExpired": "Esta compilación caducó. Instala una actualización para seguir reproduciendo.",
   "browse.soloistInstall": "Instalar Soloist",
   "browse.soloistUpdate": "Actualizar Soloist",

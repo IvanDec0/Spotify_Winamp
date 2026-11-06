@@ -245,6 +245,8 @@ export const en = {
   "browse.soloistInstalled": "Installed",
   "browse.soloistVersion": "Version {version}",
   "browse.soloistExpiresIn": "Build expires in {days, plural, one {# day} other {# days}}.",
+  "browse.soloistExpiryWarning":
+    "Update within {days, plural, one {# day} other {# days}}; this build stops working after that.",
   "browse.soloistExpired": "This build has expired. Install an update to keep playing.",
   "browse.soloistInstall": "Install Soloist",
   "browse.soloistUpdate": "Update Soloist",

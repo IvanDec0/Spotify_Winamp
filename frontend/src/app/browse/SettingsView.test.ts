@@ -402,6 +402,14 @@ describe("SettingsView", () => {
     expect(screen.getByText(/choose Cadence as the device/)).not.toBeNull();
   });
 
+  it("warns when the Soloist build is close to expiry", async () => {
+    mocks.music.soloist = soloistState({ daysLeft: 10 });
+
+    await renderSettings();
+
+    expect(screen.getByText(/Update within 10 days/)).not.toBeNull();
+  });
+
   it("disables go-librespot-only controls in Soloist mode", async () => {
     mocks.music.audio.playbackBackend = "soloist";
     mocks.music.soloist = soloistState();

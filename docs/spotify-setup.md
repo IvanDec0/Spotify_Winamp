@@ -218,9 +218,9 @@ Volume, shuffle, repeat, next, previous and pause work through Soloist.
 Soloist builds expire 90 days after their build timestamp. An expired build
 exits with code `10`; Cadence maps that to `soloist_build_expired` and shows
 **This build has expired. Install an update to keep playing.** The Settings card
-shows the remaining days for an installed build, and **Update Soloist** performs
-a manual update. Treat the final two weeks of the countdown as the update
-window: there is no separate reminder, and playback stops at expiry.
+shows the remaining days for an installed build, warns when 14 days or fewer
+remain, and **Update Soloist** performs a manual update. Playback stops at
+expiry.
 
 There is no background updater. Cadence is not updated with a new Soloist build,
 and a Cadence package upgrade never replaces Soloist.
