@@ -193,8 +193,9 @@ Modified:
       ticker for the fresh-install case where Soloist starts before the library
       is paired.
 - [x] Phase C1-C2: setup documentation and onboarding notes.
-- [ ] C3: real-build E2E on the failing PC (Soloist's actual ZeroConf port log
-      line and path are still unconfirmed on hardware).
+- [ ] C3: real-build E2E on the failing PC. The real binary was downloaded and
+      exercised on the development machine; a valid API key is required before
+      the successful login/playback half can run.
 
 ## Verification evidence
 
@@ -215,6 +216,24 @@ Modified:
 - `go build ./...`: pass.
 - The `ss` fallback is only exercised when `ss` is installed; the log-line test
   is the primary path and does not depend on it.
+
+### Real-build evidence (2026-11-06, Linux x86_64)
+
+- Downloaded `soloist 1.3.10.50 build 1793966524 (20261106)` from Spotify to
+  `/tmp`; `--version` and `--help` work.
+- Without `-k`: `Error: --api-key is required`.
+- With a dummy key, the daemon starts, writes `ws.port`, and logs exactly:
+  `Started ZeroConf service on port 55157 path /zc`.
+- The real ZeroConf endpoint accepted our `getInfo` and `addUser` request
+  (`zeroconf: received getInfo`, `zeroconf: received addUser`), so the port
+  discovery, path and crypto are correct against the real binary.
+- `auth_state.logged_in` stayed `false`; no `settings/Users` session was
+  created. The binary contains `login failed: make sure --api-key is valid`.
+- Conclusion: the account auto-pair protocol works up to the credential
+  handoff, but **the API key remains mandatory at Spotify Connect login**. The
+  saved library session alone cannot authenticate Soloist. Playing a track
+  requires one valid API key; without it Spotify rejects the login and the
+  `play` command returns `command requires authentication`.
 
 ### Protocol note
 
