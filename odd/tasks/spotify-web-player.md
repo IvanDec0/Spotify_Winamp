@@ -2,11 +2,12 @@
 
 ## Objective
 
-Add an optional `web` playback backend that plays Spotify through the official
-Web Playback SDK inside a bundled Chromium runtime with Widevine, so Cadence
-can play without Spotify desktop/mobile and without the Soloist app pairing.
-The runtime is lazy, isolated and removable: the default build stays light and
-the existing go-librespot/Soloist backends are untouched.
+Add a `web` playback backend that plays Spotify through the official Web
+Playback SDK inside a bundled Chromium runtime with Widevine, so Cadence can
+play without Spotify desktop/mobile and without the Soloist app pairing. Since
+Phase 4 it is the default backend; librespot and Soloist remain opt-in. The
+runtime is lazy, isolated and removable: the base artifact stays light and the
+existing go-librespot/Soloist backends are untouched.
 
 ## Why this path
 
@@ -44,7 +45,7 @@ the existing go-librespot/Soloist backends are untouched.
 
 ```text
 main.go
-  settings.playback.backend = "web" (opt-in)
+  settings.playback.backend = "web" (default; librespot/soloist opt-in)
   internal/webplayer
     Provider        playback.Provider + playback.Streamer -> player.Service
     WebAPI          Spotify Web API playback control
@@ -96,7 +97,8 @@ is an implementation detail behind `Runtime`.
 
 In:
 
-- `settings.BackendWeb = "web"` and an opt-in settings option.
+- `settings.BackendWeb = "web"` as the default backend; librespot and Soloist
+  stay selectable.
 - `internal/webplayer`: provider, Web API client, OAuth PKCE, token store,
   runtime manager, control protocol, state mapping.
 - `webplayer/helper`: castlabs Electron minimal shell (v1), embedded in
@@ -266,7 +268,8 @@ Implementation notes:
 
 ### Phase 2 — Go provider and Web API
 
-- [x] P2.1 `settings.BackendWeb` + settings tests; default stays Soloist.
+- [x] P2.1 `settings.BackendWeb`; web becomes the default in Phase 4, while
+      librespot and Soloist remain selectable.
 - [x] P2.2 OAuth PKCE: authorize URL, callback exchange, refresh, token store
       `0600`, logout/clear; scopes `streaming`, `user-read-playback-state`,
       `user-modify-playback-state`, `user-read-email`, `user-read-private`.
@@ -290,8 +293,7 @@ The test used the stored session, started the real helper, played
 `Never Gonna Give You Up - 2022 Remaster` on the `Cadence Web` device, and
 captured the system monitor with **peak 15005**. The app was also launched with
 `playback.backend = "web"` and the helper did **not** start at boot; the stream
-polled the Web API and the app stayed healthy. The backend was restored to
-Soloist afterwards.
+polled the Web API and the app stayed healthy. It is now the default backend.
 
 Implementation notes:
 
@@ -319,14 +321,66 @@ Implementation notes:
 
 ### Phase 3 — UX and settings
 
-- [ ] P3.1 Settings: backend `web`, "Connect Spotify" (browser OAuth), account
+- [x] P3.1 Settings: backend `web`, "Connect Spotify" (browser OAuth), account
       label, runtime status/version, install/update, start/stop, logout.
-- [ ] P3.2 Onboarding: offer `web` as the "no app" option after Soloist is
+- [x] P3.2 Onboarding: offer `web` as the "no app" option after Soloist is
       unavailable; explain the one-time browser login and the runtime download.
-- [ ] P3.3 Errors: runtime missing, OAuth denied/expired, device not found,
+- [x] P3.3 Errors: runtime missing, OAuth denied/expired, device not found,
       Premium required, Widevine/CDM missing, Web API rate limit; localized.
-- [ ] P3.4 Player UI: device/transfer, queue, volume, seek; hide controls the
+- [x] P3.4 Player UI: device/transfer, queue, volume, seek; hide controls the
       SDK does not expose; visualizer unchanged via system capture.
+
+## Phase 3 results (2026-11-06) — implemented
+
+- Settings has the `web` backend option, a headless web-player section with
+  account, Client ID, runtime status/version, install/update, start/stop and
+  disconnect, plus localized `webplayer_*` errors.
+- The Soloist onboarding dialog offers “Use the web player instead” and
+  explains the restart/connect flow.
+- The player UI keeps devices/transfer, queue, volume, seek and the visualizer;
+  the unsupported radio action is hidden in web mode.
+- `task verify` passes (301 frontend tests, all Go packages, audio check).
+
+## Phase 3.5 — Spotify Developer automation (added)
+
+The dashboard automation is a first-class feature, not a manual setup step:
+
+- A separate embedded helper (`internal/developer`) drives the Spotify
+  Developer dashboard in the castlabs runtime. It is **headless** when the
+  persistent profile already has a session; only a real credential/login page
+  shows a window, and it hides again as soon as the login completes.
+- All terms are accepted automatically: the app-creation Developer Terms box,
+  the Soloist `v1/consent` POST, and the Spotify OAuth consent button. The
+  Cadence action is the user's explicit consent.
+- The helper finds the **Cadence** developer app or creates it (name, redirect
+  URI `http://127.0.0.1:8888/callback`, Web API + Web Playback SDK), then stores
+  its public Client ID at `$XDG_CONFIG_HOME/cadence/webplayer/client-id`
+  (`0600`). The active app is
+  `8914d701933445d2800395f85d115fed`.
+- The Soloist API key flow reads/generates/rotates the key through the
+  dashboard wristband API and saves it through `soloist.SaveAPIKey` (`0600`).
+  The previously exposed key was rotated; the old key is invalid.
+- The web player OAuth uses the same embedded browser: it opens the authorize
+  URL in the persistent profile, auto-clicks the localized consent
+  (`Aceptar`/`Agree`), and the loopback callback completes the PKCE exchange.
+  No system browser is opened.
+- The persistent dashboard profile lives at
+  `$XDG_CONFIG_HOME/cadence/developer/profile` (`0700`). It is a credential
+  store; deleting it forces a visible login on the next automation.
+
+Validation with the real account:
+
+- Headless OAuth completed with the Cadence app and stored a token whose
+  `clientId` is `8914d701933445d2800395f85d115fed`.
+- Playback E2E played `Never Gonna Give You Up - 2022 Remaster` on
+  `Cadence Web` with audio peak **15005** using the new app/token.
+- The app was launched with `web` as the default backend: no helper at boot,
+  the stream polled the Web API, and the app stayed healthy.
+- `task verify` passes.
+
+Note: an earlier probe created `7fe450922d8b4d31ac8bda4a1767d903` under an
+unclear party/session. The verified active app and Client ID are `8914…`; if a
+second empty “Cadence” app appears in the dashboard, delete the `7fe450…` one.
 
 ### Phase 4 — Embedding and performance
 
@@ -352,10 +406,13 @@ New:
 - `internal/webplayer/doc.go`, `errors.go`, `manifest.go`, `manifest.json`,
   `extract.go`, `runtime.go`, `process.go`, `log.go`, `control.go`, `server.go`,
   `tokens.go`, `oauth.go`, `webapi.go`, `provider.go`, `service.go`,
-  `smoke_test.go`, `e2e_test.go`, `*_test.go`
+  `clientid.go`, `smoke_test.go`, `e2e_test.go`, `*_test.go`
 - `internal/webplayer/helper/` (`embed.go`, `assets/page.html`,
   `assets/page.js`, `assets/app/{package.json,main.js,preload.js}`)
 - `internal/webplayer/runtime/manifest.json` (pinned castlabs version/checksum)
+- `internal/developer/doc.go`, `errors.go`, `service.go`, `*_test.go`
+- `internal/developer/helper/` (`embed.go`, `assets/app/{package.json,main.js}`)
+- `internal/wailsapi/audio/developer.go`, `web.go`
 - `docs/adr/0005-web-playback-runtime.md`
 - `odd/tasks/spotify-web-player.md` (this plan)
 
@@ -375,12 +432,13 @@ Not changed:
 
 ## Acceptance criteria
 
-- `web` is opt-in; default remains Soloist and the base artifact has no
-  Chromium runtime.
+- `web` is the default; librespot and Soloist remain selectable and the base
+  artifact has no Chromium runtime (it is downloaded on demand).
 - The runtime is downloaded lazily, checksum-verified, versioned and pruned;
   no partial installs.
-- OAuth PKCE works in the system browser; the refresh token is `0600` and never
-  reaches the frontend/logs.
+- OAuth PKCE works through the embedded Chromium profile (headless after the
+  initial login), and the refresh token is `0600` and never reaches the
+  frontend/logs.
 - The SDK device appears in `GET /me/player/devices`; transfer/play/pause/seek/
   volume/queue work through the Web API; audio plays and the visualizer works.
 - No Spotify desktop/mobile is required.
@@ -428,9 +486,8 @@ codec/CDM licensing and a new CI pipeline before the SDK is even proven.
 
 ## Next step
 
-Phase 2 is complete and played a real track. Start Phase 3: expose `web` in the
-settings UI, add "Connect Spotify" (wrapping the existing `Login`, `Logout`,
-`InstallRuntime` and `Status` surface), show the account label, runtime
-status/version and install progress, localize the error codes, and keep the
-player/queue/volume/seek UI working through the existing `PlayerState` and
-`player:state` event.
+Phases 3 and 3.5 are complete: the web backend is the default, the developer
+dashboard automation is headless, the Cadence app and Soloist key are
+configured, and the real OAuth/playback E2E passed. Next is Phase 4 (embedding
+and performance budgets) and Phase 5 (ADR, setup/removal docs, the
+`webplayer:smoke` task and a final X11/Wayland pass).
