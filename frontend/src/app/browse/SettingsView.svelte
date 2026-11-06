@@ -400,9 +400,7 @@
           </div>
           <p class="settings-help" id="settings-soloist-api-key-help">
             {t("browse.soloistApiKeyHelp")}
-            {soloist?.apiKeySet
-              ? t("browse.soloistApiKeySet")
-              : t("browse.soloistApiKeyMissing")}
+            {soloist?.apiKeySet ? t("browse.soloistApiKeySet") : t("browse.soloistApiKeyMissing")}
           </p>
         </div>
 

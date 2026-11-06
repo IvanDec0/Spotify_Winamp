@@ -198,9 +198,7 @@ describe("SearchView", () => {
     render(SearchView);
 
     expect(screen.queryByRole("button", { name: "Start radio from One More Time" })).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Add One More Time to the queue" }),
-    ).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Add One More Time to the queue" })).not.toBeNull();
   });
 
   it("offers the track radio action with the go-librespot backend", () => {
@@ -211,8 +209,6 @@ describe("SearchView", () => {
 
     render(SearchView);
 
-    expect(
-      screen.getByRole("button", { name: "Start radio from One More Time" }),
-    ).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Start radio from One More Time" })).not.toBeNull();
   });
 });

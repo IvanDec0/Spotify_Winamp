@@ -146,7 +146,8 @@ function soloistState(overrides: Record<string, unknown> = {}): Record<string, u
   };
 }
 
-function skinCatalog() {  return {
+function skinCatalog() {
+  return {
     skins: [
       {
         id: "clarity",
@@ -418,7 +419,9 @@ describe("SettingsView", () => {
 
     expect((screen.getByLabelText("Bitrate") as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByLabelText("Crossfade") as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByLabelText("Disable normalisation") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Disable normalisation") as HTMLInputElement).disabled).toBe(
+      true,
+    );
     expect((screen.getByLabelText("Enable disk cache") as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByLabelText("Size limit") as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByLabelText("FLAC") as HTMLInputElement).disabled).toBe(true);
