@@ -399,36 +399,38 @@
           </p>
         </div>
 
-        <div class="settings-row">
-          <span class="settings-label">{t("browse.soloistControls")}</span>
-          <div class="settings-control">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={browseSettings.soloistBusy || !soloist?.installed || soloist?.running}
-              onclick={() => void browseSettings.startSoloist()}
-            >
-              {t("browse.soloistStart")}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={browseSettings.soloistBusy || !soloist?.running}
-              onclick={() => void browseSettings.stopSoloist()}
-            >
-              {t("browse.soloistStop")}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={browseSettings.soloistBusy || !soloist?.installed}
-              onclick={() => void browseSettings.restartSoloist()}
-            >
-              {t("browse.soloistRestart")}
-            </Button>
+        {#if music.soloistMode}
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.soloistControls")}</span>
+            <div class="settings-control">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.soloistBusy || !soloist?.installed || soloist?.running}
+                onclick={() => void browseSettings.startSoloist()}
+              >
+                {t("browse.soloistStart")}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.soloistBusy || !soloist?.running}
+                onclick={() => void browseSettings.stopSoloist()}
+              >
+                {t("browse.soloistStop")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={browseSettings.soloistBusy || !soloist?.installed}
+                onclick={() => void browseSettings.restartSoloist()}
+              >
+                {t("browse.soloistRestart")}
+              </Button>
+            </div>
+            <p class="settings-help">{t("browse.soloistControlsHelp")}</p>
           </div>
-          <p class="settings-help">{t("browse.soloistControlsHelp")}</p>
-        </div>
+        {/if}
 
         <div class="settings-row">
           <span class="settings-label">{t("browse.soloistLinks")}</span>

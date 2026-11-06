@@ -422,6 +422,18 @@ describe("SettingsView", () => {
     expect(screen.getByText(/These options apply to go-librespot only/)).not.toBeNull();
   });
 
+  it("hides the Soloist process controls in librespot mode", async () => {
+    mocks.music.audio.playbackBackend = "librespot";
+    mocks.music.soloist = soloistState({ installed: true });
+
+    await renderSettings();
+
+    expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Restart" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Update Soloist" })).not.toBeNull();
+  });
+
   it("shows install progress and disables the install action", async () => {
     mocks.music.soloist = soloistState({
       installed: false,

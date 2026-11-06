@@ -93,7 +93,7 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 		})
 	}
 	if s.enabled {
-		if s.soloist != nil {
+		if s.soloist != nil && s.backend == settings.BackendSoloist {
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 				defer cancel()
@@ -129,7 +129,10 @@ func (s *Service) ServiceShutdown() error {
 func (s *Service) GetState() AudioState {
 	state := s.catalog.GetState()
 	state.PlaybackBackend = s.backend
-	if s.backend == settings.BackendSoloist && s.soloist != nil {
+	// Soloist state is merged in both modes so Settings can install it and
+	// store the API key before the user switches backends. The process only
+	// runs in Soloist mode.
+	if s.soloist != nil {
 		state.Soloist = s.soloistState()
 	}
 	return state

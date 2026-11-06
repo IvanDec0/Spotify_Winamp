@@ -371,7 +371,7 @@ func TestGetStateMergesSoloistState(t *testing.T) {
 	}
 }
 
-func TestGetStateLeavesSoloistNilInLibrespotMode(t *testing.T) {
+func TestGetStateIncludesSoloistStateInLibrespotMode(t *testing.T) {
 	fake := &fakeSoloistBackend{state: soloist.State{Installed: true, Version: "1.3.10.12"}}
 	service, _ := newTestService(t, settings.BackendLibrespot, fake)
 
@@ -379,8 +379,11 @@ func TestGetStateLeavesSoloistNilInLibrespotMode(t *testing.T) {
 	if state.PlaybackBackend != settings.BackendLibrespot {
 		t.Fatalf("PlaybackBackend = %q, want %q", state.PlaybackBackend, settings.BackendLibrespot)
 	}
-	if state.Soloist != nil {
-		t.Fatalf("Soloist = %#v in librespot mode", state.Soloist)
+	if state.Soloist == nil {
+		t.Fatal("Soloist state is nil in librespot mode; Settings needs it to install and store the key before switching")
+	}
+	if state.Soloist.Version != "1.3.10.12" {
+		t.Fatalf("Soloist.Version = %q", state.Soloist.Version)
 	}
 }
 

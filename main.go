@@ -207,16 +207,17 @@ func main() {
 	audioRuntime := engine.NewSupervisor(engineOptions)
 
 	var soloistService *soloist.Service
-	if soloistMode {
-		soloistService = soloist.NewService(soloist.Options{
-			ProgramsDir: filepath.Join(xdg.DataHome, "cadence", "soloist", "programs"),
-			DataDir:     filepath.Join(xdg.DataHome, "cadence", "soloist", "data"),
-			CacheDir:    filepath.Join(xdg.CacheHome, "cadence", "soloist", "cache"),
-			LogPath:     filepath.Join(xdg.CacheHome, "cadence", "logs", "soloist.log"),
-			APIKeyPath:  filepath.Join(xdg.ConfigHome, "cadence", "soloist", "api-key"),
-			DeviceName:  "Cadence",
-		})
-	}
+	// The service exists in both modes so Settings can install Soloist and
+	// store its API key before the user switches backends. Only the Soloist
+	// backend starts the process.
+	soloistService = soloist.NewService(soloist.Options{
+		ProgramsDir: filepath.Join(xdg.DataHome, "cadence", "soloist", "programs"),
+		DataDir:     filepath.Join(xdg.DataHome, "cadence", "soloist", "data"),
+		CacheDir:    filepath.Join(xdg.CacheHome, "cadence", "soloist", "cache"),
+		LogPath:     filepath.Join(xdg.CacheHome, "cadence", "logs", "soloist.log"),
+		APIKeyPath:  filepath.Join(xdg.ConfigHome, "cadence", "soloist", "api-key"),
+		DeviceName:  "Cadence",
+	})
 
 	var provider playback.Provider = demoProvider
 	var catalogPlayback catalog.Playback
