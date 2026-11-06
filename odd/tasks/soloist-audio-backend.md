@@ -1,5 +1,11 @@
 # Spotify Soloist audio backend (opt-in)
 
+> **Superseded in part.** [`soloist-onboarding.md`](soloist-onboarding.md) makes
+> Soloist the default backend, downloads and updates the build automatically,
+> and adds the guided one-time API-key flow. The backend architecture below is
+> still current; the “opt-in” default, manual downloads and manual updates are
+> no longer.
+
 ## Objective
 
 Add Spotify Soloist as an opt-in playback backend for Premium accounts where
