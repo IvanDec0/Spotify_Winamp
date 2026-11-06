@@ -8,9 +8,12 @@
   import Queue from "./lib/components/Queue.svelte";
   import TitleBar from "./lib/components/TitleBar.svelte";
   import { player } from "./lib/player.svelte";
+  import { music } from "./lib/music.svelte";
   import { preferences, themes, visualizerModes, type ThemeId } from "./lib/preferences.svelte";
   import SkinHost from "./lib/skins/SkinHost.svelte";
   import { skins } from "./lib/skins.svelte";
+  import { readSoloistPromptDismissed, writeSoloistPromptDismissed } from "./lib/soloist-setup";
+  import SoloistSetupDialog from "./app/browse/SoloistSetupDialog.svelte";
   import {
     DEFAULT_UI_SCALE,
     EXPANDED_HEIGHT,
@@ -24,6 +27,8 @@
   let queueClosing = $state(false);
   let devicesOpen = $state(false);
   let browseOpenError = $state<string | null>(null);
+  let soloistPromptDismissed = $state(readSoloistPromptDismissed());
+  let soloistDialogOpen = $state(false);
   let uiScale = $state(DEFAULT_UI_SCALE);
   let baseNativeWidth = Math.round(WINDOW_WIDTH * DEFAULT_UI_SCALE);
   let baseNativeHeight = Math.round(WINDOW_HEIGHT * DEFAULT_UI_SCALE);
@@ -50,6 +55,21 @@
   let activeModeLabel = $derived(t(activeMode.labelKey));
   let skinError = $derived(skins.errorKey ? t(skins.errorKey) : skins.error);
   let displayError = $derived(player.error || skinError || browseOpenError);
+  let soloistSetupError = $derived(
+    player.state.error?.code.startsWith("soloist_") === true ||
+      player.error?.startsWith("soloist_") === true,
+  );
+  let soloistNeedsSetup = $derived(
+    music.soloistMode &&
+      !music.audio.soloist?.apiKeySet &&
+      !music.audio.soloist?.installing &&
+      (Boolean(music.audio.soloist?.installed) || Boolean(music.audio.soloist?.error)),
+  );
+  let showSoloistDialog = $derived(
+    music.soloistMode &&
+      !music.loading &&
+      (soloistDialogOpen || (soloistNeedsSetup && !soloistPromptDismissed)),
+  );
   let overlayThemeStyle = $derived(
     skins.isDeclarative
       ? Object.entries(skins.palette)
@@ -305,6 +325,22 @@
     browseOpenError = null;
   }
 
+  function dismissSoloistPrompt(): void {
+    soloistPromptDismissed = true;
+    soloistDialogOpen = false;
+    writeSoloistPromptDismissed(true);
+  }
+
+  function clearSoloistPrompt(): void {
+    soloistPromptDismissed = false;
+    soloistDialogOpen = false;
+    writeSoloistPromptDismissed(false);
+  }
+
+  $effect(() => {
+    if (music.audio.soloist?.apiKeySet) clearSoloistPrompt();
+  });
+
   $effect(() => {
     if (skins.loading) return;
     const id = skins.runtime?.id ?? "clarity";
@@ -353,6 +389,7 @@
     });
     void player.start();
     void skins.start();
+    void music.start();
     const cleanupMotion = preferences.syncSystemMotion();
     const cleanupPreferenceStorage = preferences.startStorageSync();
     globalThis.addEventListener("resize", scheduleUiScaleSync);
@@ -364,6 +401,7 @@
       if (scaleSyncTimer) clearTimeout(scaleSyncTimer);
       player.stop();
       skins.stop();
+      music.stop();
       skins.setHandlers(null);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
@@ -492,6 +530,11 @@
           <Icon name="info" size={13} />
         </span>
         <span class="toast-message">{displayError}</span>
+        {#if soloistSetupError}
+          <button class="toast-action" type="button" onclick={() => (soloistDialogOpen = true)}>
+            {t("browse.soloistKeyConfigure")}
+          </button>
+        {/if}
         <button
           class="toast-close"
           type="button"
@@ -503,6 +546,15 @@
       </div>
     </div>
   {/if}
+
+  <div class="clarity" data-theme={preferences.theme} style={overlayThemeStyle}>
+    <SoloistSetupDialog
+      open={showSoloistDialog}
+      onclose={dismissSoloistPrompt}
+      ondismiss={dismissSoloistPrompt}
+      onstarted={clearSoloistPrompt}
+    />
+  </div>
 </div>
 
 <style>
@@ -604,6 +656,25 @@
   .toast-close:hover {
     background: var(--surface-2);
     color: var(--text);
+  }
+
+  .toast-action {
+    flex: 0 0 auto;
+    padding: 3px 7px;
+    border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 9px;
+    line-height: 1;
+  }
+
+  .toast-action:hover {
+    background: var(--surface-2);
+  }
+
+  .toast-action:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+    outline-offset: 1px;
   }
 
   @keyframes queue-in {

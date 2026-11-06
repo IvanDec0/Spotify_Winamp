@@ -4,6 +4,7 @@
   import { player } from "../../lib/player.svelte";
   import { preferences } from "../../lib/preferences.svelte";
   import { skins } from "../../lib/skins.svelte";
+  import { readSoloistPromptDismissed, writeSoloistPromptDismissed } from "../../lib/soloist-setup";
   import { appWindow, onBrowseNavigate } from "../../shared/api";
   import { t } from "../../shared/i18n";
   import EngineGate from "./EngineGate.svelte";
@@ -32,16 +33,6 @@
     { id: "queue", label: "browse.queue", glyph: "queue" },
     { id: "settings", label: "browse.settings", glyph: "settings" },
   ];
-
-  const SOLOIST_PROMPT_KEY = "cadence.soloist.prompt.v1";
-
-  function readSoloistPromptDismissed(): boolean {
-    try {
-      return localStorage.getItem(SOLOIST_PROMPT_KEY) === "1";
-    } catch {
-      return false;
-    }
-  }
 
   let root: HTMLDivElement;
   let searchInputEl: HTMLInputElement;
@@ -84,21 +75,13 @@
   function dismissSoloistPrompt(): void {
     soloistPromptDismissed = true;
     soloistDialogOpen = false;
-    try {
-      localStorage.setItem(SOLOIST_PROMPT_KEY, "1");
-    } catch {
-      // Storage can be unavailable; the prompt still respects this session.
-    }
+    writeSoloistPromptDismissed(true);
   }
 
   function clearSoloistPrompt(): void {
     soloistPromptDismissed = false;
     soloistDialogOpen = false;
-    try {
-      localStorage.removeItem(SOLOIST_PROMPT_KEY);
-    } catch {
-      // Storage can be unavailable; the prompt still resets this session.
-    }
+    writeSoloistPromptDismissed(false);
   }
 
   function openSoloistDialog(): void {
