@@ -27,9 +27,9 @@ the existing go-librespot/Soloist backends are untouched.
 
 ## Hard truths
 
-- This backend adds a Chromium runtime (~150–250 MB on disk, ~150–300 MB RSS).
-  It cannot be "light" in the same sense as the Go binary. The plan keeps it
-  out of the base artifact and downloads it on demand.
+- This backend adds a Chromium runtime (measured: 118 MB zip, 283 MB on disk,
+  381–466 MB PSS). It cannot be "light" in the same sense as the Go binary.
+  The plan keeps it out of the base artifact and downloads it on demand.
 - True window embedding is X11-only in practice. Wails v3 beta does not expose
   a native window handle; a separate frameless helper window is the robust v1.
   X11 child embedding can be added later with a native handle/tool.
@@ -64,6 +64,15 @@ main.go
 - Go owns playback policy: it uses the Web API (`GET /me/player/devices`,
   `PUT /me/player` with `device_ids`, `PUT /me/player/play`, pause, seek,
   volume, shuffle, repeat, queue). The helper only renders the SDK and audio.
+- The SDK `device_id` is ephemeral (verified: it changes on every run). The
+  provider takes it from the helper's `ready` event and re-transfers after any
+  reconnect; it is never persisted.
+- Player commands accept any 2xx as success. Spotify returns `204` or `200`
+  with a short receipt body depending on the endpoint.
+- The helper assets (`main.js`, `preload.js`, `player.html`) are embedded in
+  the Go binary with `go:embed` and materialized into
+  `<runtime>/resources/app/`. The only downloaded component is the castlabs
+  Electron zip, verified by SHA-256.
 - The SDK page is minimal HTML/JS, no framework, no external navigation. It
   calls the local `/token` endpoint for the access token and refreshes it.
 - OAuth PKCE runs through the system browser. The refresh token is stored in
@@ -75,7 +84,7 @@ main.go
 
 | Option | Widevine/AAC | Size | Build/legal cost | Verdict |
 |---|---|---|---|---|
-| Castlabs Electron for Content Security | prebuilt | ~200 MB | MIT wrapper; CDM installed by component updater; Linux partial VMP | **Recommended v1** |
+| Castlabs Electron for Content Security | prebuilt | 118 MB zip / 283 MB | MIT wrapper; CDM installed by component updater; Linux partial VMP | **Recommended v1** |
 | Custom CEF + system Widevine | custom build | ~120–150 MB + CDM | Chromium build (hours/disk) + codec/CDM licensing | Optimized v2 |
 | System Chrome/Firefox + SDK | system | 0 MB | none | **P0 validation / light fallback**, not embedded |
 | CEF OSR into Wails | risky | + runtime | EME/GPU/perf issues | Not recommended |
@@ -90,7 +99,8 @@ In:
 - `settings.BackendWeb = "web"` and an opt-in settings option.
 - `internal/webplayer`: provider, Web API client, OAuth PKCE, token store,
   runtime manager, control protocol, state mapping.
-- `webplayer/helper`: castlabs Electron minimal shell (v1).
+- `webplayer/helper`: castlabs Electron minimal shell (v1), embedded in
+  `internal/webplayer/helper`.
 - Local HTTP server: player page, OAuth callback, token endpoint.
 - Runtime component: versioned download, SHA-256, size cap, atomic install,
   no partial runtime; lazy start/stop.
@@ -123,8 +133,9 @@ Out:
   --disable-extensions --disable-component-update` (CDM update handled
   explicitly), loopback-only control port with a random nonce, navigation
   lockdown to the local page and `sdk.scdn.co`, no remote debugging exposure.
-- **Budgets.** Target: <5% CPU idle, <15% CPU playing (1080p not relevant),
-  <350MB RSS, <3s warm start. Measure in P4 and record in the task document.
+- **Budgets.** Measured in P0: 0% CPU idle, 5.6–11.6% CPU playing,
+  381–466 MB PSS, 2.05–2.46 s warm start. Target: keep CPU <15%, warm start
+  <3 s, and cut PSS toward 400 MB in P4 (the 350 MB goal was optimistic).
 - **Stop on expire/log out.** Runtime manifest and tokens are validated before
   start; a failed login shows an actionable state, not a crash.
 
@@ -144,21 +155,71 @@ Out:
 
 ### Phase 0 — Spike (decision gate)
 
-- [ ] P0.1 Validate the Web Playback SDK in system Firefox/Chrome (same
+- [x] P0.1 Validate the Web Playback SDK in system Firefox/Chrome (same
       account): OAuth PKCE, device in `GET /me/player/devices`, transfer,
       play/pause/seek/volume/queue, audio output, visualizer capture.
-- [ ] P0.2 Build/run a minimal castlabs Electron shell with the same page;
+      Superseded: the full matrix was validated directly in the ECS helper.
+- [x] P0.2 Build/run a minimal castlabs Electron shell with the same page;
       confirm EME/Widevine, AAC playback, device ID and Web API control.
-- [ ] P0.3 Measure runtime size, RSS, CPU idle/playing, warm start on X11 and
+- [x] P0.3 Measure runtime size, RSS, CPU idle/playing, warm start on X11 and
       Wayland.
-- [ ] P0.4 Gate: if Widevine/SDK playback fails in the helper, stop and keep
+- [x] P0.4 Gate: if Widevine/SDK playback fails in the helper, stop and keep
       the one-time Spotify app pairing path. Do not build the rest.
+      Result: **passed**; see the measurements below.
+
+## Phase 0 results (2026-11-06) — gate passed
+
+Validated on the target machine (Wayland session with XWayland `DISPLAY=:1`,
+PipeWire/PulseAudio, no system Widevine) with castlabs Electron for Content
+Security `v44.9.3+wvcus` and a dedicated Spotify developer app (Authorization
+Code + PKCE, `http://127.0.0.1:8888/callback`).
+
+| Check | Result |
+|---|---|
+| Widevine CDM | `components.whenReady()` installed `4.10.3112.0` |
+| Codec support | `canPlayType('audio/mp4; codecs="mp4a.40.2"')` = `probably` |
+| Widevine + AAC | `requestMediaKeySystemAccess` = `com.widevine.alpha`, `SW_SECURE_CRYPTO` |
+| SDK device | `ready` with a fresh `device_id` |
+| Web API | `/me` 200, `product=premium`, `country=AR`; `/me/player/devices` 200 |
+| Transfer | `PUT /me/player` 204, device active |
+| Playback | `PUT /me/player/play` 204; `is_playing=true`; progress advances |
+| Audio | PipeWire sink-input `application.name=webplayer-spike`; monitor RMS ~2500–3400, peak ~15k |
+| Visualizer | existing `parec --device=@DEFAULT_MONITOR@` captures the same signal |
+| Hidden window | audio and API progress continue after `win.hide()` |
+| Warm start | 2.05–2.46 s from spawn to `ready` (X11 and Wayland) |
+| Idle | 0.0% CPU, 430 MB PSS |
+| Playing | 5.6–11.6% CPU, 381–466 MB PSS |
+| Runtime size | 118 MB zip, 283 MB installed; SHA-256 `80cb5218…359fad` matches upstream |
+| Wayland | works; the Vulkan warning is non-fatal |
+| X11/XWayland | works |
+
+Design facts confirmed by the spike:
+
+- **The `device_id` is ephemeral.** Five runs produced five different IDs. The
+  provider must take the ID from the helper's `ready` event every time and
+  re-transfer after a reconnect; never persist or assume it.
+- **Player commands can return 200 with a receipt body.** `pause`, `seek`,
+  `shuffle`, `repeat`, `queue` and `next` returned `HTTP 200` with a
+  27-character string instead of `204`. Treat any 2xx as success and never
+  parse the body.
+- **The visualizer needs no change.** It already captures
+  `@DEFAULT_MONITOR@`, so the helper only has to play to the default sink.
+- **`--disable-gpu` saves ~55 MB PSS but raises CPU** (381 MB / 11.6% vs
+  436–466 MB / 5.6%). Keep GPU enabled by default; revisit in P4.
+- **The helper can be embedded.** Ship `main.js`, `preload.js` and
+  `player.html` inside the Go binary (`go:embed`) and materialize them into
+  `<runtime>/resources/app/`. The only download is the castlabs zip; no Node,
+  no asar, no separate hosting.
+- **OAuth app.** A dedicated developer app is mandatory: the shared
+  librespot/keymaster client ID returned a persistent `429 API rate limit
+  exceeded`. The PKCE Client ID is public and can be a configurable default.
 
 ### Phase 1 — Runtime component and helper
 
-- [ ] P1.1 `webplayer/helper`: minimal castlabs Electron app (main, preload,
-      player.html); no Node in the renderer; sandbox/context isolation; loads
-      the local player URL from argv/env.
+- [ ] P1.1 `internal/webplayer/helper`: embedded castlabs Electron app (main,
+      preload, player page) materialized into `<runtime>/resources/app/`; no
+      Node in the renderer; sandbox/context isolation; loads the local player
+      URL from argv/env.
 - [ ] P1.2 Local HTTP server in Go: `/player`, `/callback`, `/token` with a
       one-time nonce; bind `127.0.0.1` only.
 - [ ] P1.3 Runtime manager: manifest (version, platform, URL, SHA-256, size),
@@ -209,8 +270,8 @@ Out:
 - [ ] P5.1 ADR `docs/adr/0005-web-playback-runtime.md`.
 - [ ] P5.2 Docs: setup, OAuth app/redirect URI, runtime paths, licensing,
       limits, removal.
-- [ ] P5.3 Removal guide: delete `internal/webplayer`, `webplayer/helper`, the
-      runtime component, the `web` setting/UI; `task verify` must pass after.
+- [ ] P5.3 Removal guide: delete `internal/webplayer`, the runtime component,
+      the `web` setting/UI; `task verify` must pass after.
 - [ ] P5.4 `task verify` plus a separate `task webplayer:smoke` (not in CI by
       default) and manual E2E on X11/Wayland.
 
@@ -220,9 +281,9 @@ New:
 
 - `internal/webplayer/provider.go`, `webapi.go`, `oauth.go`, `tokens.go`,
   `runtime.go`, `control.go`, `state.go`, `errors.go`, `*_test.go`
-- `webplayer/helper/` (castlabs Electron app: `package.json`, `main.js`,
-  `preload.js`, `player.html`, `player.js`)
-- `internal/webplayer/runtime/manifest.json` (pinned version/checksum)
+- `internal/webplayer/helper/` (embedded castlabs Electron app: `embed.go`,
+  `assets/main.js`, `assets/preload.js`, `assets/player.html`)
+- `internal/webplayer/runtime/manifest.json` (pinned castlabs version/checksum)
 - `docs/adr/0005-web-playback-runtime.md`
 - `odd/tasks/spotify-web-player.md` (this plan)
 
@@ -255,7 +316,9 @@ Not changed:
 - X11 and Wayland: separate helper window works; X11 embedding is optional and
   flagged.
 - Removal leaves the app building and `task verify` passing.
-- Budgets: <350MB RSS, <15% CPU playing, <3s warm start (recorded).
+- Budgets: 0% CPU idle, <15% CPU playing, <3 s warm start (measured in P0:
+  0%, 5.6–11.6%, 2.05–2.46 s); PSS recorded honestly (381–466 MB) and tuned
+  in P4.
 
 ## Risks
 
@@ -268,8 +331,8 @@ Not changed:
 - **Wayland embedding.** Not supported natively; separate window in v1.
 - **Wails native handle.** Not exposed in beta; X11 embedding needs a patch or
   XID lookup.
-- **Background throttling.** Audio may pause if Chromium throttles; keep the
-  documented flags and a visible/minimized window.
+- **Background throttling.** Verified with `win.hide()`: audio and API progress
+  continue. Keep the documented flags anyway and re-test after runtime updates.
 - **CDM/Chromium compatibility.** Pin the runtime and CDM; test after updates.
 - **OAuth app setup.** The user needs a Spotify developer app with the local
   redirect URI; document it once.
@@ -293,6 +356,8 @@ codec/CDM licensing and a new CI pipeline before the SDK is even proven.
 
 ## Next step
 
-Run Phase 0 on the target machine: validate the SDK in Firefox/Chrome, then in
-a minimal castlabs Electron shell. Only if playback, Widevine and audio work
-there do we build the runtime/provider.
+Phase 0 is complete and passed. Start Phase 1: embed the helper assets, add
+the local HTTP server (`/player`, `/token`, `/callback`) and the runtime
+manager that downloads the pinned castlabs zip, verifies its SHA-256 and
+materializes the helper under `<runtime>/resources/app/`. The control socket
+and process lifecycle come next; playback control stays in Phase 2.
