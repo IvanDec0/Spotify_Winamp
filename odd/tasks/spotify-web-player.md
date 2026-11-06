@@ -216,20 +216,53 @@ Design facts confirmed by the spike:
 
 ### Phase 1 — Runtime component and helper
 
-- [ ] P1.1 `internal/webplayer/helper`: embedded castlabs Electron app (main,
-      preload, player page) materialized into `<runtime>/resources/app/`; no
-      Node in the renderer; sandbox/context isolation; loads the local player
-      URL from argv/env.
-- [ ] P1.2 Local HTTP server in Go: `/player`, `/callback`, `/token` with a
-      one-time nonce; bind `127.0.0.1` only.
-- [ ] P1.3 Runtime manager: manifest (version, platform, URL, SHA-256, size),
+- [x] P1.1 `internal/webplayer/helper`: embedded castlabs Electron app (main,
+      preload, player page) materialized under `<root>/helper/` and passed to
+      Electron as the app path; no Node in the renderer; sandbox/context
+      isolation; loads the local player URL from argv/env.
+- [x] P1.2 Local HTTP server in Go: `/player`, `/player.js`, `/callback`,
+      `/token` with a one-time nonce; bind `127.0.0.1` only.
+- [x] P1.3 Runtime manager: manifest (version, platform, URL, SHA-256, size),
       versioned install under `runtime/<version>/`, atomic rename, size caps,
       verify before exec, prune old versions.
-- [ ] P1.4 Control protocol: loopback WebSocket between Go and helper; messages
+- [x] P1.4 Control protocol: loopback WebSocket between Go and helper; messages
       `hello`, `ready{deviceId}`, `error{code,message}`, `show`, `hide`,
       `shutdown`; per-run nonce.
-- [ ] P1.5 Process lifecycle: Pdeathsig/process group, log redaction (no
+- [x] P1.5 Process lifecycle: Pdeathsig/process group, log redaction (no
       tokens), stop on switch/exit, no orphan.
+
+## Phase 1 results (2026-11-06) — implemented
+
+Verified with `go test ./...`, `go vet ./...`, `task verify` and a
+build-tagged real-runtime smoke:
+`go test -tags webplayer_smoke -run TestSmokeRealRuntime -v ./internal/webplayer`.
+
+The smoke downloaded the pinned castlabs zip through the real GitHub path,
+verified SHA-256, extracted and installed it, materialized the embedded helper,
+launched Electron without `--no-sandbox`, and received `authentication_error`
+over the control socket with a deliberately invalid token. That event proves
+the page, the CSP, the SDK iframe and the preload bridge all work; it also
+proves the helper stays alive after the SDK error (20 s window).
+
+Implementation notes:
+
+- The helper app lives under `<root>/helper/` and is passed as Electron's app
+  path, instead of being written into `<runtime>/resources/app/`. The versioned
+  runtime directory stays content-addressed by version and checksum, and a
+  helper update does not invalidate it.
+- The page glue is served as `/player.js` from the same origin. The CSP keeps
+  `script-src 'self' https://sdk.scdn.co` and adds
+  `frame-src https://sdk.scdn.co` for the SDK's
+  `https://sdk.scdn.co/embedded/index.html` iframe; without it the SDK cannot
+  authenticate or play.
+- `--disable-component-update` is deliberately absent: the ECS component
+  updater is what installs the Widevine CDM. `--no-sandbox` is also absent;
+  unprivileged user namespaces are enabled on the target and the smoke proves
+  the sandboxed runtime reaches the SDK.
+- Stop sends SIGTERM to the process group and then SIGKILL. Chromium logs a
+  benign `GPU process isn't usable` burst during that teardown; it does not
+  happen while the helper is running. Phase 2 should prefer a `shutdown`
+  control message before SIGTERM for a clean exit.
 
 ### Phase 2 — Go provider and Web API
 
@@ -279,10 +312,12 @@ Design facts confirmed by the spike:
 
 New:
 
-- `internal/webplayer/provider.go`, `webapi.go`, `oauth.go`, `tokens.go`,
-  `runtime.go`, `control.go`, `state.go`, `errors.go`, `*_test.go`
-- `internal/webplayer/helper/` (embedded castlabs Electron app: `embed.go`,
-  `assets/main.js`, `assets/preload.js`, `assets/player.html`)
+- `internal/webplayer/doc.go`, `errors.go`, `manifest.go`, `manifest.json`,
+  `extract.go`, `runtime.go`, `process.go`, `log.go`, `control.go`, `server.go`,
+  `smoke_test.go`, `*_test.go`
+- `internal/webplayer/helper/` (`embed.go`, `assets/page.html`,
+  `assets/page.js`, `assets/app/{package.json,main.js,preload.js}`)
+- Phase 2 adds `provider.go`, `webapi.go`, `oauth.go`, `tokens.go`, `state.go`
 - `internal/webplayer/runtime/manifest.json` (pinned castlabs version/checksum)
 - `docs/adr/0005-web-playback-runtime.md`
 - `odd/tasks/spotify-web-player.md` (this plan)
@@ -356,8 +391,9 @@ codec/CDM licensing and a new CI pipeline before the SDK is even proven.
 
 ## Next step
 
-Phase 0 is complete and passed. Start Phase 1: embed the helper assets, add
-the local HTTP server (`/player`, `/token`, `/callback`) and the runtime
-manager that downloads the pinned castlabs zip, verifies its SHA-256 and
-materializes the helper under `<runtime>/resources/app/`. The control socket
-and process lifecycle come next; playback control stays in Phase 2.
+Phase 1 is complete. Start Phase 2: OAuth PKCE with a `0600` token store, the
+Web API client (devices, transfer, play/pause/seek/volume/shuffle/repeat/queue,
+2xx-as-success, 429 backoff), and the `webplayer.Provider` mapping onto
+`playback.Provider`/`playback.Streamer`, wired in `main.go` only when the
+backend is `web`. The control `ready` event supplies the ephemeral device ID;
+never persist it.
