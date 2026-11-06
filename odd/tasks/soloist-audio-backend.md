@@ -188,27 +188,42 @@ is advertised or gated. Record results in this document before Phase 1.
 
 ### Phase 1 — `internal/soloist` foundation
 
-- [ ] P1.1 `protocol.go`: command/event structs, entity envelope decoding,
+- [x] P1.1 `protocol.go`: command/event structs, entity envelope decoding,
       constants and coded errors.
-- [ ] P1.2 `client.go`: one loopback WebSocket connection, read loop, command
+- [x] P1.2 `client.go`: one loopback WebSocket connection, read loop, command
       and query helpers, event waiters, `command_result`/`error` handling,
       read limit, timeouts, reconnect-on-close semantics.
-- [ ] P1.3 `binary.go`: discovery order, `--version` parser, 90-day expiry,
+- [x] P1.3 `binary.go`: discovery order, `--version` parser, 90-day expiry,
       cache by binary path + mtime.
-- [ ] P1.4 `credentials.go`: read/save/clear the API key with `0600` and atomic
+- [x] P1.4 `credentials.go`: read/save/clear the API key with `0600` and atomic
       writes; never log it.
-- [ ] P1.5 `install.go`: platform/archive map, HTTPS download with redirect
+- [x] P1.5 `install.go`: platform/archive map, HTTPS download with redirect
       allowlist (`*.spotifycdn.com`, `*.spotify.com`), 64 MB archive and 128 MB
       binary caps, safe tar.gz/zip extraction of only the executable,
       `--version` validation, versioned install and atomic rename.
-- [ ] P1.6 `supervisor.go`: start/stop/restart, dirs, stale pid cleanup on Unix,
+- [x] P1.6 `supervisor.go`: start/stop/restart, dirs, stale pid cleanup on Unix,
       `ws.port` polling, auth wait, exit-code 10 mapping, emitter, log file
       without argv.
-- [ ] P1.7 `service.go`: facade used by `wailsapi/audio` (state/start/stop/
+- [x] P1.7 `service.go`: facade used by `wailsapi/audio` (state/start/stop/
       restart/install/key/emitter).
-- [ ] P1.8 Tests: version/expiry, credentials permissions, safe extraction,
+- [x] P1.8 Tests: version/expiry, credentials permissions, safe extraction,
       archive selection, WebSocket commands/queries, supervisor lifecycle with a
       fake helper binary and fake WS server.
+
+Phase 1 API notes for later phases:
+
+- `Service.Options.Installer *Installer` is the test seam; production leaves it
+  nil and gets the host-allowlisted installer. `InstallerOptions.AllowAnyHost`
+  is test-only and must never be set in production wiring.
+- `PlaybackOptions.Modes` is `map[string]json.RawMessage` so a non-string mode
+  value cannot make an entire `playback_state` frame undecodable.
+- `Client.Do(..., "command_result", ...)` requires the reply to name the same
+  command; an unnamed `command_result` does not satisfy a filtered waiter.
+- `Supervisor.Start` is single-flight, resets its diagnostic tail per run, and
+  `Stop` clears error fields. A pairing result (`CodePairingRequired`) leaves the
+  process running and must be rendered as a status, not a hard failure.
+- `Service.State()` may return the cached binary while another goroutine
+  refreshes it; it never blocks on the 15 s `--version` probe.
 
 ### Phase 2 — Settings, state and wiring
 
@@ -400,6 +415,19 @@ existing librespot default.
 
 - **P0.5 URI support.** Artist/collection playback is unverified. If unsupported,
   gate those contexts in the UI and document the gap.
+- **P0.6 refusal wording.** The start-failure mapper matches the documented
+  data-directory phrase plus the reference implementation's key-rejection
+  phrases. The exact lines must be confirmed against a real build in Phase 0;
+  if they differ, both paths degrade to `soloist_start_failed` with the raw log
+  line instead of a distinct coded error.
+- **Linux-only supervision.** `Setpgid`, `Pdeathsig` and `syscall.Kill` mean the
+  package does not compile for Windows or macOS, matching the rest of Cadence.
+  The installer still maps their archives; do not advertise those platforms
+  until the process layer is build-tagged.
+- **Installer ETag HEAD.** A reusable installed build is short-circuited with a
+  HEAD request and the stored ETag. A missing ETag costs one archive GET; a
+  Spotify-side HEAD behavior change must degrade to a normal download, not a
+  failed install.
 - **API key in argv.** Local `ps` exposure is unavoidable with Soloist's CLI.
   Never log argv; document the local-only threat model.
 - **Seek while loading.** Soloist may drop a seek sent before the track is
@@ -430,18 +458,38 @@ existing librespot default.
 - [x] Cadence seams mapped (provider, engine, catalog, settings, Wails,
       frontend, packaging, tests).
 - [x] Plan written and mirrored to Engram.
+- [x] Phase 1 implemented: `internal/soloist` (4,858 lines including tests),
+      four work-unit commits `b5dce70`, `151a724`, `e748bfc`, `96bbb4b`.
 - [ ] Phase 0 spike on the failing PC.
-- [ ] Implementation phases.
+- [ ] Phases 2–7.
 
 ## Verification evidence
 
-- Pending.
+Phase 1, after the independent verification correction:
+
+- `gofmt -l internal/soloist`: no output.
+- `go vet ./internal/soloist`: no findings.
+- `go test ./internal/soloist -count=1`: `ok cadence/internal/soloist`.
+- `go test ./internal/soloist -count=10`: `ok 9.660s`.
+- `go test -race ./internal/soloist -count=3`: `ok 4.290s`.
+- `go build ./...`: ok.
+- `git status --short`: only the pre-existing untracked `.atl/` and
+  `plan/cadence-v3-roadmap.md`.
+
+Independent verification found one critical concurrency defect: concurrent
+`Supervisor.Start` calls could spawn two Soloist processes and orphan one.
+The correction added a lifecycle mutex spanning start/stop/restart, reused the
+service supervisor for concurrent starts, and added regression tests for
+single-flight start, process reaping, stale-pid safety, tail isolation, key
+trimming, host/HTTPS download validation, strict `command_result` matching and
+non-blocking binary inspection. The corrected suite passes `-count=10` and
+`-race -count=3`.
 
 ## Next step
 
-Run Phase 0 on the failing PC and record the URI matrix and captured payloads.
-Phase 1 can start in parallel because it does not depend on the account result,
-but Phase 3 and the E2E gate do.
+Phase 2 (settings, additive state and wiring) can proceed without the Phase 0
+result. Phase 3 and the E2E gate still depend on Phase 0 confirming that the
+failing account plays through Soloist and on the captured URI matrix/payloads.
 
 ## Engram mirror
 
