@@ -267,6 +267,30 @@ Modified:
   one-time capture of a real Spotify-app pairing request to match the exact
   blob.
 
+### OAuth device-flow attempt
+
+- The user confirmed the API key and the library belong to the same Spotify
+  account, ruling out an account mismatch.
+- A Spotify OAuth device flow (`https://spotify.com/pair`, one-time code) was
+  approved for the same account; it produced a 446-character OAuth access
+  token with the full `streaming`/`app-remote-control` scope set.
+- The real Soloist `addUser` accepted auth type 3 with that OAuth token:
+  `HTTP 200 {"status":101,"statusString":"OK","spotifyError":0,
+  "responseSource":"Core Playback SDK"}`.
+- `auth_state.logged_in` still stayed `false` for 20 seconds; no
+  `settings/Users` session was created, so playback was never attempted.
+- Combined attempts: auth type 1 (AP reusable credentials), auth type 3 with
+  the engine login5 token, and auth type 3 with the OAuth token, each with and
+  without a generated client token. Every `addUser` returned 101; none
+  completed the login.
+- Conclusion: the reconstructed ZeroConf credential handoff is not sufficient
+  for Soloist's official login. This matches the reference implementation's
+  note that its ZeroConf handoff "did not work". The documented and proven
+  path remains the one-time selection of `Cadence` from the Spotify app; after
+  that the stored session persists.
+- The API key and OAuth token used for the tests were deleted from `/tmp`; no
+  secret was committed or written to the repository.
+
 ### Protocol note
 
 The plan text describes PBKDF2 as `password=username, salt=sha1(deviceID)`.
