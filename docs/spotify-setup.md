@@ -123,3 +123,158 @@ The engine log is written to:
 ```text
 $XDG_CACHE_HOME/cadence/logs/go-librespot.log
 ```
+
+## Spotify Soloist backend (opt-in)
+
+go-librespot stays the default backend. Spotify Soloist is an alternative audio
+engine for Premium accounts where go-librespot cannot retrieve audio keys. It is
+never bundled with Cadence: the app downloads it from Spotify only when you ask.
+
+### Why Soloist exists
+
+Some Premium accounts are refused when go-librespot asks for an audio key:
+
+```text
+failed retrieving audio key: failed retrieving aes key with code 1
+skipping track: Spotify refused the audio key (code 1)
+```
+
+`code 1` is a server-side refusal of the account's legacy AES key request, not a
+local configuration error. Retry and backoff only help `code 2`; changing the
+bitrate, clearing state, re-authenticating, changing the engine version, DNS or
+CDN and toggling DJ mode do not help. The same account and machine play
+correctly through Spotify's official player, Soloist. Soloist has no library or
+search API, so Cadence keeps go-librespot for the catalog and uses Soloist only
+for audio.
+
+### What stays and what changes
+
+| Area | librespot backend | Soloist backend |
+|---|---|---|
+| Audio playback | go-librespot | Soloist |
+| Library, search, context, catalog session | go-librespot | go-librespot, unchanged |
+| Spotify Connect device | `Cadence` | `Cadence` (Soloist) and `Cadence Library` (go-librespot) |
+| Playback queue | go-librespot | Soloist's local queue |
+| MPRIS | optional | off |
+| go-librespot audio cache | optional | off |
+
+In Soloist mode go-librespot still owns the catalog session, library, search,
+context resolution and metadata. Its device is renamed `Cadence Library` so it
+is clear that it is not the playback device. Soloist owns the audio path,
+playback state and its own queue.
+
+### Install and switch from Settings
+
+1. Open **Browse → Settings**.
+2. In **Audio backend**, keep **go-librespot** or choose **Spotify Soloist**,
+   then select **Apply backend**. The change is saved immediately and applies
+   only after a Cadence restart.
+3. In the **Spotify Soloist** card, select **Install Soloist**. Cadence downloads
+   the newest build from `soloist-builds.spotifycdn.com`, verifies it with
+   `soloist --version`, and installs it under a build-numbered directory. Only
+   Spotify hosts are accepted, and the archive is never redistributed.
+4. Create an API key at
+   [`https://developer.spotify.com/dashboard`](https://developer.spotify.com/dashboard),
+   paste it into **API key**, and select **Save key**. **Spotify dashboard** and
+   **Download page** open the official pages.
+5. Restart Cadence so the selected backend is constructed.
+6. Open the Spotify app on the same Wi-Fi network and choose **Cadence** as the
+   playback device. This pairs Soloist once. Do not choose **Cadence Library**,
+   which is the catalog engine.
+
+The install and key controls are available in both backend modes, so you can
+prepare Soloist before switching. The **Start**, **Stop** and **Restart**
+controls appear only while Soloist is the selected backend.
+
+The installer maps Spotify's Linux x86_64, arm64 and arm32 archives plus Apple
+Silicon macOS and Windows x86_64 archives. Process supervision is Linux-only in
+this release, so treat Linux as the supported target.
+
+### Limitations in Soloist mode
+
+- **No Spotify radio.** Radio needs a streaming-session resolver that
+  go-librespot does not expose. The action is hidden in Soloist mode.
+- **Queue is append-only.** `add_to_queue` accepts track URIs only; Soloist
+  cannot reorder or clear its local queue.
+- **`skipToURI` loses the parent context.** The Soloist `play` command accepts a
+  URI but no offset, so clicking a track inside a playlist, album or artist
+  plays that track standalone.
+- **Artist and Liked Songs contexts are not confirmed yet.** Track, album,
+  playlist and episode URIs are documented by Spotify. Artist and
+  `spotify:user:<user>:collection` playback is sent as a URI but remains pending
+  the Phase 0 hardware check; if Spotify rejects it, the action reports a
+  Soloist protocol error.
+- **go-librespot-only options are disabled.** Bitrate, FLAC, normalisation,
+  crossfade, audio cache, MPRIS and speaker-group advertising do not apply.
+  Soloist uses its own defaults, and the Settings controls are disabled with a
+  notice.
+- **Seek during loading may retry.** Soloist can drop a seek sent before the
+  track is ready; Cadence resends it a bounded number of times.
+
+Volume, shuffle, repeat, next, previous and pause work through Soloist.
+
+### Build expiry and updates
+
+Soloist builds expire 90 days after their build timestamp. An expired build
+exits with code `10`; Cadence maps that to `soloist_build_expired` and shows
+**This build has expired. Install an update to keep playing.** The Settings card
+shows the remaining days for an installed build, and **Update Soloist** performs
+a manual update. Treat the final two weeks of the countdown as the update
+window: there is no separate reminder, and playback stops at expiry.
+
+There is no background updater. Cadence is not updated with a new Soloist build,
+and a Cadence package upgrade never replaces Soloist.
+
+### Security
+
+- The API key is stored in `$XDG_CONFIG_HOME/cadence/soloist/api-key` with
+  `0600` permissions. It is outside `config.json`, so copying or exporting
+  settings does not copy the key.
+- Soloist requires the key on its command line, so the key is passed through
+  argv. A local process listing can see it; this is unavoidable with Soloist's
+  CLI. Cadence redacts the key from Soloist log output and never logs argv.
+- The key is never returned to the frontend. The UI only reports whether a key
+  is stored.
+
+### Paths and logs
+
+| Purpose | Path |
+|---|---|
+| Installed builds | `$XDG_DATA_HOME/cadence/soloist/programs/<build-unix>/soloist` |
+| Soloist state and accounts | `$XDG_DATA_HOME/cadence/soloist/data` |
+| Soloist cache | `$XDG_CACHE_HOME/cadence/soloist/cache` |
+| Soloist log | `$XDG_CACHE_HOME/cadence/logs/soloist.log` |
+| API key (`0600`) | `$XDG_CONFIG_HOME/cadence/soloist/api-key` |
+
+The data, cache and log directories are created owner-only. The log is
+truncated on each start and contains no API key.
+
+### Reverting to go-librespot
+
+Choose **go-librespot** in **Audio backend**, select **Apply backend**, and
+restart Cadence. No library, pairing or playlist data is lost. The go-librespot
+credentials and cache are still where they were; only the audio path changes.
+Soloist's data and cache remain on disk and can be removed separately.
+
+### Soloist troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `soloist_not_installed` | Select **Install Soloist** in Settings; check the network and any proxy |
+| `soloist_api_key_missing` | Create a key in the Spotify dashboard and select **Save key** |
+| `soloist_api_key_invalid` | The value is empty or contains whitespace or control characters; paste a single-line key again |
+| `soloist_api_key_rejected` | Spotify refused the key; create a new key in the dashboard and save it |
+| `soloist_pairing_required` | Open Spotify on the same Wi-Fi and choose **Cadence**, not **Cadence Library** |
+| `soloist_not_logged_in` | Repeat the pairing step and confirm the account is signed in |
+| `soloist_build_expired` | Select **Update Soloist**; the old build cannot be revived |
+| `soloist_download_failed` | Retry; confirm HTTPS access to Spotify and that the system clock is correct |
+| `soloist_start_failed` | Check `$XDG_CACHE_HOME/cadence/logs/soloist.log` for the last line |
+| `soloist_protocol_error` | The installed binary or Spotify's protocol changed; update Soloist or Cadence |
+| `soloist_unsupported` | The action is not available in Soloist mode, for example radio |
+| `another Spotify Soloist process is already using its data directory` | Close other Cadence or Soloist instances using the same data directory; stale processes are cleaned up on the next start |
+
+Exact start-failure lines are matched against Soloist's documented
+data-directory message and the reference implementation's key-rejection
+messages. A mismatch falls back to `soloist_start_failed` with the raw last log
+line, so the error stays actionable even before the strings are confirmed on the
+failing account.

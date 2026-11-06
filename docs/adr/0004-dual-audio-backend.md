@@ -2,9 +2,9 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-06
-- **Phase:** 3 (implemented)
+- **Implemented:** Phases 1–5 of the ODD feature
 - **Source:** [`../../odd/tasks/soloist-audio-backend.md`](../../odd/tasks/soloist-audio-backend.md)
-- **Companion:** [`../architecture.md`](../architecture.md)
+- **Companion:** [`../architecture.md`](../architecture.md), [`../spotify-setup.md`](../spotify-setup.md)
 
 ## Context
 
@@ -77,7 +77,8 @@ main.go
   signalling match the rest of Cadence. The installer still maps macOS and
   Windows archives, but those platforms are not advertised yet.
 - Soloist builds expire 90 days after their build timestamp. Updates are manual:
-  warn at 14 days, block at expiry, and link to Spotify's download page.
+  the settings card shows the remaining days, blocks at expiry, and links to
+  Spotify's download page.
 - The frontend consumes one merged `audio:state` event with additive
   `playbackBackend` and `soloist` fields; no new event name is introduced.
 
@@ -95,9 +96,11 @@ main.go
 
 ## Follow-up
 
-- Phase 5: regenerate Wails bindings and add the backend selector, Soloist card,
-  status/expiry warnings and radio gating in the frontend.
-- Phase 6: document the Soloist setup, paths, devices, limits and expiry in
-  `docs/spotify-setup.md`, `docs/installation.md` and `docs/architecture.md`.
-- Phase 0/Phase 7: record the real-account spike and the manual E2E evidence in
-  the ODD feature document.
+- Phase 0: confirm on the failing account that Soloist plays, capture the real
+  URI matrix and the exact start-failure strings, and record the evidence in the
+  ODD feature document.
+- Phase 7: manual E2E on the failing machine (install, key, switch, restart,
+  pairing, contexts, seek, volume, shuffle/repeat, queue and error states).
+- Documentation lives in [`../spotify-setup.md`](../spotify-setup.md),
+  [`../installation.md`](../installation.md) and
+  [`../architecture.md`](../architecture.md).
