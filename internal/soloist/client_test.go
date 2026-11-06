@@ -243,3 +243,26 @@ func TestDoneClosesOnServerClose(t *testing.T) {
 		t.Fatalf("Err = %v, want nil for a clean close", err)
 	}
 }
+
+func TestDoCommandResultRequiresMatchingCommand(t *testing.T) {
+	url := testServer(t, func(conn *websocket.Conn) {
+		readCommand(t, conn)
+		writeEvent(t, conn, `{"type":"command_result"}`)
+		writeEvent(t, conn, `{"type":"command_result","command":"pause"}`)
+		drain(conn)
+	})
+
+	client, err := Dial(context.Background(), url)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer client.Close()
+
+	event, err := client.Do(context.Background(), Pause(), "command_result", time.Second)
+	if err != nil {
+		t.Fatalf("do: %v", err)
+	}
+	if event.Command != "pause" {
+		t.Fatalf("command = %q, want pause: an unnamed result must not satisfy a filtered waiter", event.Command)
+	}
+}

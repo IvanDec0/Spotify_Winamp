@@ -248,7 +248,9 @@ func (c *Client) dispatch(event Event) {
 			if w.want != event.Type {
 				continue
 			}
-			if w.command != "" && event.Command != "" && w.command != event.Command {
+			// A command_result only answers the command it names. An event
+			// without a command cannot satisfy a filtered waiter.
+			if w.command != "" && event.Command != w.command {
 				continue
 			}
 			w.out <- waitResult{event: event}

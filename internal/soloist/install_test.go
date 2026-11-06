@@ -278,11 +278,12 @@ func TestInstallFromServer(t *testing.T) {
 
 	programs := t.TempDir()
 	installer := NewInstaller(InstallerOptions{
-		ProgramsDir: programs,
-		HTTPClient:  server.Client(),
-		GOOS:        "linux",
-		GOARCH:      "amd64",
-		Now:         func() time.Time { return time.Unix(built+86400, 0) },
+		ProgramsDir:  programs,
+		HTTPClient:   server.Client(),
+		AllowAnyHost: true,
+		GOOS:         "linux",
+		GOARCH:       "amd64",
+		Now:          func() time.Time { return time.Unix(built+86400, 0) },
 	})
 	installer.archiveBaseURL = server.URL + "/"
 
@@ -346,11 +347,12 @@ func TestInstallReusesExistingBuildWithoutOverwriting(t *testing.T) {
 
 	programs := t.TempDir()
 	installer := NewInstaller(InstallerOptions{
-		ProgramsDir: programs,
-		HTTPClient:  server.Client(),
-		GOOS:        "linux",
-		GOARCH:      "amd64",
-		Now:         func() time.Time { return time.Unix(built+86400, 0) },
+		ProgramsDir:  programs,
+		HTTPClient:   server.Client(),
+		AllowAnyHost: true,
+		GOOS:         "linux",
+		GOARCH:       "amd64",
+		Now:          func() time.Time { return time.Unix(built+86400, 0) },
 	})
 	installer.archiveBaseURL = server.URL + "/"
 	if _, err := installer.Install(t.Context(), nil); err != nil {
@@ -399,11 +401,12 @@ func TestInstallRefusesExpiredBuild(t *testing.T) {
 
 	programs := t.TempDir()
 	installer := NewInstaller(InstallerOptions{
-		ProgramsDir: programs,
-		HTTPClient:  server.Client(),
-		GOOS:        "linux",
-		GOARCH:      "amd64",
-		Now:         func() time.Time { return time.Unix(built+91*24*60*60, 0) },
+		ProgramsDir:  programs,
+		HTTPClient:   server.Client(),
+		AllowAnyHost: true,
+		GOOS:         "linux",
+		GOARCH:       "amd64",
+		Now:          func() time.Time { return time.Unix(built+91*24*60*60, 0) },
 	})
 	installer.archiveBaseURL = server.URL + "/"
 	if _, err := installer.Install(t.Context(), nil); !errors.Is(err, ErrExpired) {
@@ -423,6 +426,7 @@ func TestInstallRejectsOversizedArchive(t *testing.T) {
 	installer := NewInstaller(InstallerOptions{
 		ProgramsDir:     t.TempDir(),
 		HTTPClient:      server.Client(),
+		AllowAnyHost:    true,
 		GOOS:            "linux",
 		GOARCH:          "amd64",
 		MaxArchiveBytes: 10,
@@ -441,4 +445,97 @@ func containsStage(stages []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestInstallerInjectedClientEnforcesSpotifyAllowlist(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+
+	locked := NewInstaller(InstallerOptions{
+		ProgramsDir: t.TempDir(),
+		HTTPClient:  server.Client(),
+		GOOS:        "linux",
+		GOARCH:      "amd64",
+	})
+	locked.archiveBaseURL = server.URL + "/"
+	if _, err := locked.archiveRequest(t.Context(), http.MethodGet, "soloist_release_x86_64.tar.gz"); err == nil || CodeOf(err) != CodeDownloadFailed {
+		t.Fatalf("non-Spotify initial URL error = %v, want CodeDownloadFailed", err)
+	}
+
+	request := func(raw string) *http.Request {
+		parsed, err := url.Parse(raw)
+		if err != nil {
+			t.Fatalf("parse %q: %v", raw, err)
+		}
+		return &http.Request{URL: parsed}
+	}
+	via := []*http.Request{request("https://soloist-builds.spotifycdn.com/archive")}
+	if err := locked.client.CheckRedirect(request("https://evil.example/archive"), via); err == nil {
+		t.Fatal("a non-Spotify redirect was accepted")
+	}
+	if err := locked.client.CheckRedirect(request("http://soloist-builds.spotifycdn.com/archive"), via); err == nil {
+		t.Fatal("an HTTP redirect was accepted")
+	}
+	if err := locked.client.CheckRedirect(request("https://soloist-builds.spotifycdn.com/archive"), via); err != nil {
+		t.Fatalf("a Spotify HTTPS redirect was rejected: %v", err)
+	}
+	tooMany := make([]*http.Request, maxRedirects+1)
+	for index := range tooMany {
+		tooMany[index] = via[0]
+	}
+	if err := locked.client.CheckRedirect(request("https://soloist-builds.spotifycdn.com/archive"), tooMany); err == nil {
+		t.Fatal("too many redirects were accepted")
+	}
+
+	sentinel := errors.New("caller redirect check")
+	injected := server.Client()
+	injected.CheckRedirect = func(*http.Request, []*http.Request) error { return sentinel }
+	chained := NewInstaller(InstallerOptions{
+		ProgramsDir: t.TempDir(),
+		HTTPClient:  injected,
+		GOOS:        "linux",
+		GOARCH:      "amd64",
+	})
+	if err := chained.client.CheckRedirect(request("https://soloist-builds.spotifycdn.com/archive"), via); !errors.Is(err, sentinel) {
+		t.Fatalf("caller CheckRedirect was not chained: %v", err)
+	}
+
+	open := NewInstaller(InstallerOptions{
+		ProgramsDir:  t.TempDir(),
+		HTTPClient:   server.Client(),
+		AllowAnyHost: true,
+		GOOS:         "linux",
+		GOARCH:       "amd64",
+	})
+	open.archiveBaseURL = server.URL + "/"
+	if _, err := open.archiveRequest(t.Context(), http.MethodGet, "soloist_release_x86_64.tar.gz"); err != nil {
+		t.Fatalf("AllowAnyHost rejected the test server: %v", err)
+	}
+}
+
+func TestArchiveURLRequiresHTTPS(t *testing.T) {
+	tests := []struct {
+		raw     string
+		wantErr bool
+	}{
+		{raw: "https://soloist-builds.spotifycdn.com/archive"},
+		{raw: "https://developer.spotify.com/archive"},
+		{raw: "http://soloist-builds.spotifycdn.com/archive", wantErr: true},
+		{raw: "ftp://soloist-builds.spotifycdn.com/archive", wantErr: true},
+		{raw: "https://evil.example/archive", wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.raw, func(t *testing.T) {
+			parsed, err := url.Parse(test.raw)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if got := checkSpotifyURL(parsed) != nil; got != test.wantErr {
+				t.Fatalf("checkSpotifyURL(%q) error = %v, wantErr %v", test.raw, checkSpotifyURL(parsed), test.wantErr)
+			}
+		})
+	}
+	if checkSpotifyURL(nil) == nil {
+		t.Fatal("nil URL was accepted")
+	}
 }

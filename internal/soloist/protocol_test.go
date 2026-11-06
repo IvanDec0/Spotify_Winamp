@@ -168,3 +168,19 @@ func TestDecodeQueueAndSimpleEvents(t *testing.T) {
 		t.Fatalf("command = %q", event.Command)
 	}
 }
+
+func TestDecodePlaybackStateWithNonStringModes(t *testing.T) {
+	event, err := decodeEvent([]byte(`{"type":"playback_state","status":"playing","options":{"shuffle":true,"repeat":"context","modes":{"smart_shuffle":true,"crossfade":1.5}}}`))
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if event.Playback == nil {
+		t.Fatal("playback is nil")
+	}
+	if string(event.Playback.Options.Modes["smart_shuffle"]) != "true" {
+		t.Fatalf("modes = %v", event.Playback.Options.Modes)
+	}
+	if string(event.Playback.Options.Modes["crossfade"]) != "1.5" {
+		t.Fatalf("modes = %v", event.Playback.Options.Modes)
+	}
+}

@@ -129,3 +129,26 @@ func TestAPIKeyErrorsNeverContainTheKey(t *testing.T) {
 		t.Fatalf("validation error = %v", err)
 	}
 }
+
+func TestSaveAPIKeyTightensExistingDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "config")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	if err := SaveAPIKey(filepath.Join(dir, "soloist.key"), "abc123"); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if runtime.GOOS == "windows" {
+		return
+	}
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if info.Mode().Perm() != 0o700 {
+		t.Fatalf("directory mode = %o, want 700", info.Mode().Perm())
+	}
+}

@@ -60,6 +60,10 @@ type SupervisorOptions struct {
 
 // Supervisor owns the Soloist child process and its WebSocket client.
 type Supervisor struct {
+	// lifecycleMu serializes whole Start, Stop and Restart sequences so two
+	// callers can never spawn two Soloist processes.
+	lifecycleMu sync.Mutex
+
 	mu sync.Mutex
 
 	binary        *Binary
@@ -99,15 +103,19 @@ func NewSupervisor(opts SupervisorOptions) *Supervisor {
 	if opts.StartTimeout <= 0 {
 		opts.StartTimeout = defaultStartTimeout
 	}
+	initialVolume := opts.InitialVolume
+	if initialVolume != nil && (*initialVolume < 0 || *initialVolume > 100) {
+		initialVolume = nil
+	}
 	return &Supervisor{
 		binary:        opts.Binary,
-		apiKey:        opts.APIKey,
+		apiKey:        strings.TrimSpace(opts.APIKey),
 		deviceName:    opts.DeviceName,
 		dataDir:       opts.DataDir,
 		cacheDir:      opts.CacheDir,
 		logPath:       opts.LogPath,
 		cacheSizeMB:   opts.CacheSizeMB,
-		initialVolume: opts.InitialVolume,
+		initialVolume: initialVolume,
 		startTimeout:  opts.StartTimeout,
 		loginTimeout:  opts.LoginTimeout,
 		emit:          opts.Emit,
@@ -120,6 +128,12 @@ func NewSupervisor(opts SupervisorOptions) *Supervisor {
 // returns ErrPairingRequired while leaving the process running when no
 // account is signed in yet.
 func (s *Supervisor) Start(ctx context.Context) error {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	return s.startLocked(ctx)
+}
+
+func (s *Supervisor) startLocked(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -140,6 +154,11 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	startTimeout := s.startTimeout
 	loginTimeout := s.loginTimeout
 	s.mu.Unlock()
+
+	// A second Start while Soloist is running is a no-op and must not drop
+	// the diagnostic lines of the running process. Only a real new run resets
+	// the tail, so an earlier run cannot decide how this one is classified.
+	s.tail.reset()
 
 	if binary == nil {
 		s.fail(ErrNotInstalled)
@@ -227,15 +246,17 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	port, err := s.waitForPort(ctx, done, dataDir, startTimeout)
 	if err != nil {
-		_ = s.Stop(context.Background())
+		_ = s.stopLocked(context.Background())
+		s.fail(err)
 		return err
 	}
 
 	client, err := Dial(ctx, fmt.Sprintf("ws://127.0.0.1:%d", port))
 	if err != nil {
-		_ = s.Stop(context.Background())
-		s.fail(codedError(CodeStartFailed, "cannot connect to Spotify Soloist", err))
-		return err
+		_ = s.stopLocked(context.Background())
+		coded := codedError(CodeStartFailed, "cannot connect to Spotify Soloist", err)
+		s.fail(coded)
+		return coded
 	}
 	s.mu.Lock()
 	s.client = client
@@ -243,7 +264,7 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	event, err := client.Await(ctx, "auth_state", authWaitTimeout)
 	if err != nil {
-		_ = s.Stop(context.Background())
+		_ = s.stopLocked(context.Background())
 		coded := codedError(CodeStartFailed, "Spotify Soloist did not report its authentication state", err)
 		s.fail(coded)
 		return coded
@@ -476,7 +497,8 @@ func (s *Supervisor) exitFailureLocked(err error) (string, string) {
 	if code == expiredExitCode {
 		return CodeBuildExpired, ErrExpired.Message + ". Install an update from Settings."
 	}
-	if s.tail.contains("another session is running for data directory") {
+	if s.tail.contains("another session is running for data directory") ||
+		s.tail.contains("another Spotify Soloist process already using the data directory") {
 		return CodeStartFailed, "another Spotify Soloist process is already using its data directory"
 	}
 	if s.tail.contains("make sure --api-key is valid") || s.tail.contains("--api-key is required") {
@@ -501,6 +523,12 @@ func exitCode(err error) int {
 
 // Stop terminates Soloist and its process group. It is idempotent.
 func (s *Supervisor) Stop(ctx context.Context) error {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	return s.stopLocked(ctx)
+}
+
+func (s *Supervisor) stopLocked(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -512,9 +540,12 @@ func (s *Supervisor) Stop(ctx context.Context) error {
 		s.cmd = nil
 		s.client = nil
 		s.running = false
+		s.stopping = false
 		s.loggedIn = false
 		s.needsPair = false
 		s.active = false
+		s.errorText = ""
+		s.errorCode = ""
 		s.mu.Unlock()
 		if client != nil {
 			_ = client.Close()
@@ -558,6 +589,8 @@ func (s *Supervisor) Stop(ctx context.Context) error {
 	s.loggedIn = false
 	s.needsPair = false
 	s.active = false
+	s.errorText = ""
+	s.errorCode = ""
 	s.mu.Unlock()
 	s.removeRuntimeFiles()
 	s.emitState()
@@ -566,10 +599,12 @@ func (s *Supervisor) Stop(ctx context.Context) error {
 
 // Restart stops and starts Soloist.
 func (s *Supervisor) Restart(ctx context.Context) error {
-	if err := s.Stop(ctx); err != nil {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+	if err := s.stopLocked(ctx); err != nil {
 		return err
 	}
-	return s.Start(ctx)
+	return s.startLocked(ctx)
 }
 
 // State returns a copy of the supervisor state with a cloned Accounts slice.
@@ -621,8 +656,15 @@ func (s *Supervisor) SetEmitter(emit func(State)) {
 // keeps the key it was started with.
 func (s *Supervisor) setAPIKey(key string) {
 	s.mu.Lock()
-	s.apiKey = key
+	s.apiKey = strings.TrimSpace(key)
 	s.mu.Unlock()
+}
+
+// apiKeyValue is an unexported test hook for the trimmed key.
+func (s *Supervisor) apiKeyValue() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.apiKey
 }
 
 // Accounts lists the accounts Soloist has stored under
@@ -690,7 +732,7 @@ func buildArgs(deviceName, apiKey, dataDir, cacheDir string, cacheSizeMB int, in
 	if cacheSizeMB >= 100 {
 		args = append(args, "-z", strconv.Itoa(cacheSizeMB))
 	}
-	if initialVolume != nil {
+	if initialVolume != nil && *initialVolume >= 0 && *initialVolume <= 100 {
 		args = append(args, "-i", strconv.Itoa(*initialVolume))
 	}
 	return args
@@ -722,8 +764,7 @@ func cleanupStale(dataDir, binaryPath string) {
 		// an unrelated process that reused the pid.
 		return
 	}
-	text := string(cmdline)
-	if !strings.Contains(text, filepath.Base(binaryPath)) || !strings.Contains(text, dataDir) {
+	if !matchesSoloistProcess(cmdline, binaryPath, dataDir) {
 		return
 	}
 	_ = syscall.Kill(pid, syscall.SIGTERM)
@@ -742,6 +783,30 @@ func cleanupStale(dataDir, binaryPath string) {
 func processAlive(pid int) bool {
 	err := syscall.Kill(pid, 0)
 	return err == nil || errors.Is(err, syscall.EPERM)
+}
+
+// matchesSoloistProcess reports whether a raw /proc/<pid>/cmdline belongs to
+// this Soloist binary and data directory. Arguments are NUL-separated, so a
+// substring match would let an unrelated command such as
+// "tail -f <dataDir>/soloist.log" be killed.
+func matchesSoloistProcess(cmdline []byte, binaryPath, dataDir string) bool {
+	args := strings.Split(string(cmdline), "\x00")
+	for len(args) > 0 && args[len(args)-1] == "" {
+		args = args[:len(args)-1]
+	}
+	if len(args) == 0 {
+		return false
+	}
+	if filepath.Base(args[0]) != filepath.Base(binaryPath) {
+		return false
+	}
+	want := filepath.Clean(dataDir)
+	for _, arg := range args[1:] {
+		if filepath.Clean(arg) == want {
+			return true
+		}
+	}
+	return false
 }
 
 type redactingWriter struct {
@@ -845,6 +910,13 @@ func (t *tailBuffer) add(line string) {
 	if len(t.lines) > t.max {
 		t.lines = t.lines[len(t.lines)-t.max:]
 	}
+}
+
+// reset drops every line from an earlier run.
+func (t *tailBuffer) reset() {
+	t.mu.Lock()
+	t.lines = nil
+	t.mu.Unlock()
 }
 
 func (t *tailBuffer) last() string {

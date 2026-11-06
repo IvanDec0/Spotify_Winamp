@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -50,9 +51,13 @@ type Progress struct {
 
 // Installer downloads, verifies and installs Soloist builds.
 type Installer struct {
+	// mu serializes whole install sequences so two callers cannot stage the
+	// same build timestamp at once.
+	mu sync.Mutex
+
 	programsDir     string
 	client          *http.Client
-	allowlist       bool
+	allowAnyHost    bool
 	archiveBaseURL  string
 	goos            string
 	goarch          string
@@ -63,8 +68,15 @@ type Installer struct {
 
 // InstallerOptions configures an Installer.
 type InstallerOptions struct {
-	ProgramsDir     string
-	HTTPClient      *http.Client
+	ProgramsDir string
+	// HTTPClient overrides the client used for downloads. Unless AllowAnyHost
+	// is set, the installer enforces the Spotify host and HTTPS allowlist on
+	// the initial URL and on every redirect.
+	HTTPClient *http.Client
+	// AllowAnyHost disables the Spotify host allowlist. It exists for tests
+	// that serve archives from a local httptest server and must not be set in
+	// production.
+	AllowAnyHost    bool
 	GOOS            string
 	GOARCH          string
 	Now             func() time.Time
@@ -77,7 +89,7 @@ type InstallerOptions struct {
 func NewInstaller(opts InstallerOptions) *Installer {
 	installer := &Installer{
 		programsDir:     opts.ProgramsDir,
-		client:          opts.HTTPClient,
+		allowAnyHost:    opts.AllowAnyHost,
 		archiveBaseURL:  archivesURL,
 		goos:            opts.GOOS,
 		goarch:          opts.GOARCH,
@@ -100,9 +112,15 @@ func NewInstaller(opts InstallerOptions) *Installer {
 	if installer.maxBinaryBytes <= 0 {
 		installer.maxBinaryBytes = defaultMaxBinaryBytes
 	}
-	if installer.client == nil {
+	switch {
+	case opts.HTTPClient == nil && opts.AllowAnyHost:
+		installer.client = &http.Client{Timeout: installHTTPTimeout}
+	case opts.HTTPClient == nil:
 		installer.client = newArchiveHTTPClient()
-		installer.allowlist = true
+	case opts.AllowAnyHost:
+		installer.client = opts.HTTPClient
+	default:
+		installer.client = allowlistedClient(opts.HTTPClient)
 	}
 	return installer
 }
@@ -130,6 +148,8 @@ func ArchiveName(goos, goarch string) (string, error) {
 // installs it under its build timestamp. An already installed valid build for
 // the same timestamp is reused instead of overwritten.
 func (i *Installer) Install(ctx context.Context, progress func(Progress)) (*Binary, error) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -209,8 +229,12 @@ func (i *Installer) Install(ctx context.Context, progress func(Progress)) (*Bina
 			return nil, codedError(CodeDownloadFailed, "cannot make the installed Soloist runnable", err)
 		}
 	}
-	if err := os.RemoveAll(targetDir); err != nil {
-		return nil, codedError(CodeDownloadFailed, "cannot replace the installed Soloist build", err)
+	// reuseExisting rejected this path, so an existing target is invalid or
+	// expired and may be replaced. A valid target was returned above.
+	if _, err := os.Stat(targetDir); err == nil {
+		if err := os.RemoveAll(targetDir); err != nil {
+			return nil, codedError(CodeDownloadFailed, "cannot replace the installed Soloist build", err)
+		}
 	}
 	if err := os.Rename(stageDir, targetDir); err != nil {
 		return nil, codedError(CodeDownloadFailed, "cannot install the downloaded Soloist", err)
@@ -324,9 +348,8 @@ func (i *Installer) download(ctx context.Context, archive, destination string, p
 	return etag, nil
 }
 
-// archiveRequest builds one request for the platform's archive. The default
-// client enforces the Spotify host allowlist; an injected client (tests)
-// bypasses it.
+// archiveRequest builds one request for the platform's archive. Unless
+// AllowAnyHost is set, the initial URL must be an HTTPS Spotify URL.
 func (i *Installer) archiveRequest(ctx context.Context, method, archive string) (*http.Request, error) {
 	rawURL := strings.TrimRight(i.archiveBaseURL, "/") + "/" + archive
 	request, err := http.NewRequestWithContext(ctx, method, rawURL, nil)
@@ -335,7 +358,7 @@ func (i *Installer) archiveRequest(ctx context.Context, method, archive string) 
 	}
 	// Identity keeps the byte caps honest: no transparent decompression.
 	request.Header.Set("Accept-Encoding", "identity")
-	if i.allowlist {
+	if !i.allowAnyHost {
 		if err := checkSpotifyURL(request.URL); err != nil {
 			return nil, codedError(CodeDownloadFailed, "Spotify Soloist may only be downloaded from Spotify", err)
 		}
@@ -371,19 +394,43 @@ func newArchiveHTTPClient() *http.Client {
 		transport = &http.Transport{Proxy: http.ProxyFromEnvironment}
 	}
 	return &http.Client{
-		Timeout:   installHTTPTimeout,
-		Transport: transport,
-		CheckRedirect: func(request *http.Request, via []*http.Request) error {
-			if len(via) > maxRedirects {
-				return errors.New("too many redirects")
-			}
-			return checkSpotifyURL(request.URL)
-		},
+		Timeout:       installHTTPTimeout,
+		Transport:     transport,
+		CheckRedirect: spotifyRedirectCheck(nil),
+	}
+}
+
+// allowlistedClient wraps an injected client with the Spotify allowlist and
+// the redirect cap, chaining any CheckRedirect the caller already set.
+func allowlistedClient(client *http.Client) *http.Client {
+	cloned := *client
+	cloned.CheckRedirect = spotifyRedirectCheck(client.CheckRedirect)
+	return &cloned
+}
+
+func spotifyRedirectCheck(original func(*http.Request, []*http.Request) error) func(*http.Request, []*http.Request) error {
+	return func(request *http.Request, via []*http.Request) error {
+		if len(via) > maxRedirects {
+			return errors.New("too many redirects")
+		}
+		if err := checkSpotifyURL(request.URL); err != nil {
+			return err
+		}
+		if original != nil {
+			return original(request, via)
+		}
+		return nil
 	}
 }
 
 func checkSpotifyURL(target *url.URL) error {
-	if target == nil || !spotifyHostAllowed(target.Hostname()) {
+	if target == nil {
+		return errors.New("the URL is not a Spotify server")
+	}
+	if !strings.EqualFold(target.Scheme, "https") {
+		return errors.New("the URL does not use HTTPS")
+	}
+	if !spotifyHostAllowed(target.Hostname()) {
 		return errors.New("the host is not a Spotify server")
 	}
 	return nil

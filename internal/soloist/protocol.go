@@ -191,10 +191,10 @@ type Position struct {
 
 // PlaybackOptions are the playback modes Soloist reports.
 type PlaybackOptions struct {
-	Shuffle       bool              `json:"shuffle"`
-	Repeat        string            `json:"repeat"`
-	PlaybackSpeed float64           `json:"playback_speed"`
-	Modes         map[string]string `json:"modes,omitempty"`
+	Shuffle       bool                       `json:"shuffle"`
+	Repeat        string                     `json:"repeat"`
+	PlaybackSpeed float64                    `json:"playback_speed"`
+	Modes         map[string]json.RawMessage `json:"modes,omitempty"`
 }
 
 // QueueEntry is one item in Soloist's queue.

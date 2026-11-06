@@ -2,8 +2,8 @@ package soloist
 
 import (
 	"context"
-	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -19,19 +19,27 @@ type Options struct {
 	DeviceName    string
 	CacheSizeMB   int
 	InitialVolume *int
-	HTTPClient    *http.Client
-	Emit          func(State)
-	Now           func() time.Time
+	// Installer overrides the production installer. Nil builds an installer
+	// for ProgramsDir with the production Spotify-only HTTP client. Tests use
+	// this to inject an archive server without exposing a bypass on the
+	// service surface.
+	Installer *Installer
+	Emit      func(State)
+	Now       func() time.Time
 }
 
 // Service is the facade used by the application. It merges install, binary,
 // credential and supervisor state without exposing the API key.
 type Service struct {
 	mu sync.Mutex
+	// refreshMu serializes binary inspections without holding mu, so State
+	// can never block Start, Stop or Install for the 15-second version probe.
+	refreshMu sync.Mutex
 
 	opts       Options
 	now        func() time.Time
 	installer  *Installer
+	inspect    func(context.Context, string) (*Binary, error)
 	binary     *Binary
 	binarySig  binarySignature
 	accounts   []string
@@ -57,13 +65,17 @@ func NewService(opts Options) *Service {
 		opts:     opts,
 		now:      now,
 		accounts: Accounts(opts.DataDir),
+		inspect:  InspectBinary,
 		emit:     opts.Emit,
 	}
-	service.installer = NewInstaller(InstallerOptions{
-		ProgramsDir: opts.ProgramsDir,
-		HTTPClient:  opts.HTTPClient,
-		Now:         now,
-	})
+	if opts.Installer != nil {
+		service.installer = opts.Installer
+	} else {
+		service.installer = NewInstaller(InstallerOptions{
+			ProgramsDir: opts.ProgramsDir,
+			Now:         now,
+		})
+	}
 	binary, err := FindInstalled(opts.ProgramsDir, os.Getenv("CADENCE_SOLOIST"))
 	if err == nil {
 		service.cacheBinary(binary)
@@ -74,8 +86,8 @@ func NewService(opts Options) *Service {
 // State merges binary, account, key and supervisor state. It never includes
 // the API key.
 func (s *Service) State() State {
+	s.refreshBinary()
 	s.mu.Lock()
-	s.refreshBinaryLocked()
 	binary := s.binary
 	accounts := append([]string(nil), s.accounts...)
 	supervisor := s.supervisor
@@ -139,8 +151,8 @@ func (s *Service) State() State {
 // Start refreshes the install, checks the key and starts Soloist. A pairing
 // error is returned while the process keeps running.
 func (s *Service) Start(ctx context.Context) error {
+	s.refreshBinary()
 	s.mu.Lock()
-	s.refreshBinaryLocked()
 	binary := s.binary
 	opts := s.opts
 	now := s.now()
@@ -185,8 +197,11 @@ func (s *Service) Start(ctx context.Context) error {
 func (s *Service) ensureSupervisor(binary *Binary, key string) *Supervisor {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.supervisor != nil && s.supervisor.State().Running {
-		return s.supervisor
+	if s.supervisor != nil {
+		state := s.supervisor.State()
+		if state.Running || (binary != nil && state.BinaryPath == binary.Path) {
+			return s.supervisor
+		}
 	}
 	s.supervisor = NewSupervisor(SupervisorOptions{
 		Binary:        binary,
@@ -264,6 +279,7 @@ func (s *Service) Install(ctx context.Context, progress func(Progress)) (*Binary
 
 // SaveAPIKey stores the user's Soloist API key with owner-only permissions.
 func (s *Service) SaveAPIKey(key string) error {
+	key = strings.TrimSpace(key)
 	s.mu.Lock()
 	path := s.opts.APIKeyPath
 	s.mu.Unlock()
@@ -324,9 +340,9 @@ func (s *Service) Client() *Client {
 // Binary returns a copy of the cached installed binary, refreshing it when
 // the file changed.
 func (s *Service) Binary() *Binary {
+	s.refreshBinary()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.refreshBinaryLocked()
 	if s.binary == nil {
 		return nil
 	}
@@ -347,29 +363,57 @@ func (s *Service) SetEmitter(emit func(State)) {
 	}
 }
 
-func (s *Service) refreshBinaryLocked() {
-	if s.binary == nil {
+// refreshBinary re-inspects the cached binary when its path, modification
+// time or size changed. The version probe runs without s.mu, so State can
+// never block a concurrent Start, Stop or Install.
+func (s *Service) refreshBinary() {
+	// If another goroutine is already probing --version, use the cached
+	// binary instead of waiting: callers of State, Start, Stop and Install
+	// must never be delayed by the version probe.
+	if !s.refreshMu.TryLock() {
 		return
 	}
-	info, err := os.Stat(s.binary.Path)
+	defer s.refreshMu.Unlock()
+
+	s.mu.Lock()
+	binary := s.binary
+	sig := s.binarySig
+	inspect := s.inspect
+	s.mu.Unlock()
+	if binary == nil {
+		return
+	}
+	info, err := os.Stat(binary.Path)
+	if err != nil {
+		s.mu.Lock()
+		if s.binary == binary {
+			s.binary = nil
+			s.binarySig = binarySignature{}
+		}
+		s.mu.Unlock()
+		return
+	}
+	current := binarySignature{path: binary.Path, modTime: info.ModTime(), size: info.Size()}
+	if current == sig {
+		return
+	}
+	if inspect == nil {
+		inspect = InspectBinary
+	}
+	refreshed, err := inspect(context.Background(), binary.Path)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.binary != binary {
+		// A concurrent Install replaced the cached build.
+		return
+	}
 	if err != nil {
 		s.binary = nil
 		s.binarySig = binarySignature{}
 		return
 	}
-	if s.binarySig.path == s.binary.Path &&
-		info.ModTime().Equal(s.binarySig.modTime) &&
-		info.Size() == s.binarySig.size {
-		return
-	}
-	binary, err := InspectBinary(context.Background(), s.binary.Path)
-	if err != nil {
-		s.binary = nil
-		s.binarySig = binarySignature{}
-		return
-	}
-	s.binary = binary
-	s.binarySig = binarySignature{path: binary.Path, modTime: info.ModTime(), size: info.Size()}
+	s.binary = refreshed
+	s.binarySig = current
 }
 
 func (s *Service) cacheBinary(binary *Binary) {

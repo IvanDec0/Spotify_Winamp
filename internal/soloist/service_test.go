@@ -1,6 +1,7 @@
 package soloist
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -47,6 +48,12 @@ func TestServiceNotInstalled(t *testing.T) {
 	}
 	if emissions.Load() == 0 {
 		t.Fatal("emitter was not called")
+	}
+	if err := service.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	if got := service.State().ErrorCode; got != "" {
+		t.Fatalf("error code after a clean stop = %q", got)
 	}
 }
 
@@ -98,13 +105,21 @@ func TestServiceInstall(t *testing.T) {
 	}))
 	defer server.Close()
 
-	opts.HTTPClient = server.Client()
 	opts.Now = func() time.Time { return time.Unix(built+86400, 0) }
+	installer := NewInstaller(InstallerOptions{
+		ProgramsDir:  opts.ProgramsDir,
+		HTTPClient:   server.Client(),
+		AllowAnyHost: true,
+		GOOS:         "linux",
+		GOARCH:       "amd64",
+		Now:          opts.Now,
+	})
+	installer.archiveBaseURL = server.URL + "/"
+	opts.Installer = installer
 	var emissions atomic.Int32
 	opts.Emit = func(State) { emissions.Add(1) }
 
 	service := NewService(opts)
-	service.installer.archiveBaseURL = server.URL + "/"
 	binary, err := service.Install(t.Context(), nil)
 	if err != nil {
 		t.Fatalf("install: %v", err)
@@ -194,5 +209,63 @@ func TestServiceStateNeverContainsAPIKey(t *testing.T) {
 	state := service.State()
 	if strings.Contains(state.Error, secret) {
 		t.Fatalf("state error leaks the key: %q", state.Error)
+	}
+}
+
+func TestStateDoesNotBlockOnTheVersionProbe(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	opts := serviceOptions(t)
+	built := time.Now().Add(-time.Hour).Unix()
+	installFakeBinary(t, opts.ProgramsDir, opts.DataDir, 12345, built, "secret")
+	service := NewService(opts)
+	path := service.Binary().Path
+	if path == "" {
+		t.Fatal("fake binary was not discovered")
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	service.mu.Lock()
+	service.inspect = func(ctx context.Context, path string) (*Binary, error) {
+		close(started)
+		<-release
+		return &Binary{Path: path, Version: "1.0.0", BuiltAt: time.Unix(built, 0)}, nil
+	}
+	service.mu.Unlock()
+
+	future := time.Now().Add(time.Minute)
+	if err := os.Chtimes(path, future, future); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		_ = service.State()
+		close(done)
+	}()
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the version probe did not start")
+	}
+
+	saved := make(chan error, 1)
+	go func() { saved <- service.SaveAPIKey("key") }()
+	select {
+	case err := <-saved:
+		if err != nil {
+			t.Fatalf("save key: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("SaveAPIKey blocked on the version probe")
+	}
+
+	close(release)
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("State did not finish")
 	}
 }

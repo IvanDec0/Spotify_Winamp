@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -207,6 +208,12 @@ func TestStartExitCodeTenIsExpired(t *testing.T) {
 	}
 	if state.ErrorCode != CodeBuildExpired {
 		t.Fatalf("state error code = %q", state.ErrorCode)
+	}
+	if err := supervisor.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	if got := supervisor.State().ErrorCode; got != "" {
+		t.Fatalf("error code after a clean stop = %q", got)
 	}
 }
 
@@ -413,5 +420,226 @@ func TestRedactingWriterProtectsFlushBoundary(t *testing.T) {
 	}
 	if tail.contains(secret) || tail.contains(secret[:halves]) {
 		t.Fatal("tail leaks the secret")
+	}
+}
+
+func fakeSoloistPidScript(dataDir, pidFile string, port int, built int64) string {
+	return fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "soloist 1.0.0 build %d (20260101)"
+  exit 0
+fi
+echo $$ >> "%s"
+echo %d > "%s"
+trap 'exit 0' TERM INT
+while :; do sleep 0.05; done
+`, built, pidFile, port, filepath.Join(dataDir, "ws.port"))
+}
+
+func readSpawnedPids(t *testing.T, path string) []int {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read pids: %v", err)
+	}
+	var pids []int
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		pid, err := strconv.Atoi(strings.TrimSpace(line))
+		if err != nil {
+			t.Fatalf("pid %q: %v", line, err)
+		}
+		pids = append(pids, pid)
+	}
+	return pids
+}
+
+func TestConcurrentStartSpawnsOneProcess(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	server := newFakeSoloist(t, true)
+	dataDir := t.TempDir()
+	pidFile := filepath.Join(t.TempDir(), "spawns")
+	programs := t.TempDir()
+	built := time.Now().Add(-time.Hour).Unix()
+	path := writeScript(t, filepath.Join(programs, strconv.FormatInt(built, 10)), "soloist", fakeSoloistPidScript(dataDir, pidFile, server.port, built))
+	binary, err := InspectBinary(t.Context(), path)
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	supervisor := NewSupervisor(SupervisorOptions{
+		Binary:       binary,
+		APIKey:       "secret",
+		DataDir:      dataDir,
+		CacheDir:     t.TempDir(),
+		LogPath:      filepath.Join(t.TempDir(), "soloist.log"),
+		StartTimeout: 5 * time.Second,
+		LoginTimeout: 2 * time.Second,
+	})
+
+	start := make(chan struct{})
+	errs := make([]error, 2)
+	var wg sync.WaitGroup
+	for index := range errs {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			<-start
+			errs[index] = supervisor.Start(t.Context())
+		}(index)
+	}
+	close(start)
+	wg.Wait()
+	for index, err := range errs {
+		if err != nil {
+			t.Fatalf("start %d: %v", index, err)
+		}
+	}
+	pids := readSpawnedPids(t, pidFile)
+	if len(pids) != 1 {
+		t.Fatalf("spawns = %d (%v), want exactly one", len(pids), pids)
+	}
+	if err := supervisor.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	if err := syscall.Kill(pids[0], 0); !errors.Is(err, syscall.ESRCH) {
+		t.Fatalf("process %d is still alive after Stop: %v", pids[0], err)
+	}
+}
+
+func TestCleanupStaleIgnoresTailWatchingTheLog(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("stale pid cleanup uses /proc")
+	}
+	tailPath, err := exec.LookPath("tail")
+	if err != nil {
+		t.Skip("tail is not available")
+	}
+	dataDir := t.TempDir()
+	logPath := filepath.Join(dataDir, "soloist.log")
+	if err := os.WriteFile(logPath, []byte("line\n"), 0o600); err != nil {
+		t.Fatalf("write log: %v", err)
+	}
+	cmd := exec.Command(tailPath, "-f", logPath)
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start tail: %v", err)
+	}
+	defer func() {
+		_ = cmd.Process.Kill()
+		_, _ = cmd.Process.Wait()
+	}()
+	pidPath := filepath.Join(dataDir, "soloist.pid")
+	if err := os.WriteFile(pidPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0o600); err != nil {
+		t.Fatalf("write pid: %v", err)
+	}
+	cleanupStale(dataDir, "/usr/bin/soloist")
+	if err := syscall.Kill(cmd.Process.Pid, 0); err != nil {
+		t.Fatalf("tail watching the log was killed: %v", err)
+	}
+	if _, err := os.Stat(pidPath); err != nil {
+		t.Fatalf("pid file removed for an unrelated process: %v", err)
+	}
+}
+
+func TestAPIKeyIsTrimmedForTheNextRun(t *testing.T) {
+	supervisor := NewSupervisor(SupervisorOptions{APIKey: "  spaced-key  "})
+	if got := supervisor.apiKeyValue(); got != "spaced-key" {
+		t.Fatalf("key = %q, want trimmed", got)
+	}
+	supervisor.setAPIKey("  other-key  ")
+	if got := supervisor.apiKeyValue(); got != "other-key" {
+		t.Fatalf("key = %q, want trimmed", got)
+	}
+	args := buildArgs("Cadence", supervisor.apiKeyValue(), "/data", "/cache", 0, nil)
+	if strings.Join(args, "\x00") != "-n\x00Cadence\x00-k\x00other-key\x00-D\x00/data\x00-C\x00/cache\x00-w\x00127.0.0.1:0" {
+		t.Fatalf("args = %v", args)
+	}
+
+	opts := serviceOptions(t)
+	service := NewService(opts)
+	service.mu.Lock()
+	service.supervisor = NewSupervisor(SupervisorOptions{APIKey: "old-key"})
+	service.mu.Unlock()
+	if err := service.SaveAPIKey("  spaced-key  "); err != nil {
+		t.Fatalf("save key: %v", err)
+	}
+	service.mu.Lock()
+	got := service.supervisor.apiKeyValue()
+	service.mu.Unlock()
+	if got != "spaced-key" {
+		t.Fatalf("supervisor key = %q, want trimmed", got)
+	}
+}
+
+func TestDiagnosticTailDoesNotLeakAcrossRuns(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	dir := t.TempDir()
+	path := writeScript(t, dir, "soloist", "#!/bin/sh\necho 'make sure --api-key is valid' >&2\nexit 1\n")
+	binary := &Binary{Path: path, Version: "1.0.0", BuiltAt: time.Now().Add(-time.Hour)}
+	supervisor := NewSupervisor(SupervisorOptions{
+		Binary:       binary,
+		APIKey:       "secret",
+		DataDir:      t.TempDir(),
+		CacheDir:     t.TempDir(),
+		LogPath:      filepath.Join(t.TempDir(), "soloist.log"),
+		StartTimeout: time.Second,
+	})
+	if err := supervisor.Start(t.Context()); CodeOf(err) != CodeAPIKeyRejected {
+		t.Fatalf("first run error = %v, code = %q, want %q", err, CodeOf(err), CodeAPIKeyRejected)
+	}
+
+	if err := os.WriteFile(path, []byte("#!/bin/sh\necho 'unexpected boom' >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatalf("rewrite script: %v", err)
+	}
+	err := supervisor.Start(t.Context())
+	if CodeOf(err) != CodeStartFailed {
+		t.Fatalf("second run error = %v, code = %q, want %q", err, CodeOf(err), CodeStartFailed)
+	}
+	if !strings.Contains(err.Error(), "unexpected boom") {
+		t.Fatalf("second run error = %v, want the current run's line", err)
+	}
+}
+
+func TestDataDirectoryRefusalIsMapped(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	dir := t.TempDir()
+	path := writeScript(t, dir, "soloist", "#!/bin/sh\necho 'another Spotify Soloist process already using the data directory' >&2\nexit 1\n")
+	supervisor := NewSupervisor(SupervisorOptions{
+		Binary:       &Binary{Path: path, Version: "1.0.0", BuiltAt: time.Now().Add(-time.Hour)},
+		APIKey:       "secret",
+		DataDir:      t.TempDir(),
+		CacheDir:     t.TempDir(),
+		LogPath:      filepath.Join(t.TempDir(), "soloist.log"),
+		StartTimeout: time.Second,
+	})
+	err := supervisor.Start(t.Context())
+	if CodeOf(err) != CodeStartFailed || !strings.Contains(err.Error(), "data directory") {
+		t.Fatalf("error = %v, code = %q, want a data-directory start failure", err, CodeOf(err))
+	}
+}
+
+func TestInitialVolumeIsValidated(t *testing.T) {
+	invalid := []int{-1, 101}
+	for _, value := range invalid {
+		volume := value
+		supervisor := NewSupervisor(SupervisorOptions{InitialVolume: &volume})
+		if supervisor.initialVolume != nil {
+			t.Fatalf("InitialVolume %d was not dropped", value)
+		}
+		if args := buildArgs("Cadence", "key", "/data", "/cache", 0, &volume); strings.Contains(strings.Join(args, " "), "-i") {
+			t.Fatalf("InitialVolume %d reached argv: %v", value, args)
+		}
+	}
+	good := 55
+	supervisor := NewSupervisor(SupervisorOptions{InitialVolume: &good})
+	if supervisor.initialVolume == nil || *supervisor.initialVolume != good {
+		t.Fatalf("InitialVolume = %v, want 55", supervisor.initialVolume)
 	}
 }

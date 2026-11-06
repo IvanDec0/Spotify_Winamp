@@ -35,6 +35,10 @@ func SaveAPIKey(path, key string) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return codedError(CodeAPIKeyInvalid, "cannot create the Spotify Soloist key directory", err)
 	}
+	// Tighten a directory that already existed with broader permissions.
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return codedError(CodeAPIKeyInvalid, "cannot secure the Spotify Soloist key directory", err)
+	}
 	file, err := os.CreateTemp(dir, ".soloist-key-*")
 	if err != nil {
 		return codedError(CodeAPIKeyInvalid, "cannot create the Spotify Soloist key file", err)
