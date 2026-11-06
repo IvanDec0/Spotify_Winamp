@@ -2,7 +2,6 @@ package audioapi
 
 import (
 	"context"
-	"errors"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -131,8 +130,6 @@ type fakeSoloistBackend struct {
 	autoUpdateCalls   int
 	autoProgressCalls int
 	pruneCalls        int
-	retryPairingCalls int
-	retryPairingErr   error
 
 	onProgress func()
 	emitter    func(soloist.State)
@@ -276,19 +273,6 @@ func (f *fakeSoloistBackend) SetEmitter(emit func(soloist.State)) {
 	f.mu.Lock()
 	f.emitter = emit
 	f.mu.Unlock()
-}
-
-func (f *fakeSoloistBackend) RetryPairing(context.Context) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.retryPairingCalls++
-	return f.retryPairingErr
-}
-
-func (f *fakeSoloistBackend) retryCalls() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.retryPairingCalls
 }
 
 func newTestService(t *testing.T, backend string, fake *fakeSoloistBackend) (*Service, *settings.Store) {
@@ -729,60 +713,4 @@ func TestSaveAndClearSoloistAPIKey(t *testing.T) {
 	if fake.savedKey != "" || fake.hasKey {
 		t.Fatalf("cleared key state = %q, %v", fake.savedKey, fake.hasKey)
 	}
-}
-
-func TestRetrySoloistPairing(t *testing.T) {
-	tests := []struct {
-		name       string
-		state      soloist.State
-		installing bool
-		retryErr   error
-		wantCalls  int
-	}{
-		{
-			name:      "running and logged out",
-			state:     soloist.State{Running: true, NeedsPairing: true},
-			wantCalls: 1,
-		},
-		{
-			name:      "retry error is swallowed",
-			state:     soloist.State{Running: true, NeedsPairing: true},
-			retryErr:  errors.New("pairing failed"),
-			wantCalls: 1,
-		},
-		{
-			name:  "logged in",
-			state: soloist.State{Running: true, LoggedIn: true},
-		},
-		{
-			name:  "not running",
-			state: soloist.State{NeedsPairing: true},
-		},
-		{
-			name:       "installing",
-			state:      soloist.State{Running: true, NeedsPairing: true},
-			installing: true,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			fake := &fakeSoloistBackend{state: test.state, retryPairingErr: test.retryErr}
-			service, _ := newTestService(t, settings.BackendSoloist, fake)
-			service.setInstallProgress(test.installing, "downloading", 0, 0)
-
-			service.retrySoloistPairing(t.Context())
-
-			if got := fake.retryCalls(); got != test.wantCalls {
-				t.Fatalf("RetryPairing calls = %d, want %d", got, test.wantCalls)
-			}
-			if got := service.GetState().Soloist.Installing; got != test.installing {
-				t.Fatalf("Installing = %v, want %v", got, test.installing)
-			}
-		})
-	}
-}
-
-func TestRetrySoloistPairingWithoutBackend(t *testing.T) {
-	service, _ := newTestService(t, settings.BackendSoloist, nil)
-	service.retrySoloistPairing(t.Context())
 }

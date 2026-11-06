@@ -335,11 +335,9 @@ export const es: Record<MessageKey, string> = {
   "browse.soloistSetupSave": "Guardar e iniciar",
   "browse.soloistSetupPairingTitle": "Aprueba la vinculación",
   "browse.soloistSetupPairingBody":
-    "Spotify se abrió. Abre el selector de dispositivos y elige Cadence una vez. Cadence detecta la selección y termina automáticamente.",
-  "browse.soloistSetupPairingWaiting": "Esperando a que Spotify elija Cadence…",
-  "browse.soloistOpenSpotify": "Abrir Spotify",
-  "browse.soloistOpenSpotifyFailed":
-    "No se pudo abrir Spotify. Ábrelo manualmente y elige Cadence.",
+    "Abre Spotify en un teléfono, tablet u otra computadora en la misma Wi-Fi y elige Cadence una vez. Cadence detecta la selección y termina automáticamente.",
+  "browse.soloistSetupPairingWaiting":
+    "Esperando a que Spotify en tu teléfono, tablet u otra computadora elija Cadence…",
   "browse.soloistSetupDone": "Listo",
   "browse.soloistSetupPreparing": "Preparando Spotify Soloist",
   "browse.soloistSetupRetry": "Reintentar descarga",

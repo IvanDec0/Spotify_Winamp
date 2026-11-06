@@ -211,13 +211,12 @@ func main() {
 	// store its API key before the user switches backends. Only the Soloist
 	// backend starts the process.
 	soloistService = soloist.NewService(soloist.Options{
-		ProgramsDir:       filepath.Join(xdg.DataHome, "cadence", "soloist", "programs"),
-		DataDir:           filepath.Join(xdg.DataHome, "cadence", "soloist", "data"),
-		CacheDir:          filepath.Join(xdg.CacheHome, "cadence", "soloist", "cache"),
-		LogPath:           filepath.Join(xdg.CacheHome, "cadence", "logs", "soloist.log"),
-		APIKeyPath:        filepath.Join(xdg.ConfigHome, "cadence", "soloist", "api-key"),
-		DeviceName:        "Cadence",
-		EngineCredentials: audioRuntime.StoredCredentials,
+		ProgramsDir: filepath.Join(xdg.DataHome, "cadence", "soloist", "programs"),
+		DataDir:     filepath.Join(xdg.DataHome, "cadence", "soloist", "data"),
+		CacheDir:    filepath.Join(xdg.CacheHome, "cadence", "soloist", "cache"),
+		LogPath:     filepath.Join(xdg.CacheHome, "cadence", "logs", "soloist.log"),
+		APIKeyPath:  filepath.Join(xdg.ConfigHome, "cadence", "soloist", "api-key"),
+		DeviceName:  "Cadence",
 	})
 
 	var provider playback.Provider = demoProvider

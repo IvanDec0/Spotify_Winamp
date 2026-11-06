@@ -31,9 +31,6 @@ type Options struct {
 	DeviceName    string
 	CacheSizeMB   int
 	InitialVolume *int
-	// EngineCredentials returns the library engine's paired account and its
-	// reusable Spotify credentials for automatic Soloist pairing. Optional.
-	EngineCredentials func() (username string, data []byte, err error)
 	// Installer overrides the production installer. Nil builds an installer
 	// for ProgramsDir with the production Spotify-only HTTP client. Tests use
 	// this to inject an archive server without exposing a bypass on the
@@ -249,32 +246,19 @@ func (s *Service) ensureSupervisor(binary *Binary, key string) *Supervisor {
 		}
 	}
 	s.supervisor = NewSupervisor(SupervisorOptions{
-		Binary:            binary,
-		APIKey:            key,
-		DeviceName:        s.opts.DeviceName,
-		DataDir:           s.opts.DataDir,
-		CacheDir:          s.opts.CacheDir,
-		LogPath:           s.opts.LogPath,
-		CacheSizeMB:       s.opts.CacheSizeMB,
-		InitialVolume:     s.opts.InitialVolume,
-		EngineCredentials: s.opts.EngineCredentials,
+		Binary:        binary,
+		APIKey:        key,
+		DeviceName:    s.opts.DeviceName,
+		DataDir:       s.opts.DataDir,
+		CacheDir:      s.opts.CacheDir,
+		LogPath:       s.opts.LogPath,
+		CacheSizeMB:   s.opts.CacheSizeMB,
+		InitialVolume: s.opts.InitialVolume,
 		Emit: func(State) {
 			s.emitMerged()
 		},
 	})
 	return s.supervisor
-}
-
-// RetryPairing attempts the automatic library-account handoff on the
-// running Soloist instance.
-func (s *Service) RetryPairing(ctx context.Context) error {
-	s.mu.Lock()
-	supervisor := s.supervisor
-	s.mu.Unlock()
-	if supervisor == nil {
-		return nil
-	}
-	return supervisor.RetryAutoPair(ctx)
 }
 
 // Stop stops Soloist.

@@ -325,11 +325,9 @@ export const en = {
   "browse.soloistSetupSave": "Save and start",
   "browse.soloistSetupPairingTitle": "Approve the pairing",
   "browse.soloistSetupPairingBody":
-    "Spotify opened. Open the device picker and choose Cadence once. Cadence detects the selection and finishes automatically.",
-  "browse.soloistSetupPairingWaiting": "Waiting for Spotify to choose Cadence…",
-  "browse.soloistOpenSpotify": "Open Spotify",
-  "browse.soloistOpenSpotifyFailed":
-    "Spotify could not be opened. Open it manually and choose Cadence.",
+    "Open Spotify on a phone, tablet or another computer on the same Wi-Fi and choose Cadence once. Cadence detects the selection and finishes automatically.",
+  "browse.soloistSetupPairingWaiting":
+    "Waiting for Spotify on your phone, tablet or another computer to choose Cadence…",
   "browse.soloistSetupDone": "Done",
   "browse.soloistSetupPreparing": "Preparing Spotify Soloist",
   "browse.soloistSetupRetry": "Retry download",

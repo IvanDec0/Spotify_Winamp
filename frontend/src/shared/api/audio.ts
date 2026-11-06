@@ -21,7 +21,6 @@ export const audio = {
   restartSoloist: () => call(() => Service.RestartSoloist()),
   openSoloistDashboard: () => call(() => Service.OpenSoloistDashboard()),
   openSoloistDownloads: () => call(() => Service.OpenSoloistDownloads()),
-  openSpotify: () => call(() => Service.OpenSpotify()),
   openPairing: () => call(() => Service.OpenPairing()),
   resetSession: () => call(() => Service.ResetSession()),
   restart: () => call(() => Service.Restart()),

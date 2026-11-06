@@ -27,9 +27,7 @@
   let busy = $state(false);
   let error = $state<SetupError | null>(null);
   let keyInput: HTMLInputElement | undefined = $state();
-  let pairingOpened = $state(false);
   let pairingCompleted = $state(false);
-  let spotifyOpenFailed = $state(false);
 
   let soloist = $derived(music.soloist);
 
@@ -39,17 +37,7 @@
     apiKey = "";
     error = null;
     busy = false;
-    pairingOpened = false;
     pairingCompleted = false;
-    spotifyOpenFailed = false;
-  });
-
-  $effect(() => {
-    if (!open || step !== "pairing" || pairingOpened) return;
-    pairingOpened = true;
-    void tick().then(() => {
-      if (open && step === "pairing") void openSpotify();
-    });
   });
 
   $effect(() => {
@@ -120,20 +108,6 @@
       }
     } catch (cause) {
       error = { title: "browse.soloistError", detail: toApiError(cause).message };
-    } finally {
-      busy = false;
-    }
-  }
-
-  async function openSpotify(): Promise<void> {
-    if (busy) return;
-    busy = true;
-    spotifyOpenFailed = false;
-    try {
-      await audio.openSpotify();
-    } catch {
-      // Not installed or no URI handler: keep the manual path available.
-      spotifyOpenFailed = true;
     } finally {
       busy = false;
     }
@@ -359,16 +333,10 @@
       {#if soloist?.loggedIn}
         <p class="soloist-setup-status is-on" role="status">{t("browse.soloistLoggedIn")}</p>
       {/if}
-      {#if spotifyOpenFailed}
-        <p class="soloist-setup-hint" role="status">{t("browse.soloistOpenSpotifyFailed")}</p>
-      {/if}
       {@render errorNotice()}
       <div class="soloist-setup-actions">
         <Button variant="ghost" size="sm" onclick={ondismiss}>
           {t("browse.soloistSetupLater")}
-        </Button>
-        <Button variant="secondary" size="sm" disabled={busy} onclick={() => void openSpotify()}>
-          {t("browse.soloistOpenSpotify")}
         </Button>
         <Button variant="primary" size="sm" data-autofocus onclick={finishPairing}>
           {t("browse.soloistSetupDone")}
@@ -457,13 +425,6 @@
 
   .soloist-setup-status.is-on {
     border-color: color-mix(in srgb, var(--accent, #5ef0ff) 48%, transparent);
-  }
-
-  .soloist-setup-hint {
-    margin: 0;
-    color: color-mix(in srgb, var(--danger, #ff6b6b) 72%, var(--text, #e8edf4));
-    font-size: 10px;
-    line-height: 1.5;
   }
 
   .soloist-setup-error {
