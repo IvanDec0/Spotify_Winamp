@@ -227,6 +227,11 @@ Phase 1 API notes for later phases:
 
 ### Phase 2 — Settings, state and wiring
 
+Execution order is P3 → P4 → P2: `main.go` cannot select a Soloist
+`playback.Provider` before it exists, and catalog playback needs the Phase 4
+seam before the wiring can be coherent. P2 closes the loop with settings, the
+additive `AudioState`, the Wails adapter, `main.go` and the ADR.
+
 - [ ] P2.1 `settings.PlaybackState` (`backend`), constants, default,
       normalization and `UpdatePlayback`; `Load` fills a missing section; no
       schema bump.
