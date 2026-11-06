@@ -24,6 +24,7 @@ import (
 	"cadence/internal/playback"
 	"cadence/internal/settings"
 	"cadence/internal/skins"
+	"cadence/internal/soloist"
 	"cadence/internal/visualizer"
 	audioapi "cadence/internal/wailsapi/audio"
 	playerapi "cadence/internal/wailsapi/player"
@@ -133,6 +134,11 @@ func main() {
 		defaults := settings.Default()
 		engineSettings = defaults.Engine
 	}
+	playbackBackend := settings.BackendLibrespot
+	if savedSettings.Playback != nil {
+		playbackBackend = settings.NormalizePlaybackBackend(savedSettings.Playback.Backend)
+	}
+	soloistMode := playbackBackend == settings.BackendSoloist
 	audioCacheDir := engineSettings.CacheDir
 	if audioCacheDir == "" {
 		audioCacheDir = filepath.Join(xdg.CacheHome, "cadence", "audio-cache")
@@ -164,10 +170,16 @@ func main() {
 		log.Println("diagnostics enabled: counters and pprof are exposed on a loopback port")
 	}
 
-	audioRuntime := engine.NewSupervisor(engine.Options{
+	libraryDeviceName := "Cadence"
+	if soloistMode {
+		// The go-librespot sidecar only keeps the catalog session in Soloist
+		// mode; its device name makes that role explicit in Spotify Connect.
+		libraryDeviceName = "Cadence Library"
+	}
+	engineOptions := engine.Options{
 		ConfigDir:                 filepath.Join(xdg.ConfigHome, "cadence", "audio"),
 		LogPath:                   filepath.Join(xdg.CacheHome, "cadence", "logs", "go-librespot.log"),
-		DeviceName:                "Cadence",
+		DeviceName:                libraryDeviceName,
 		AudioBackend:              "pulseaudio",
 		AudioDevice:               "default",
 		Bitrate:                   engineSettings.Bitrate,
@@ -185,10 +197,37 @@ func main() {
 		DeviceIsGroup: engineSettings.DeviceIsGroup,
 		ImageSize:     engineSettings.ImageSize,
 		HTTPClient:    engineHTTPClient,
-	})
+	}
+	if soloistMode {
+		// Soloist owns audio in this mode: go-librespot must not expose MPRIS
+		// or keep a second audio cache.
+		engineOptions.CacheEnabled = false
+		engineOptions.MPRISEnabled = false
+	}
+	audioRuntime := engine.NewSupervisor(engineOptions)
+
+	var soloistService *soloist.Service
+	if soloistMode {
+		soloistService = soloist.NewService(soloist.Options{
+			ProgramsDir: filepath.Join(xdg.DataHome, "cadence", "soloist", "programs"),
+			DataDir:     filepath.Join(xdg.DataHome, "cadence", "soloist", "data"),
+			CacheDir:    filepath.Join(xdg.CacheHome, "cadence", "soloist", "cache"),
+			LogPath:     filepath.Join(xdg.CacheHome, "cadence", "logs", "soloist.log"),
+			APIKeyPath:  filepath.Join(xdg.ConfigHome, "cadence", "soloist", "api-key"),
+			DeviceName:  "Cadence",
+		})
+	}
+
 	var provider playback.Provider = demoProvider
+	var catalogPlayback catalog.Playback
 	if !*demoMode {
-		provider = playback.NewEngineProvider(audioRuntime, artCache)
+		if soloistMode {
+			soloistProvider := playback.NewSoloistProvider(soloistService, artCache)
+			provider = soloistProvider
+			catalogPlayback = soloistProvider
+		} else {
+			provider = playback.NewEngineProvider(audioRuntime, artCache)
+		}
 	}
 	playerService := playerapi.NewService(provider)
 	artCache.SetRecorder(recorder)
@@ -199,12 +238,19 @@ func main() {
 		Supervisor: audioRuntime,
 		Art:        artCache,
 		Enabled:    !*demoMode,
+		Playback:   catalogPlayback,
 	})
+	var soloistBackend audioapi.SoloistBackend
+	if soloistService != nil {
+		soloistBackend = soloistService
+	}
 	audioService := audioapi.NewService(audioapi.Options{
-		Catalog:    catalogService,
-		Supervisor: audioRuntime,
-		Settings:   settingsStore,
-		Enabled:    !*demoMode,
+		Catalog:         catalogService,
+		Supervisor:      audioRuntime,
+		Settings:        settingsStore,
+		Enabled:         !*demoMode,
+		Soloist:         soloistBackend,
+		PlaybackBackend: playbackBackend,
 	})
 	visualizerService := visualizerapi.NewService()
 

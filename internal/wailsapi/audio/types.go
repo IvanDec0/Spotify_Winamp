@@ -15,3 +15,4 @@ type ArtistPage = engine.ArtistPage
 type SearchResults = engine.SearchResults
 type LibraryContext = catalog.LibraryContext
 type EngineSettings = settings.EngineState
+type PlaybackSettings = settings.PlaybackState

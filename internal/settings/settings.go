@@ -9,11 +9,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
 // SchemaVersion identifies the on-disk configuration format.
 const SchemaVersion = 1
+
+// Playback backend identifiers persisted in playback.backend.
+const (
+	BackendLibrespot = "librespot"
+	BackendSoloist   = "soloist"
+)
 
 // SkinState is the persisted skin configuration.
 type SkinState struct {
@@ -40,12 +47,19 @@ type EngineState struct {
 	ImageSize                 string  `json:"imageSize"`
 }
 
+// PlaybackState is the persisted audio backend selection. Changing it takes
+// effect on the next application start.
+type PlaybackState struct {
+	Backend string `json:"backend"`
+}
+
 // Config is the root configuration document. New top-level sections can be
 // added without changing the skin or Spotify stores.
 type Config struct {
-	SchemaVersion int          `json:"schemaVersion"`
-	Skins         SkinState    `json:"skins"`
-	Engine        *EngineState `json:"engine,omitempty"`
+	SchemaVersion int            `json:"schemaVersion"`
+	Skins         SkinState      `json:"skins"`
+	Engine        *EngineState   `json:"engine,omitempty"`
+	Playback      *PlaybackState `json:"playback,omitempty"`
 }
 
 func defaultEngine() EngineState {
@@ -56,10 +70,25 @@ func defaultEngine() EngineState {
 	}
 }
 
+func defaultPlayback() PlaybackState {
+	return PlaybackState{Backend: BackendLibrespot}
+}
+
+// NormalizePlaybackBackend maps an arbitrary stored value to a supported
+// backend. Empty, unknown and case variants fall back to librespot; the only
+// opt-in value is "soloist" after trimming and case folding.
+func NormalizePlaybackBackend(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), BackendSoloist) {
+		return BackendSoloist
+	}
+	return BackendLibrespot
+}
+
 // Default returns a configuration that always selects the built-in skin, uses
 // the current engine playback defaults and leaves Spotify unconfigured.
 func Default() Config {
 	engine := defaultEngine()
+	playback := defaultPlayback()
 	return Config{
 		SchemaVersion: SchemaVersion,
 		Skins: SkinState{
@@ -68,7 +97,8 @@ func Default() Config {
 			LastKnownGoodID:    "clarity",
 			LastKnownGoodTheme: "graphite",
 		},
-		Engine: &engine,
+		Engine:   &engine,
+		Playback: &playback,
 	}
 }
 
@@ -122,6 +152,12 @@ func (s *Store) loadLocked() (Config, error) {
 		engine := defaultEngine()
 		config.Engine = &engine
 	}
+	if config.Playback == nil {
+		playback := defaultPlayback()
+		config.Playback = &playback
+	} else {
+		config.Playback.Backend = NormalizePlaybackBackend(config.Playback.Backend)
+	}
 	return config, nil
 }
 
@@ -142,6 +178,18 @@ func (s *Store) UpdateEngine(mutate func(*EngineState) error) error {
 			config.Engine = &engine
 		}
 		return mutate(config.Engine)
+	})
+}
+
+// UpdatePlayback atomically updates the audio backend selection while
+// preserving the latest skin and engine settings on disk.
+func (s *Store) UpdatePlayback(mutate func(*PlaybackState) error) error {
+	return s.update(func(config *Config) error {
+		if config.Playback == nil {
+			playback := defaultPlayback()
+			config.Playback = &playback
+		}
+		return mutate(config.Playback)
 	})
 }
 
@@ -176,6 +224,12 @@ func (s *Store) saveLocked(config Config) error {
 	}
 	if config.SchemaVersion != SchemaVersion {
 		return fmt.Errorf("unsupported settings schema version %d", config.SchemaVersion)
+	}
+	if config.Playback == nil {
+		playback := defaultPlayback()
+		config.Playback = &playback
+	} else {
+		config.Playback.Backend = NormalizePlaybackBackend(config.Playback.Backend)
 	}
 
 	data, err := json.MarshalIndent(config, "", "  ")

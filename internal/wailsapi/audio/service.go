@@ -10,6 +10,7 @@ import (
 	"cadence/internal/catalog"
 	"cadence/internal/engine"
 	"cadence/internal/settings"
+	"cadence/internal/soloist"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -18,12 +19,38 @@ import (
 // pairing state.
 const AudioEvent = "audio:state"
 
+// SoloistBackend is the subset of *soloist.Service the audio adapter uses.
+// *soloist.Service satisfies it structurally.
+type SoloistBackend interface {
+	State() soloist.State
+	Start(context.Context) error
+	Stop(context.Context) error
+	Restart(context.Context) error
+	Install(context.Context, func(soloist.Progress)) (*soloist.Binary, error)
+	SaveAPIKey(string) error
+	ClearAPIKey() error
+	HasAPIKey() bool
+	SetEmitter(func(soloist.State))
+}
+
 // Options wires the audio service.
 type Options struct {
-	Catalog    *catalog.Service
-	Supervisor *engine.Supervisor
-	Settings   *settings.Store
-	Enabled    bool
+	Catalog         *catalog.Service
+	Supervisor      *engine.Supervisor
+	Settings        *settings.Store
+	Enabled         bool
+	Soloist         SoloistBackend
+	PlaybackBackend string
+}
+
+// installProgress is the mutable install snapshot merged into SoloistState. It
+// has its own mutex so install progress callbacks never touch the service lock.
+type installProgress struct {
+	mu         sync.Mutex
+	installing bool
+	stage      string
+	downloaded int64
+	total      int64
 }
 
 // Service exposes the local audio engine, pairing and library browsing to the
@@ -33,6 +60,9 @@ type Service struct {
 	supervisor *engine.Supervisor
 	settings   *settings.Store
 	enabled    bool
+	soloist    SoloistBackend
+	backend    string
+	progress   installProgress
 
 	mu  sync.Mutex
 	app *application.App
@@ -44,20 +74,34 @@ func NewService(options Options) *Service {
 		supervisor: options.Supervisor,
 		settings:   options.Settings,
 		enabled:    options.Enabled,
+		soloist:    options.Soloist,
+		backend:    settings.NormalizePlaybackBackend(options.PlaybackBackend),
 	}
 }
 
 func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
 	s.mu.Lock()
 	s.app = application.Get()
-	app := s.app
 	s.mu.Unlock()
-	s.supervisor.SetEmitter(func(state AudioState) {
-		if app != nil {
-			app.Event.Emit(AudioEvent, state)
-		}
+
+	s.supervisor.SetEmitter(func(AudioState) {
+		s.emitMerged()
 	})
+	if s.soloist != nil {
+		s.soloist.SetEmitter(func(soloist.State) {
+			s.emitMerged()
+		})
+	}
 	if s.enabled {
+		if s.soloist != nil {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+				defer cancel()
+				// A pairing requirement and other start failures are reported
+				// through the merged state, never by logging credentials.
+				_ = s.soloist.Start(ctx)
+			}()
+		}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
@@ -70,12 +114,73 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 func (s *Service) ServiceShutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return s.supervisor.Stop(ctx)
+	var errs []error
+	if s.supervisor != nil {
+		errs = append(errs, s.supervisor.Stop(ctx))
+	}
+	if s.soloist != nil {
+		errs = append(errs, s.soloist.Stop(ctx))
+	}
+	return errors.Join(errs...)
 }
 
-// GetState returns the engine and pairing state.
+// GetState returns the engine state merged with the selected playback backend
+// and, in Soloist mode, the Soloist process and install state.
 func (s *Service) GetState() AudioState {
-	return s.catalog.GetState()
+	state := s.catalog.GetState()
+	state.PlaybackBackend = s.backend
+	if s.backend == settings.BackendSoloist && s.soloist != nil {
+		state.Soloist = s.soloistState()
+	}
+	return state
+}
+
+// emitMerged emits one audio:state event carrying both backends. It snapshots
+// the app under the mutex and never holds it while querying either backend.
+func (s *Service) emitMerged() {
+	s.mu.Lock()
+	app := s.app
+	s.mu.Unlock()
+	if app == nil {
+		return
+	}
+	app.Event.Emit(AudioEvent, s.GetState())
+}
+
+func (s *Service) soloistState() *engine.SoloistState {
+	domain := s.soloist.State()
+	mapped := engine.SoloistState{
+		Installed:    domain.Installed,
+		BinaryPath:   domain.BinaryPath,
+		Version:      domain.Version,
+		BuiltAt:      formatUTC(domain.BuiltAt),
+		ExpiresAt:    formatUTC(domain.ExpiresAt),
+		Expired:      domain.Expired,
+		DaysLeft:     domain.DaysLeft,
+		Running:      domain.Running,
+		LoggedIn:     domain.LoggedIn,
+		NeedsPairing: domain.NeedsPairing,
+		Active:       domain.Active,
+		DeviceName:   domain.DeviceName,
+		Accounts:     append([]string(nil), domain.Accounts...),
+		Error:        domain.Error,
+		ErrorCode:    domain.ErrorCode,
+	}
+
+	s.progress.mu.Lock()
+	mapped.Installing = s.progress.installing
+	mapped.InstallStage = s.progress.stage
+	mapped.Downloaded = s.progress.downloaded
+	mapped.Total = s.progress.total
+	s.progress.mu.Unlock()
+	return &mapped
+}
+
+func formatUTC(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339)
 }
 
 // OpenPairing opens the current Spotify device pairing page in the system
@@ -103,6 +208,117 @@ func (s *Service) ResetSession() (AudioState, error) {
 // Restart restarts the engine while keeping the paired credentials.
 func (s *Service) Restart() (AudioState, error) {
 	return s.catalog.Restart()
+}
+
+// InstallSoloist downloads and installs the newest Spotify Soloist build,
+// reporting progress through the merged audio state.
+func (s *Service) InstallSoloist() (AudioState, error) {
+	if s.soloist == nil {
+		return s.GetState(), errors.New("Spotify Soloist is not enabled")
+	}
+	s.setInstallProgress(true, "downloading", 0, 0)
+	s.emitMerged()
+	_, err := s.soloist.Install(context.Background(), func(progress soloist.Progress) {
+		s.setInstallProgress(true, progress.Stage, progress.Downloaded, progress.Total)
+		s.emitMerged()
+	})
+	s.setInstallProgress(false, "", 0, 0)
+	s.emitMerged()
+	return s.GetState(), err
+}
+
+// SaveSoloistAPIKey stores the user's Soloist API key without returning it.
+func (s *Service) SaveSoloistAPIKey(key string) (AudioState, error) {
+	if s.soloist == nil {
+		return s.GetState(), errors.New("Spotify Soloist is not enabled")
+	}
+	err := s.soloist.SaveAPIKey(key)
+	s.emitMerged()
+	return s.GetState(), err
+}
+
+// ClearSoloistAPIKey removes the stored Soloist API key.
+func (s *Service) ClearSoloistAPIKey() (AudioState, error) {
+	if s.soloist == nil {
+		return s.GetState(), errors.New("Spotify Soloist is not enabled")
+	}
+	err := s.soloist.ClearAPIKey()
+	s.emitMerged()
+	return s.GetState(), err
+}
+
+// StartSoloist starts the Soloist process. A pairing requirement is reported
+// through the state, not as an action error.
+func (s *Service) StartSoloist() (AudioState, error) {
+	if s.soloist == nil {
+		return s.GetState(), errors.New("Spotify Soloist is not enabled")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	err := s.soloist.Start(ctx)
+	if soloist.CodeOf(err) == soloist.CodePairingRequired {
+		err = nil
+	}
+	s.emitMerged()
+	return s.GetState(), err
+}
+
+// StopSoloist stops the Soloist process.
+func (s *Service) StopSoloist() (AudioState, error) {
+	if s.soloist == nil {
+		return s.GetState(), errors.New("Spotify Soloist is not enabled")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := s.soloist.Stop(ctx)
+	s.emitMerged()
+	return s.GetState(), err
+}
+
+// RestartSoloist restarts the Soloist process. A pairing requirement is
+// reported through the state, not as an action error.
+func (s *Service) RestartSoloist() (AudioState, error) {
+	if s.soloist == nil {
+		return s.GetState(), errors.New("Spotify Soloist is not enabled")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	err := s.soloist.Restart(ctx)
+	if soloist.CodeOf(err) == soloist.CodePairingRequired {
+		err = nil
+	}
+	s.emitMerged()
+	return s.GetState(), err
+}
+
+// OpenSoloistDashboard opens Spotify's dashboard page where the user creates a
+// Soloist API key.
+func (s *Service) OpenSoloistDashboard() error {
+	return s.openURL(soloist.DashboardURL)
+}
+
+// OpenSoloistDownloads opens Spotify's official Soloist download page.
+func (s *Service) OpenSoloistDownloads() error {
+	return s.openURL(soloist.DownloadsURL)
+}
+
+func (s *Service) openURL(url string) error {
+	s.mu.Lock()
+	app := s.app
+	s.mu.Unlock()
+	if app == nil {
+		return errors.New("application is not ready")
+	}
+	return app.Browser.OpenURL(url)
+}
+
+func (s *Service) setInstallProgress(installing bool, stage string, downloaded, total int64) {
+	s.progress.mu.Lock()
+	s.progress.installing = installing
+	s.progress.stage = stage
+	s.progress.downloaded = downloaded
+	s.progress.total = total
+	s.progress.mu.Unlock()
 }
 
 // GetEngineSettings returns the persisted engine playback and cache options,
@@ -139,6 +355,39 @@ func (s *Service) SetEngineSettings(value EngineSettings) (EngineSettings, error
 		return EngineSettings{}, err
 	}
 	s.supervisor.ApplyPlaybackConfig(normalized)
+	return saved, nil
+}
+
+// GetPlaybackSettings returns the persisted audio backend, defaulting to
+// librespot when the settings file has no playback section.
+func (s *Service) GetPlaybackSettings() (PlaybackSettings, error) {
+	if s.settings == nil {
+		return PlaybackSettings{}, errors.New("the settings store is not configured")
+	}
+	config, err := s.settings.Load()
+	if err != nil {
+		return PlaybackSettings{}, err
+	}
+	if config.Playback == nil {
+		return PlaybackSettings{Backend: settings.BackendLibrespot}, nil
+	}
+	return PlaybackSettings{Backend: settings.NormalizePlaybackBackend(config.Playback.Backend)}, nil
+}
+
+// SetPlaybackSettings validates and persists the audio backend. It never
+// starts, stops or switches a backend: the new value applies on the next
+// application start.
+func (s *Service) SetPlaybackSettings(value PlaybackSettings) (PlaybackSettings, error) {
+	if s.settings == nil {
+		return PlaybackSettings{}, errors.New("the settings store is not configured")
+	}
+	saved := PlaybackSettings{Backend: settings.NormalizePlaybackBackend(value.Backend)}
+	if err := s.settings.UpdatePlayback(func(state *settings.PlaybackState) error {
+		*state = saved
+		return nil
+	}); err != nil {
+		return PlaybackSettings{}, err
+	}
 	return saved, nil
 }
 
