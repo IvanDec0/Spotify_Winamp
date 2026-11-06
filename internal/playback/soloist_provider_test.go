@@ -718,3 +718,134 @@ func TestSoloistProviderConcurrentAccess(t *testing.T) {
 	}
 	waitGroup.Wait()
 }
+
+func TestPlayContextActivatesThenPlaysURI(t *testing.T) {
+	server := &fakeSoloistServer{}
+	url := startFakeSoloist(t, server)
+	provider := NewSoloistProvider(newFakeSoloistBackend(dialSoloistClient(t, url)), nil)
+
+	if err := provider.PlayContext(context.Background(), " spotify:playlist:x ", ""); err != nil {
+		t.Fatalf("PlayContext() error = %v", err)
+	}
+	commands := server.commandList()
+	if len(commands) != 2 || commands[0].Command != "activate" || commands[1].Command != "play" {
+		t.Fatalf("commands = %#v, want [activate play]", commands)
+	}
+	if commands[1].URI != "spotify:playlist:x" {
+		t.Fatalf("play uri = %q, want the trimmed context uri", commands[1].URI)
+	}
+}
+
+func TestPlayContextWithSkipPlaysStandaloneTrack(t *testing.T) {
+	server := &fakeSoloistServer{}
+	url := startFakeSoloist(t, server)
+	provider := NewSoloistProvider(newFakeSoloistBackend(dialSoloistClient(t, url)), nil)
+
+	if err := provider.PlayContext(context.Background(), "spotify:playlist:x", "spotify:track:y"); err != nil {
+		t.Fatalf("PlayContext() error = %v", err)
+	}
+	commands := server.commandList()
+	if len(commands) != 2 || commands[0].Command != "activate" || commands[1].Command != "play" {
+		t.Fatalf("commands = %#v, want [activate play]", commands)
+	}
+	if commands[1].URI != "spotify:track:y" {
+		t.Fatalf("play uri = %q, want the standalone track", commands[1].URI)
+	}
+	for _, command := range commands {
+		if command.URI == "spotify:playlist:x" {
+			t.Fatalf("context uri was sent despite a skip: %#v", commands)
+		}
+	}
+}
+
+func TestPlayContextEmptyURI(t *testing.T) {
+	server := &fakeSoloistServer{}
+	url := startFakeSoloist(t, server)
+	provider := NewSoloistProvider(newFakeSoloistBackend(dialSoloistClient(t, url)), nil)
+
+	err := provider.PlayContext(context.Background(), "   ", "")
+	if soloist.CodeOf(err) != soloist.CodeUnsupportedAction {
+		t.Fatalf("code = %q, want %q", soloist.CodeOf(err), soloist.CodeUnsupportedAction)
+	}
+	if names := server.commandNames(); len(names) != 0 {
+		t.Fatalf("commands = %#v, want none", names)
+	}
+}
+
+func TestPlayTrackDelegatesToContext(t *testing.T) {
+	server := &fakeSoloistServer{}
+	url := startFakeSoloist(t, server)
+	provider := NewSoloistProvider(newFakeSoloistBackend(dialSoloistClient(t, url)), nil)
+
+	if err := provider.PlayTrack(context.Background(), "spotify:track:z"); err != nil {
+		t.Fatalf("PlayTrack() error = %v", err)
+	}
+	commands := server.commandList()
+	if len(commands) != 2 || commands[0].Command != "activate" || commands[1].Command != "play" {
+		t.Fatalf("commands = %#v, want [activate play]", commands)
+	}
+	if commands[1].URI != "spotify:track:z" {
+		t.Fatalf("play uri = %q, want the track uri", commands[1].URI)
+	}
+}
+
+func TestAddToQueueAcceptsTracksAndRejectsOtherURIs(t *testing.T) {
+	cases := []struct {
+		name     string
+		uri      string
+		wantURI  string
+		accepted bool
+	}{
+		{name: "track", uri: "spotify:track:1", wantURI: "spotify:track:1", accepted: true},
+		{name: "track with spaces", uri: " spotify:track:2 ", wantURI: "spotify:track:2", accepted: true},
+		{name: "album", uri: "spotify:album:1"},
+		{name: "playlist", uri: "spotify:playlist:1"},
+		{name: "episode", uri: "spotify:episode:1"},
+		{name: "empty", uri: "   "},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			server := &fakeSoloistServer{}
+			url := startFakeSoloist(t, server)
+			provider := NewSoloistProvider(newFakeSoloistBackend(dialSoloistClient(t, url)), nil)
+
+			err := provider.AddToQueue(context.Background(), testCase.uri)
+			if !testCase.accepted {
+				if soloist.CodeOf(err) != soloist.CodeUnsupportedAction {
+					t.Fatalf("code = %q, want %q", soloist.CodeOf(err), soloist.CodeUnsupportedAction)
+				}
+				if names := server.commandNames(); len(names) != 0 {
+					t.Fatalf("commands = %#v, want none", names)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("AddToQueue() error = %v", err)
+			}
+			commands := server.commandList()
+			if len(commands) != 1 || commands[0].Command != "add_to_queue" {
+				t.Fatalf("commands = %#v, want [add_to_queue]", commands)
+			}
+			if commands[0].URI != testCase.wantURI {
+				t.Fatalf("queue uri = %q, want %q", commands[0].URI, testCase.wantURI)
+			}
+		})
+	}
+}
+
+func TestStartRadioUnsupported(t *testing.T) {
+	server := &fakeSoloistServer{}
+	url := startFakeSoloist(t, server)
+	provider := NewSoloistProvider(newFakeSoloistBackend(dialSoloistClient(t, url)), nil)
+
+	err := provider.StartRadio(context.Background(), "spotify:artist:x")
+	if soloist.CodeOf(err) != soloist.CodeUnsupportedAction {
+		t.Fatalf("code = %q, want %q", soloist.CodeOf(err), soloist.CodeUnsupportedAction)
+	}
+	if !strings.Contains(err.Error(), "radio is not available") {
+		t.Fatalf("error = %v, want the radio message", err)
+	}
+	if names := server.commandNames(); len(names) != 0 {
+		t.Fatalf("commands = %#v, want none", names)
+	}
+}

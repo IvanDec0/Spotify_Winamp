@@ -13,11 +13,22 @@ import (
 	"cadence/internal/engine"
 )
 
+// Playback is the playback surface the catalog needs. The default
+// implementation wraps the go-librespot client; the Soloist provider is
+// injected in Soloist mode.
+type Playback interface {
+	PlayContext(ctx context.Context, uri, skipToURI string) error
+	PlayTrack(ctx context.Context, uri string) error
+	AddToQueue(ctx context.Context, uri string) error
+	StartRadio(ctx context.Context, uri string) error
+}
+
 // Options wires the catalog service.
 type Options struct {
 	Supervisor *engine.Supervisor
 	Art        *artwork.Cache
 	Enabled    bool
+	Playback   Playback
 }
 
 // Service exposes the local audio engine, pairing and library browsing to the
@@ -26,10 +37,54 @@ type Service struct {
 	supervisor *engine.Supervisor
 	art        *artwork.Cache
 	enabled    bool
+	playback   Playback
 }
 
 func NewService(options Options) *Service {
-	return &Service{supervisor: options.Supervisor, art: options.Art, enabled: options.Enabled}
+	playback := options.Playback
+	if playback == nil {
+		playback = enginePlayback{supervisor: options.Supervisor}
+	}
+	return &Service{
+		supervisor: options.Supervisor,
+		art:        options.Art,
+		enabled:    options.Enabled,
+		playback:   playback,
+	}
+}
+
+// enginePlayback adapts the go-librespot supervisor client to the Playback
+// seam. It preserves the behavior the catalog had before the seam existed.
+type enginePlayback struct {
+	supervisor *engine.Supervisor
+}
+
+func (e enginePlayback) PlayContext(ctx context.Context, uri, skipToURI string) error {
+	client, err := engineClient(e.supervisor)
+	if err != nil {
+		return err
+	}
+	return client.Play(ctx, uri, skipToURI, false, 0)
+}
+
+func (e enginePlayback) PlayTrack(ctx context.Context, uri string) error {
+	return e.PlayContext(ctx, uri, "")
+}
+
+func (e enginePlayback) AddToQueue(ctx context.Context, uri string) error {
+	client, err := engineClient(e.supervisor)
+	if err != nil {
+		return err
+	}
+	return client.AddToQueue(ctx, uri)
+}
+
+func (e enginePlayback) StartRadio(ctx context.Context, uri string) error {
+	client, err := engineClient(e.supervisor)
+	if err != nil {
+		return err
+	}
+	return client.StartRadio(ctx, uri)
 }
 
 // ContextTrackInfo is the compact track metadata returned to the frontend.
@@ -205,13 +260,9 @@ func (s *Service) YourEpisodes() (LibraryContext, error) {
 // PlayContext starts playback of a playlist, album, artist, show or Liked
 // Songs collection. skipToURI selects a track inside the context.
 func (s *Service) PlayContext(uri, skipToURI string) error {
-	client, err := s.client()
-	if err != nil {
-		return err
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	return client.Play(ctx, uri, skipToURI, false, 0)
+	return s.playback.PlayContext(ctx, uri, skipToURI)
 }
 
 // PlayTrack starts playback of a single track URI.
@@ -219,15 +270,11 @@ func (s *Service) PlayTrack(uri string) error {
 	return s.PlayContext(uri, "")
 }
 
-// AddToQueue appends a track to the go-librespot queue.
+// AddToQueue appends a track to the active backend queue.
 func (s *Service) AddToQueue(uri string) error {
-	client, err := s.client()
-	if err != nil {
-		return err
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	return client.AddToQueue(ctx, uri)
+	return s.playback.AddToQueue(ctx, uri)
 }
 
 // collectionSet, artistSet and showSet are the collection sets for saved
@@ -361,17 +408,19 @@ func (s *Service) StartRadio(uri string) error {
 	if uri == "" {
 		return errors.New("the radio seed is empty")
 	}
-	client, err := s.client()
-	if err != nil {
-		return err
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	return client.StartRadio(ctx, uri)
+	return s.playback.StartRadio(ctx, uri)
 }
 
 func (s *Service) client() (*engine.Client, error) {
-	client := s.supervisor.Client()
+	return engineClient(s.supervisor)
+}
+
+// engineClient returns the go-librespot client or the coded not-running error
+// shared by the catalog and its default playback wrapper.
+func engineClient(supervisor *engine.Supervisor) (*engine.Client, error) {
+	client := supervisor.Client()
 	if client == nil {
 		return nil, engine.NewCodedError(
 			engine.ErrorCodeNotRunning,

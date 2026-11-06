@@ -159,6 +159,62 @@ func (p *SoloistProvider) Play(ctx context.Context) error {
 	return err
 }
 
+// PlayContext activates Soloist and starts uri. Soloist's play has no offset,
+// so a skipToURI plays that track standalone and loses its parent context.
+func (p *SoloistProvider) PlayContext(ctx context.Context, uri, skipToURI string) error {
+	uri = strings.TrimSpace(uri)
+	skipToURI = strings.TrimSpace(skipToURI)
+	if uri == "" {
+		return &soloist.Error{
+			Code:    soloist.CodeUnsupportedAction,
+			Message: "the playback context is empty",
+		}
+	}
+	client := p.backend.Client()
+	if client == nil {
+		return errSoloistNotRunning()
+	}
+	if _, err := client.Do(ctx, soloist.Activate(), "command_result", soloistCommandTimeout); err != nil {
+		return err
+	}
+	target := uri
+	if skipToURI != "" {
+		// Soloist cannot start a context at an offset. Playing the track
+		// standalone is the closest available behavior, at the cost of the
+		// surrounding album, playlist or artist context.
+		target = skipToURI
+	}
+	_, err := client.Do(ctx, soloist.Play(target), "command_result", soloistCommandTimeout)
+	return err
+}
+
+// PlayTrack starts a single track URI.
+func (p *SoloistProvider) PlayTrack(ctx context.Context, uri string) error {
+	return p.PlayContext(ctx, uri, "")
+}
+
+// AddToQueue appends a track URI to Soloist's queue. Soloist accepts only
+// tracks, so other entity types are rejected before any command is sent.
+func (p *SoloistProvider) AddToQueue(ctx context.Context, uri string) error {
+	uri = strings.TrimSpace(uri)
+	if !strings.HasPrefix(strings.ToLower(uri), "spotify:track:") {
+		return &soloist.Error{
+			Code:    soloist.CodeUnsupportedAction,
+			Message: "Only Spotify tracks can be added to the queue.",
+		}
+	}
+	return p.command(ctx, soloist.AddToQueue(uri))
+}
+
+// StartRadio is not available with Soloist: go-librespot resolves radio through
+// its private streaming session, which Soloist cannot reuse.
+func (p *SoloistProvider) StartRadio(ctx context.Context, uri string) error {
+	return &soloist.Error{
+		Code:    soloist.CodeUnsupportedAction,
+		Message: "Spotify radio is not available with the Soloist backend.",
+	}
+}
+
 // Pause pauses playback.
 func (p *SoloistProvider) Pause(ctx context.Context) error {
 	return p.command(ctx, soloist.Pause())

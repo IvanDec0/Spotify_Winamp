@@ -1,6 +1,7 @@
 package catalog_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -531,5 +532,154 @@ func TestMissingClientReturnsEngineNotRunning(t *testing.T) {
 
 	if _, err := service.Playlists(0, 10); err == nil || err.Error() != "the local audio engine is not running" {
 		t.Fatalf("Playlists() error = %v, want the local audio engine is not running", err)
+	}
+}
+
+// fakePlayback is an injected catalog.Playback that records every call instead
+// of reaching an audio backend.
+type fakePlayback struct {
+	mu       sync.Mutex
+	contexts []fakePlaybackContext
+	tracks   []string
+	queues   []string
+	radios   []string
+	err      error
+}
+
+type fakePlaybackContext struct {
+	uri       string
+	skipToURI string
+}
+
+func (f *fakePlayback) PlayContext(_ context.Context, uri, skipToURI string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.contexts = append(f.contexts, fakePlaybackContext{uri: uri, skipToURI: skipToURI})
+	return f.err
+}
+
+func (f *fakePlayback) PlayTrack(_ context.Context, uri string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tracks = append(f.tracks, uri)
+	return f.err
+}
+
+func (f *fakePlayback) AddToQueue(_ context.Context, uri string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.queues = append(f.queues, uri)
+	return f.err
+}
+
+func (f *fakePlayback) StartRadio(_ context.Context, uri string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.radios = append(f.radios, uri)
+	return f.err
+}
+
+func (f *fakePlayback) contextCalls() []fakePlaybackContext {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]fakePlaybackContext(nil), f.contexts...)
+}
+
+func (f *fakePlayback) queueCalls() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.queues...)
+}
+
+func (f *fakePlayback) radioCalls() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.radios...)
+}
+
+func newSeamService(playback catalog.Playback) *catalog.Service {
+	return catalog.NewService(catalog.Options{Playback: playback, Enabled: true})
+}
+
+func TestPlaybackSeamRoutesContextAndSkip(t *testing.T) {
+	playback := &fakePlayback{}
+	service := newSeamService(playback)
+
+	if err := service.PlayContext("spotify:playlist:x", "spotify:track:y"); err != nil {
+		t.Fatalf("PlayContext() error = %v", err)
+	}
+	calls := playback.contextCalls()
+	if len(calls) != 1 || calls[0].uri != "spotify:playlist:x" || calls[0].skipToURI != "spotify:track:y" {
+		t.Fatalf("PlayContext calls = %#v", calls)
+	}
+}
+
+func TestPlaybackSeamRoutesTrackAndQueue(t *testing.T) {
+	playback := &fakePlayback{}
+	service := newSeamService(playback)
+
+	if err := service.PlayTrack("spotify:track:1"); err != nil {
+		t.Fatalf("PlayTrack() error = %v", err)
+	}
+	calls := playback.contextCalls()
+	if len(calls) != 1 || calls[0].uri != "spotify:track:1" || calls[0].skipToURI != "" {
+		t.Fatalf("PlayTrack calls = %#v", calls)
+	}
+
+	if err := service.AddToQueue("spotify:track:2"); err != nil {
+		t.Fatalf("AddToQueue() error = %v", err)
+	}
+	queues := playback.queueCalls()
+	if len(queues) != 1 || queues[0] != "spotify:track:2" {
+		t.Fatalf("AddToQueue calls = %#v", queues)
+	}
+}
+
+func TestPlaybackSeamRoutesRadioAndKeepsValidation(t *testing.T) {
+	playback := &fakePlayback{}
+	service := newSeamService(playback)
+
+	if err := service.StartRadio(" spotify:artist:x "); err != nil {
+		t.Fatalf("StartRadio() error = %v", err)
+	}
+	radios := playback.radioCalls()
+	if len(radios) != 1 || radios[0] != "spotify:artist:x" {
+		t.Fatalf("StartRadio calls = %#v, want the trimmed seed", radios)
+	}
+
+	if err := service.StartRadio("   "); err == nil || err.Error() != "the radio seed is empty" {
+		t.Fatalf("blank StartRadio() error = %v, want the radio seed is empty", err)
+	}
+	if radios := playback.radioCalls(); len(radios) != 1 {
+		t.Fatalf("blank StartRadio() reached the seam: %#v", radios)
+	}
+}
+
+func TestDefaultPlaybackStillUsesEngine(t *testing.T) {
+	service := catalog.NewService(catalog.Options{
+		Supervisor: engine.NewSupervisor(engine.Options{}),
+		Enabled:    true,
+	})
+
+	cases := []struct {
+		name string
+		call func() error
+	}{
+		{name: "context", call: func() error { return service.PlayContext("spotify:playlist:1", "") }},
+		{name: "track", call: func() error { return service.PlayTrack("spotify:track:1") }},
+		{name: "queue", call: func() error { return service.AddToQueue("spotify:track:1") }},
+		{name: "radio", call: func() error { return service.StartRadio("spotify:artist:1") }},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.call()
+			var coded *engine.CodedError
+			if !errors.As(err, &coded) {
+				t.Fatalf("error = %v, want an engine.CodedError from the default wrapper", err)
+			}
+			if coded.Code != engine.ErrorCodeNotRunning {
+				t.Fatalf("error code = %q, want %q", coded.Code, engine.ErrorCodeNotRunning)
+			}
+		})
 	}
 }
