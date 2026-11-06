@@ -265,6 +265,18 @@ func (s *Service) ensureSupervisor(binary *Binary, key string) *Supervisor {
 	return s.supervisor
 }
 
+// RetryPairing attempts the automatic library-account handoff on the
+// running Soloist instance.
+func (s *Service) RetryPairing(ctx context.Context) error {
+	s.mu.Lock()
+	supervisor := s.supervisor
+	s.mu.Unlock()
+	if supervisor == nil {
+		return nil
+	}
+	return supervisor.RetryAutoPair(ctx)
+}
+
 // Stop stops Soloist.
 func (s *Service) Stop(ctx context.Context) error {
 	s.mu.Lock()

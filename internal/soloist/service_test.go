@@ -619,3 +619,10 @@ func TestInstallClearsAStoppedSupervisor(t *testing.T) {
 		t.Fatalf("state = %+v, want the installed build", state)
 	}
 }
+
+func TestServiceRetryPairingWithoutSupervisor(t *testing.T) {
+	service := NewService(serviceOptions(t))
+	if err := service.RetryPairing(t.Context()); err != nil {
+		t.Fatalf("RetryPairing: %v", err)
+	}
+}

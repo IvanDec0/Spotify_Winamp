@@ -50,7 +50,9 @@ In:
   outer blobs and calls `getInfo` + `addUser` on `127.0.0.1`.
 - `soloist.Supervisor`: after starting, if Soloist is not logged in, discover
   the ZeroConf port/path, send the library credentials once, and wait for
-  `auth_state.logged_in=true`.
+  `auth_state.logged_in=true`. While the process runs logged out, retry the
+  handoff silently every 15 seconds so a fresh install signs in as soon as the
+  library pairing finishes.
 - Fallback to the existing one-tap pairing state when any step fails: no
   library credentials, no ZeroConf port, rejected credentials, or a protocol
   mismatch.
@@ -119,6 +121,14 @@ Out:
 - [x] B4 Tests: fake credentials + fake ZeroConf server + fake WS `auth_state`
       flip; success returns nil and `State().LoggedIn`; failure returns
       `ErrPairingRequired`; no library credentials falls back.
+- [x] B5 Retry after the library signs in:
+      - `Supervisor.RetryAutoPair`: no-op unless running and logged out.
+      - `Service.RetryPairing`: delegates to the running supervisor.
+      - Audio adapter: a 15-second retry ticker next to the 6-hour maintenance
+        ticker, skipped while installing and silent on failure.
+      - Tests for the no-op cases, the fresh-install retry (credentials become
+        available after `Start`), failure preserving the pairing state, and the
+        adapter's state gate.
 
 ### Phase C — Docs and verification
 
@@ -179,6 +189,9 @@ Modified:
       server parser is copied into `pair_test.go` for the crypto round trip.
 - [x] Phase B: supervisor auto-pair, ZeroConf discovery from the log and the
       `ss -ltnp` fallback, service/main wiring and focused tests.
+- [x] Retry path: `RetryAutoPair`/`RetryPairing` plus a 15-second audio-adapter
+      ticker for the fresh-install case where Soloist starts before the library
+      is paired.
 - [x] Phase C1-C2: setup documentation and onboarding notes.
 - [ ] C3: real-build E2E on the failing PC (Soloist's actual ZeroConf port log
       line and path are still unconfirmed on hardware).
@@ -193,6 +206,12 @@ Modified:
   `status != 101`, no credential leakage in errors, and the supervisor
   auto-pair success/failure/no-credentials paths.
 - `go test -race ./internal/engine ./internal/soloist -count=1`: pass.
+- Retry path: `go test ./internal/soloist -run 'Retry|Pair' -count=10` and
+  `go test ./internal/soloist ./internal/wailsapi/audio` pass. Coverage:
+  `RetryAutoPair` no-op when stopped/logged in/clientless, sign-in after
+  credentials appear, failure preserving `ErrPairingRequired`, and the adapter
+  calling `RetryPairing` only for a running, logged-out, non-installing
+  instance (errors swallowed).
 - `go build ./...`: pass.
 - The `ss` fallback is only exercised when `ss` is installed; the log-line test
   is the primary path and does not depend on it.

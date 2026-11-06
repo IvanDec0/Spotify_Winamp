@@ -410,6 +410,28 @@ func (s *Supervisor) startFailure() error {
 	return codedError(code, text, nil)
 }
 
+// RetryAutoPair attempts the library-account handoff on the running
+// Soloist instance. It is a no-op when Soloist is not running or already
+// logged in.
+func (s *Supervisor) RetryAutoPair(ctx context.Context) error {
+	// A Start, Stop or Restart owns the process; never race it with a
+	// background retry.
+	if !s.lifecycleMu.TryLock() {
+		return nil
+	}
+	defer s.lifecycleMu.Unlock()
+
+	s.mu.Lock()
+	client := s.client
+	running := s.running
+	loggedIn := s.loggedIn
+	s.mu.Unlock()
+	if client == nil || !running || loggedIn {
+		return nil
+	}
+	return s.tryAutoPair(ctx, client)
+}
+
 // tryAutoPair signs Soloist in with the reusable Spotify credentials of the
 // library engine. It returns an error for every failed step so Start keeps the
 // one-tap pairing state; it never logs the credentials.

@@ -39,6 +39,7 @@ type SoloistBackend interface {
 	SaveAPIKey(string) error
 	ClearAPIKey() error
 	HasAPIKey() bool
+	RetryPairing(context.Context) error
 	SetEmitter(func(soloist.State))
 }
 
@@ -141,19 +142,51 @@ func (s *Service) ServiceShutdown() error {
 }
 
 // maintainSoloist runs maintenance immediately and then every six hours until
-// the context is cancelled by ServiceShutdown.
+// the context is cancelled by ServiceShutdown. A faster ticker retries the
+// library-account handoff after a fresh install: Soloist may start before the
+// library engine is paired, so the first attempt can fail until the user
+// finishes the EngineGate pairing.
 func (s *Service) maintainSoloist(ctx context.Context) {
 	s.runMaintenance(ctx)
 	ticker := time.NewTicker(6 * time.Hour)
 	defer ticker.Stop()
+	retryTicker := time.NewTicker(15 * time.Second)
+	defer retryTicker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			s.runMaintenance(ctx)
+		case <-retryTicker.C:
+			s.retrySoloistPairing(ctx)
 		}
 	}
+}
+
+// retrySoloistPairing is a best-effort, silent retry of the automatic
+// library-account handoff. It never touches install progress and never emits a
+// user-facing error: the merged state already carries the pairing state.
+func (s *Service) retrySoloistPairing(ctx context.Context) {
+	if s.soloist == nil {
+		return
+	}
+	s.progress.mu.Lock()
+	installing := s.progress.installing
+	s.progress.mu.Unlock()
+	if installing {
+		// A manual install or an update owns Soloist right now.
+		return
+	}
+	state := s.soloist.State()
+	if !state.Running || state.LoggedIn {
+		return
+	}
+	retryCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	// The error is already represented by the pairing state; a retry must
+	// never surface a new error or block the maintenance loop.
+	_ = s.soloist.RetryPairing(retryCtx)
 }
 
 // runMaintenance installs or updates Soloist when due, starts it when a key

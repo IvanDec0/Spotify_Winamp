@@ -241,6 +241,11 @@ Soloist in automatically:
 3. Soloist reports `logged_in` and Cadence closes the setup step. The Spotify
    app never opens and no second device has to pick **Cadence**.
 
+On a fresh install Soloist may start before the library engine is paired, so the
+first handoff can fail. When the library pairing finishes, Cadence retries the
+Soloist handoff silently every 15 seconds and signs in as soon as the library
+credentials exist. No restart and no Spotify app are needed.
+
 Credentials are a session-equivalent secret. They are read from the engine's
 owner-only state file, encrypted to Soloist's ephemeral key, sent only to the
 loopback endpoint, redacted from logs and never returned to the frontend.

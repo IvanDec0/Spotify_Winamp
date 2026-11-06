@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -863,6 +864,123 @@ func TestStartWithoutLibraryCredentialsSkipsAutoPair(t *testing.T) {
 	infoCalls, addUserCalls := zeroConf.calls()
 	if infoCalls != 0 || addUserCalls != 0 {
 		t.Fatalf("ZeroConf calls: getInfo=%d addUser=%d, want none", infoCalls, addUserCalls)
+	}
+	if err := supervisor.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+}
+
+func TestRetryAutoPairNoOp(t *testing.T) {
+	tests := []struct {
+		name       string
+		supervisor *Supervisor
+	}{
+		{name: "not running", supervisor: NewSupervisor(SupervisorOptions{})},
+		{name: "no client", supervisor: &Supervisor{running: true}},
+		{name: "already logged in", supervisor: &Supervisor{running: true, loggedIn: true, client: &Client{}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.supervisor.RetryAutoPair(t.Context()); err != nil {
+				t.Fatalf("RetryAutoPair: %v", err)
+			}
+		})
+	}
+}
+
+func TestRetryAutoPairSignsInAfterLibraryPairing(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	credentials := bytes.Repeat([]byte{0xab}, 260)
+	ws := newFakeSoloist(t, false)
+	zeroConf := newZeroConfTestServer(t, "device-retry", "alice", credentials)
+	zeroConf.onAddUser = func() { ws.sendAuth(true) }
+	dataDir := t.TempDir()
+	programs := t.TempDir()
+	binary := installFakeBinaryWithZeroConf(t, programs, dataDir, ws.port, zeroConf.port(), time.Now().Add(-time.Hour).Unix(), "secret")
+
+	var paired atomic.Bool
+	supervisor := NewSupervisor(SupervisorOptions{
+		Binary:       binary,
+		APIKey:       "secret",
+		DataDir:      dataDir,
+		CacheDir:     t.TempDir(),
+		LogPath:      filepath.Join(t.TempDir(), "soloist.log"),
+		StartTimeout: 5 * time.Second,
+		LoginTimeout: 50 * time.Millisecond,
+		EngineCredentials: func() (string, []byte, error) {
+			if !paired.Load() {
+				return "", nil, errors.New("the Spotify library account is not paired")
+			}
+			return "alice", credentials, nil
+		},
+	})
+
+	// First run: the library is not paired yet, so Start falls back to the
+	// one-tap pairing state without contacting ZeroConf.
+	if err := supervisor.Start(t.Context()); !errors.Is(err, ErrPairingRequired) {
+		t.Fatalf("start = %v, want ErrPairingRequired", err)
+	}
+	if info, addUser := zeroConf.calls(); info != 0 || addUser != 0 {
+		t.Fatalf("ZeroConf calls before pairing: getInfo=%d addUser=%d", info, addUser)
+	}
+
+	// The user finishes the EngineGate pairing; the retry must sign in
+	// without a restart.
+	paired.Store(true)
+	if err := supervisor.RetryAutoPair(t.Context()); err != nil {
+		t.Fatalf("RetryAutoPair: %v", err)
+	}
+	state := supervisor.State()
+	if !state.Running || !state.LoggedIn || state.NeedsPairing {
+		t.Fatalf("state = %+v", state)
+	}
+	if info, addUser := zeroConf.calls(); info != 1 || addUser != 1 {
+		t.Fatalf("ZeroConf calls after retry: getInfo=%d addUser=%d", info, addUser)
+	}
+	if err := supervisor.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+}
+
+func TestRetryAutoPairFailureKeepsPairingState(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	credentials := bytes.Repeat([]byte{0xcd}, 260)
+	ws := newFakeSoloist(t, false)
+	zeroConf := newZeroConfTestServer(t, "device-retry-fail", "alice", credentials)
+	zeroConf.addUserHTTP = http.StatusForbidden
+	dataDir := t.TempDir()
+	programs := t.TempDir()
+	binary := installFakeBinaryWithZeroConf(t, programs, dataDir, ws.port, zeroConf.port(), time.Now().Add(-time.Hour).Unix(), "secret")
+
+	supervisor := NewSupervisor(SupervisorOptions{
+		Binary:       binary,
+		APIKey:       "secret",
+		DataDir:      dataDir,
+		CacheDir:     t.TempDir(),
+		LogPath:      filepath.Join(t.TempDir(), "soloist.log"),
+		StartTimeout: 5 * time.Second,
+		LoginTimeout: 50 * time.Millisecond,
+		EngineCredentials: func() (string, []byte, error) {
+			return "alice", credentials, nil
+		},
+	})
+
+	if err := supervisor.Start(t.Context()); !errors.Is(err, ErrPairingRequired) {
+		t.Fatalf("start = %v, want ErrPairingRequired", err)
+	}
+	if err := supervisor.RetryAutoPair(t.Context()); err == nil {
+		t.Fatal("RetryAutoPair error = nil, want a rejection")
+	}
+	state := supervisor.State()
+	if !state.Running || state.LoggedIn || !state.NeedsPairing {
+		t.Fatalf("state = %+v", state)
+	}
+	if state.ErrorCode != CodePairingRequired {
+		t.Fatalf("error code = %q", state.ErrorCode)
 	}
 	if err := supervisor.Stop(t.Context()); err != nil {
 		t.Fatalf("stop: %v", err)
