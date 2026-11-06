@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,7 +42,14 @@ const (
 	pendingLogLimit = 64 << 10
 	// defaultDeviceName is the Connect device name Soloist advertises.
 	defaultDeviceName = "Cadence"
+	// autoPairTimeout bounds ZeroConf discovery and the login confirmation.
+	autoPairTimeout = 5 * time.Second
+	// zeroConfLogPollInterval is how often the Soloist log is checked for the
+	// ZeroConf port.
+	zeroConfLogPollInterval = 100 * time.Millisecond
 )
+
+var zeroConfLogPattern = regexp.MustCompile(`Started ZeroConf service on port (\d+) path (\S+)`)
 
 // SupervisorOptions configures the managed Soloist process.
 type SupervisorOptions struct {
@@ -56,6 +64,9 @@ type SupervisorOptions struct {
 	StartTimeout  time.Duration
 	LoginTimeout  time.Duration
 	Emit          func(State)
+	// EngineCredentials returns the paired library account and its reusable
+	// Spotify credentials. It is an optional best-effort auto-pair source.
+	EngineCredentials func() (username string, data []byte, err error)
 }
 
 // Supervisor owns the Soloist child process and its WebSocket client.
@@ -79,6 +90,9 @@ type Supervisor struct {
 	loginTimeout  time.Duration
 	emit          func(State)
 	tail          *tailBuffer
+	// engineCredentials feeds optional automatic account pairing from the
+	// library engine's stored Spotify session.
+	engineCredentials func() (username string, data []byte, err error)
 
 	client    *Client
 	cmd       *exec.Cmd
@@ -111,19 +125,20 @@ func NewSupervisor(opts SupervisorOptions) *Supervisor {
 		initialVolume = nil
 	}
 	return &Supervisor{
-		binary:        opts.Binary,
-		apiKey:        strings.TrimSpace(opts.APIKey),
-		deviceName:    opts.DeviceName,
-		dataDir:       opts.DataDir,
-		cacheDir:      opts.CacheDir,
-		logPath:       opts.LogPath,
-		cacheSizeMB:   opts.CacheSizeMB,
-		initialVolume: initialVolume,
-		startTimeout:  opts.StartTimeout,
-		loginTimeout:  opts.LoginTimeout,
-		emit:          opts.Emit,
-		tail:          newTailBuffer(tailLines),
-		accounts:      Accounts(opts.DataDir),
+		binary:            opts.Binary,
+		apiKey:            strings.TrimSpace(opts.APIKey),
+		deviceName:        opts.DeviceName,
+		dataDir:           opts.DataDir,
+		cacheDir:          opts.CacheDir,
+		logPath:           opts.LogPath,
+		cacheSizeMB:       opts.CacheSizeMB,
+		initialVolume:     initialVolume,
+		startTimeout:      opts.StartTimeout,
+		loginTimeout:      opts.LoginTimeout,
+		emit:              opts.Emit,
+		tail:              newTailBuffer(tailLines),
+		accounts:          Accounts(opts.DataDir),
+		engineCredentials: opts.EngineCredentials,
 	}
 }
 
@@ -319,6 +334,15 @@ func (s *Supervisor) startLocked(ctx context.Context) error {
 
 	s.mu.Lock()
 	loggedIn := s.loggedIn
+	s.mu.Unlock()
+	if !loggedIn {
+		// Best effort: sign in with the library engine's account before
+		// falling back to the one-tap pairing state.
+		_ = s.tryAutoPair(ctx, client)
+	}
+
+	s.mu.Lock()
+	loggedIn = s.loggedIn
 	if loggedIn {
 		s.needsPair = false
 		if s.errorCode == CodePairingRequired {
@@ -384,6 +408,221 @@ func (s *Supervisor) startFailure() error {
 		text = "Spotify Soloist exited before it was ready"
 	}
 	return codedError(code, text, nil)
+}
+
+// tryAutoPair signs Soloist in with the reusable Spotify credentials of the
+// library engine. It returns an error for every failed step so Start keeps the
+// one-tap pairing state; it never logs the credentials.
+func (s *Supervisor) tryAutoPair(ctx context.Context, client *Client) error {
+	if client == nil {
+		return errors.New("the Spotify Soloist client is not connected")
+	}
+	s.mu.Lock()
+	credentials := s.engineCredentials
+	binary := s.binary
+	running := s.running
+	stopping := s.stopping
+	deviceName := s.deviceName
+	s.mu.Unlock()
+
+	if credentials == nil {
+		return errors.New("the Spotify library credentials are not available")
+	}
+	if !running || stopping {
+		return errors.New("Spotify Soloist is not running")
+	}
+	if binary != nil && binary.Expired(time.Now()) {
+		return ErrExpired
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	username, data, err := credentials()
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(username) == "" || len(data) == 0 {
+		return errors.New("the Spotify library credentials are empty")
+	}
+
+	port, path, err := s.discoverZeroConf(ctx)
+	if err != nil {
+		return err
+	}
+	if err := PairWithCredentials(ctx, port, path, deviceName, username, data); err != nil {
+		return err
+	}
+
+	deadline := time.Now().Add(autoPairTimeout)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return errors.New("Spotify Soloist did not sign in with the library account")
+		}
+		event, err := client.Await(ctx, "auth_state", remaining)
+		if err != nil {
+			return err
+		}
+		s.applyAuth(event)
+		s.mu.Lock()
+		loggedIn := s.loggedIn
+		s.mu.Unlock()
+		if loggedIn {
+			s.mu.Lock()
+			s.loggedIn = true
+			s.needsPair = false
+			if s.errorCode == CodePairingRequired {
+				s.errorCode = ""
+				s.errorText = ""
+			}
+			s.mu.Unlock()
+			return nil
+		}
+	}
+}
+
+// discoverZeroConf finds the loopback ZeroConf port and path: the Soloist log
+// line first, then the listening sockets of the child process.
+func (s *Supervisor) discoverZeroConf(ctx context.Context) (int, string, error) {
+	s.mu.Lock()
+	logPath := s.logPath
+	dataDir := s.dataDir
+	cmd := s.cmd
+	s.mu.Unlock()
+
+	var lastErr error
+	if logPath != "" {
+		port, path, err := waitForZeroConfLog(ctx, logPath)
+		if err == nil {
+			return port, path, nil
+		}
+		lastErr = err
+	}
+
+	exclude := readWSPort(filepath.Join(dataDir, "ws.port"))
+	pid := 0
+	if cmd != nil && cmd.Process != nil {
+		pid = cmd.Process.Pid
+	}
+	if pid <= 0 {
+		if lastErr != nil {
+			return 0, "", lastErr
+		}
+		return 0, "", errors.New("the Spotify Soloist process is not available")
+	}
+
+	ports := zeroConfPortsFromSS(ctx, pid, exclude)
+	if len(ports) == 0 {
+		if lastErr != nil {
+			return 0, "", lastErr
+		}
+		return 0, "", errors.New("the Spotify Soloist ZeroConf endpoint was not found")
+	}
+	deadline := time.Now().Add(autoPairTimeout)
+	for _, port := range ports {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		probeCtx, cancel := context.WithTimeout(ctx, remaining)
+		path, err := ProbeZeroConf(probeCtx, port)
+		cancel()
+		if err == nil {
+			return port, path, nil
+		}
+		lastErr = err
+	}
+	if lastErr != nil {
+		return 0, "", lastErr
+	}
+	return 0, "", errors.New("the Spotify Soloist ZeroConf endpoint did not respond")
+}
+
+// waitForZeroConfLog polls the current run's log for the ZeroConf port line.
+func waitForZeroConfLog(ctx context.Context, logPath string) (int, string, error) {
+	deadline := time.Now().Add(autoPairTimeout)
+	for {
+		if data, err := os.ReadFile(logPath); err == nil {
+			if match := zeroConfLogPattern.FindSubmatch(data); len(match) == 3 {
+				if port, err := strconv.Atoi(string(match[1])); err == nil && port > 0 && port <= 65535 {
+					return port, string(match[2]), nil
+				}
+			}
+		}
+		if err := ctx.Err(); err != nil {
+			return 0, "", err
+		}
+		if time.Now().After(deadline) {
+			return 0, "", errors.New("the Spotify Soloist ZeroConf port did not appear in its log")
+		}
+		select {
+		case <-ctx.Done():
+			return 0, "", ctx.Err()
+		case <-time.After(zeroConfLogPollInterval):
+		}
+	}
+}
+
+// zeroConfPortsFromSS lists the local listening ports of the Soloist child via
+// ss. A missing ss or a failed call simply yields no ports.
+func zeroConfPortsFromSS(ctx context.Context, pid, exclude int) []int {
+	probeCtx, cancel := context.WithTimeout(ctx, autoPairTimeout)
+	defer cancel()
+	output, err := exec.CommandContext(probeCtx, "ss", "-ltnp").Output()
+	if err != nil {
+		return nil
+	}
+	seen := make(map[int]bool)
+	var ports []int
+	for _, line := range strings.Split(string(output), "\n") {
+		if !lineHasPID(line, pid) {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+		local := fields[3]
+		index := strings.LastIndexByte(local, ':')
+		if index < 0 {
+			continue
+		}
+		port, err := strconv.Atoi(local[index+1:])
+		if err != nil || port <= 0 || port > 65535 || port == exclude || seen[port] {
+			continue
+		}
+		seen[port] = true
+		ports = append(ports, port)
+	}
+	return ports
+}
+
+func lineHasPID(line string, pid int) bool {
+	needle := "pid=" + strconv.Itoa(pid)
+	for {
+		index := strings.Index(line, needle)
+		if index < 0 {
+			return false
+		}
+		rest := line[index+len(needle):]
+		if rest == "" || rest[0] == ',' || rest[0] == ')' || rest[0] == ' ' {
+			return true
+		}
+		line = rest
+	}
+}
+
+func readWSPort(path string) int {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	port, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || port <= 0 || port > 65535 {
+		return 0
+	}
+	return port
 }
 
 func (s *Supervisor) applyAuth(event Event) {

@@ -226,10 +226,11 @@ Not changed:
   remain the escape hatch.
 - **Prune safety.** Never remove the running build. On Linux deleting a
   running binary is safe, but keeping it avoids surprising restarts.
-- **Pairing cannot be fully automatic.** Soloist is a Spotify Connect device,
-  so the Spotify app must select it once. The reference implementation's
-  ZeroConf credential handoff did not work. The setup dialog opens Spotify,
-  watches `loggedIn` and closes itself; **Done** remains a manual fallback.
+- **Pairing is automatic when the library is paired.** Cadence reuses the
+  go-librespot account's reusable credentials and sends them only to Soloist's
+  loopback ZeroConf endpoint. If that best-effort handoff fails, the setup
+  dialog keeps the one-tap Spotify-app fallback, watches `loggedIn` and closes
+  itself; **Done** remains a manual escape hatch.
 - **Two webviews.** The setup dialog renders in Browse and in the compact
   player; both share the dismissal flag and the `audio:state` stream.
 
@@ -241,6 +242,8 @@ Not changed:
       compact player (`5c38292`, `5eb9b16`).
 - [x] Phase C: documentation, ADR and default/URL alignment (`8d6c918`,
       `87c888d`).
+- [x] Automatic account pairing from the library engine's stored credentials,
+      with the one-tap flow as the fallback (see `soloist-autopair.md`).
 - [ ] Manual E2E on the failing PC (C3), including a simulated 89-day-old
       build.
 
@@ -255,13 +258,16 @@ Not changed:
   no-op when fresh, 89-day update, prune keep-set, maintenance start/restart/
   no-key paths, modal steps, rejected key, pairing hint, dismissal and the
   launch prompt.
-- The API key remains a one-time guided paste; no headless browser or Spotify
-  credentials are used. The dashboard link now opens the Soloist key page
-  directly.
+- The API key remains a one-time guided paste; no headless browser is used.
+  Account pairing now reuses the library engine's existing session and falls
+  back to the one-tap flow if the loopback handoff fails.
 
 ## Next step
 
 Run C3 on the failing PC: fresh config → Soloist default → automatic download →
-launch modal → dashboard → paste → start → pair → play. Then simulate an old
-build (89 days) and confirm the background update, prune and restart, and the
-librespot fallback after cancelling the prompt.
+launch modal → dashboard → paste → automatic pairing from the library account →
+play. Confirm Soloist's real `Started ZeroConf service on port <port> path <path>`
+log line; if the path or port differs, the `ss` fallback and the one-tap flow
+keep the app usable. Then simulate an old build (89 days) and confirm the
+background update, prune and restart, and the librespot fallback after
+cancelling the prompt.

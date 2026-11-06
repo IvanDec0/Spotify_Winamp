@@ -62,9 +62,10 @@ engine appears separately as `Cadence Library` in Soloist mode.
 5. Cadence updates automatically. The catalog device appears as **Cadence
    Library** while Soloist is the backend.
 
-With Soloist, playback pairing is a separate one-time step: open Spotify on the
-same Wi-Fi network and choose **Cadence**. See
-[Soloist pairing](#pairing) for the guided flow.
+With Soloist, playback pairing is automatic when the library engine is already
+paired: Cadence reuses the account stored by go-librespot and signs Soloist in
+locally. No Spotify app and no second device are needed. See
+[Soloist pairing](#pairing) for the fallback flow.
 
 The go-librespot credentials are stored by the engine under:
 
@@ -72,9 +73,10 @@ The go-librespot credentials are stored by the engine under:
 $XDG_CONFIG_HOME/cadence/audio/state.json
 ```
 
-The directory is owner-only. Cadence does not receive Spotify playback
-credentials. **Reset pairing** removes the engine state and starts a new pairing
-flow.
+The file and its directory are owner-only. Cadence reads it locally only to
+pair Soloist with the same account, sends the reusable credentials to
+`127.0.0.1` only, and never logs or returns them to the UI. **Reset pairing**
+removes the engine state and starts a new pairing flow.
 
 ## Library and playback
 
@@ -208,7 +210,9 @@ playback state and its own queue.
    API and does not automate or scrape the dashboard.
 4. Paste the key into the modal and select **Save and start**. Cadence validates
    it, stores it in `$XDG_CONFIG_HOME/cadence/soloist/api-key` (`0600`), starts
-   Soloist and opens Spotify for the one-time pairing.
+   Soloist and pairs it automatically with the account the library engine
+   already uses. The Spotify app is not needed and no second device must be
+   selected.
 5. **Later** dismisses the modal. A small banner in Browse and the **Spotify
    Soloist** card in Settings remain the way back. The dismissal is stored in the
    webview `localStorage` key `cadence.soloist.prompt.v1`, shared by both windows,
@@ -223,25 +227,36 @@ you. The key is the only manual step.
 ### Pairing
 
 The API key authenticates Soloist against Spotify's audio service; it does not
-sign a Spotify account in. The first pairing is a Spotify Connect action that
-happens in the Spotify app, and Cadence cannot select its own device.
+sign a Spotify account in. The key and the account login are separate: the
+account login comes from the reusable credentials that the library engine
+already stores.
 
-1. Install Soloist and save an API key, as above. The setup dialog opens Spotify
-   automatically.
-2. In Spotify, open the device picker and choose **Cadence** once. Do not choose
+In the normal setup the library engine is already paired, so Cadence signs
+Soloist in automatically:
+
+1. Install Soloist and save an API key, as above.
+2. Cadence reads the paired library account from
+   `$XDG_CONFIG_HOME/cadence/audio/state.json`, finds Soloist's loopback
+   ZeroConf endpoint and sends the reusable credentials to `127.0.0.1` only.
+3. Soloist reports `logged_in` and Cadence closes the setup step. The Spotify
+   app never opens and no second device has to pick **Cadence**.
+
+Credentials are a session-equivalent secret. They are read from the engine's
+owner-only state file, encrypted to Soloist's ephemeral key, sent only to the
+loopback endpoint, redacted from logs and never returned to the frontend.
+
+If automatic pairing fails (the library is not paired, no ZeroConf endpoint
+responds, Soloist rejects the credentials, or the protocol changed), Cadence
+keeps the one-tap fallback and no boot loop occurs:
+
+1. In Spotify, open the device picker and choose **Cadence** once. Do not choose
    **Cadence Library**, which is the go-librespot catalog engine.
-3. Cadence watches the Soloist state and closes the setup dialog as soon as
+2. Cadence watches the Soloist state and closes the setup dialog as soon as
    Spotify reports the selection. The pairing is stored by Soloist, so later
    launches connect automatically.
 
-Cadence cannot complete the selection for you: the Spotify app must pick the
-device once. A ZeroConf credential handoff was tried in the reference
-implementation and did not work, so the one-tap flow is the safe path.
-
-If the Spotify app is not installed, the dialog shows a hint and keeps **Open
-Spotify** and **Done** so the pairing can be completed manually. If Spotify or
-the Settings card still reports **Pairing required**, choose **Cadence** again in
-Spotify; the device is only registered after that selection.
+This fallback is the only case that needs the Spotify app: it cannot be used
+when Spotify is not installed anywhere in the network.
 
 ### Settings
 
@@ -325,6 +340,11 @@ update path.
   CLI. Cadence redacts the key from Soloist log output and never logs argv.
 - The key is never returned to the frontend. The UI only reports whether a key
   is stored.
+- Automatic pairing reads the library engine's reusable credentials from
+  `$XDG_CONFIG_HOME/cadence/audio/state.json` (`0600`). They are sent only to
+  Soloist's loopback ZeroConf endpoint on `127.0.0.1`, encrypted with an
+  ephemeral Diffie-Hellman key, and are never logged, shown in the UI or sent
+  off the machine. When any step fails, the one-tap pairing fallback remains.
 
 ### Paths and logs
 
@@ -359,7 +379,7 @@ removed separately.
 | `soloist_api_key_missing` | Select **Configure** in the Browse banner or **Save key** in Settings; create a key in the Spotify dashboard |
 | `soloist_api_key_invalid` | The value is empty or contains whitespace or control characters; paste a single-line key again |
 | `soloist_api_key_rejected` | Spotify refused the key; create a new key in the dashboard and save it |
-| `soloist_pairing_required` | Open Spotify on the same Wi-Fi and choose **Cadence**, not **Cadence Library** |
+| `soloist_pairing_required` | Automatic pairing failed (library not paired, ZeroConf rejected, or protocol mismatch); open Spotify on the same Wi-Fi and choose **Cadence**, not **Cadence Library** |
 | `soloist_not_logged_in` | Repeat the pairing step and confirm the account is signed in |
 | `soloist_build_expired` | Cadence updates in the background before expiry; select **Update Soloist** to refresh now; the old build cannot be revived |
 | `soloist_download_failed` | Cadence retries silently; use **Retry download** to try immediately, and confirm HTTPS access to Spotify and that the system clock is correct |

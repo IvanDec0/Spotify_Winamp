@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -468,5 +469,63 @@ func TestSupervisorStateClearsErrorCodeWhenHealthy(t *testing.T) {
 	}
 	if !state.Authenticated {
 		t.Fatal("Authenticated = false, want true for a healthy status")
+	}
+}
+
+func TestStoredCredentials(t *testing.T) {
+	credentials := []byte{0x01, 0x02, 0x03, 0xfe, 0x7f}
+	validState := `{"credentials":{"username":"alice","data":"` + base64.StdEncoding.EncodeToString(credentials) + `"}}`
+
+	tests := []struct {
+		name     string
+		state    string
+		write    bool
+		wantErr  string
+		username string
+		data     []byte
+	}{
+		{name: "valid", state: validState, write: true, username: "alice", data: credentials},
+		{name: "missing file", write: false, wantErr: "not paired"},
+		{name: "empty credentials", state: `{"credentials":{}}`, write: true, wantErr: "not paired"},
+		{name: "empty data", state: `{"credentials":{"username":"alice","data":""}}`, write: true, wantErr: "empty"},
+		{name: "invalid base64", state: `{"credentials":{"username":"alice","data":"!!!"}}`, write: true, wantErr: "invalid"},
+		{name: "invalid json", state: `{`, write: true, wantErr: "corrupt"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if test.write {
+				if err := os.WriteFile(filepath.Join(dir, "state.json"), []byte(test.state), 0o600); err != nil {
+					t.Fatalf("write state: %v", err)
+				}
+			}
+			runtime := NewSupervisor(Options{ConfigDir: dir})
+			username, data, err := runtime.StoredCredentials()
+			if test.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+					t.Fatalf("error = %v, want containing %q", err, test.wantErr)
+				}
+				if strings.Contains(err.Error(), "!!!") {
+					t.Fatalf("error leaks the credential payload: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("StoredCredentials: %v", err)
+			}
+			if username != test.username {
+				t.Fatalf("username = %q, want %q", username, test.username)
+			}
+			if string(data) != string(test.data) {
+				t.Fatalf("data = %x, want %x", data, test.data)
+			}
+		})
+	}
+}
+
+func TestStoredCredentialsRequiresConfigDir(t *testing.T) {
+	runtime := NewSupervisor(Options{})
+	if _, _, err := runtime.StoredCredentials(); err == nil {
+		t.Fatal("expected an error without a config directory")
 	}
 }

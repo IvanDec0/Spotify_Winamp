@@ -1,6 +1,7 @@
 package soloist
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -27,11 +28,12 @@ type fakeSoloist struct {
 	port   int
 	mu     sync.Mutex
 	hits   int
+	conns  map[*websocket.Conn]struct{}
 }
 
 func newFakeSoloist(t *testing.T, loggedIn bool) *fakeSoloist {
 	t.Helper()
-	fake := &fakeSoloist{}
+	fake := &fakeSoloist{conns: make(map[*websocket.Conn]struct{})}
 	fake.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := websocket.Accept(w, r, nil)
 		if err != nil {
@@ -40,7 +42,13 @@ func newFakeSoloist(t *testing.T, loggedIn bool) *fakeSoloist {
 		defer conn.Close(websocket.StatusNormalClosure, "")
 		fake.mu.Lock()
 		fake.hits++
+		fake.conns[conn] = struct{}{}
 		fake.mu.Unlock()
+		defer func() {
+			fake.mu.Lock()
+			delete(fake.conns, conn)
+			fake.mu.Unlock()
+		}()
 		ctx := context.Background()
 		auth := map[string]any{
 			"type":        "auth_state",
@@ -72,23 +80,51 @@ func newFakeSoloist(t *testing.T, loggedIn bool) *fakeSoloist {
 	return fake
 }
 
-func fakeSoloistScript(dataDir string, port int, built int64, secret string) string {
+// sendAuth pushes an auth_state event to every connected client.
+func (f *fakeSoloist) sendAuth(loggedIn bool) {
+	payload, _ := json.Marshal(map[string]any{
+		"type":        "auth_state",
+		"logged_in":   loggedIn,
+		"is_active":   loggedIn,
+		"device_name": "Cadence",
+	})
+	f.mu.Lock()
+	conns := make([]*websocket.Conn, 0, len(f.conns))
+	for conn := range f.conns {
+		conns = append(conns, conn)
+	}
+	f.mu.Unlock()
+	for _, conn := range conns {
+		_ = conn.Write(context.Background(), websocket.MessageText, payload)
+	}
+}
+
+func fakeSoloistScript(dataDir string, port int, built int64, secret string, zeroConfPort ...int) string {
+	zeroConfLine := ""
+	if len(zeroConfPort) > 0 && zeroConfPort[0] > 0 {
+		zeroConfLine = fmt.Sprintf("echo \"Started ZeroConf service on port %d path /zc\"\n", zeroConfPort[0])
+	}
 	return fmt.Sprintf(`#!/bin/sh
 if [ "$1" = "--version" ]; then
   echo "soloist 1.0.0 build %d (20260101)"
   exit 0
 fi
 echo "soloist starting with %s"
-echo %d > "%s"
+%s echo %d > "%s"
 trap 'exit 0' TERM INT
 while :; do sleep 0.05; done
-`, built, secret, port, filepath.Join(dataDir, "ws.port"))
+`, built, secret, zeroConfLine, port, filepath.Join(dataDir, "ws.port"))
 }
 
 func installFakeBinary(t *testing.T, programsDir, dataDir string, port int, built int64, secret string) *Binary {
 	t.Helper()
+	return installFakeBinaryWithZeroConf(t, programsDir, dataDir, port, 0, built, secret)
+}
+
+func installFakeBinaryWithZeroConf(t *testing.T, programsDir, dataDir string, port, zeroConfPort int, built int64, secret string) *Binary {
+	t.Helper()
 	path := filepath.Join(programsDir, fmt.Sprintf("%d", built), "soloist")
-	writeScript(t, filepath.Dir(path), filepath.Base(path), fakeSoloistScript(dataDir, port, built, secret))
+	writeScript(t, filepath.Dir(path), filepath.Base(path), fakeSoloistScript(dataDir, port, built, secret, zeroConfPort))
 	binary, err := InspectBinary(t.Context(), path)
 	if err != nil {
 		t.Fatalf("inspect fake binary: %v", err)
@@ -712,5 +748,123 @@ while :; do sleep 0.05; done
 	}
 	if err := syscall.Kill(pids[0], 0); !errors.Is(err, syscall.ESRCH) {
 		t.Fatalf("process %d is still alive after Stop: %v", pids[0], err)
+	}
+}
+
+func TestStartAutoPairsWithLibraryCredentials(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	credentials := bytes.Repeat([]byte{0xab}, 260)
+	ws := newFakeSoloist(t, false)
+	zeroConf := newZeroConfTestServer(t, "device-abc", "alice", credentials)
+	zeroConf.onAddUser = func() { ws.sendAuth(true) }
+	dataDir := t.TempDir()
+	programs := t.TempDir()
+	binary := installFakeBinaryWithZeroConf(t, programs, dataDir, ws.port, zeroConf.port(), time.Now().Add(-time.Hour).Unix(), "secret")
+
+	supervisor := NewSupervisor(SupervisorOptions{
+		Binary:       binary,
+		APIKey:       "secret",
+		DataDir:      dataDir,
+		CacheDir:     t.TempDir(),
+		LogPath:      filepath.Join(t.TempDir(), "soloist.log"),
+		StartTimeout: 5 * time.Second,
+		LoginTimeout: 100 * time.Millisecond,
+		EngineCredentials: func() (string, []byte, error) {
+			return "alice", credentials, nil
+		},
+	})
+
+	if err := supervisor.Start(t.Context()); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	state := supervisor.State()
+	if !state.Running || !state.LoggedIn || state.NeedsPairing {
+		t.Fatalf("state = %+v", state)
+	}
+	infoCalls, addUserCalls := zeroConf.calls()
+	if infoCalls != 1 || addUserCalls != 1 {
+		t.Fatalf("ZeroConf calls: getInfo=%d addUser=%d", infoCalls, addUserCalls)
+	}
+	if err := supervisor.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+}
+
+func TestStartAutoPairFailureFallsBack(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	credentials := bytes.Repeat([]byte{0xcd}, 260)
+	ws := newFakeSoloist(t, false)
+	zeroConf := newZeroConfTestServer(t, "device-def", "alice", credentials)
+	zeroConf.addUserHTTP = http.StatusForbidden
+	dataDir := t.TempDir()
+	programs := t.TempDir()
+	binary := installFakeBinaryWithZeroConf(t, programs, dataDir, ws.port, zeroConf.port(), time.Now().Add(-time.Hour).Unix(), "secret")
+
+	supervisor := NewSupervisor(SupervisorOptions{
+		Binary:       binary,
+		APIKey:       "secret",
+		DataDir:      dataDir,
+		CacheDir:     t.TempDir(),
+		LogPath:      filepath.Join(t.TempDir(), "soloist.log"),
+		StartTimeout: 5 * time.Second,
+		LoginTimeout: 50 * time.Millisecond,
+		EngineCredentials: func() (string, []byte, error) {
+			return "alice", credentials, nil
+		},
+	})
+
+	err := supervisor.Start(t.Context())
+	if !errors.Is(err, ErrPairingRequired) {
+		t.Fatalf("error = %v, want ErrPairingRequired", err)
+	}
+	state := supervisor.State()
+	if !state.Running || state.LoggedIn || !state.NeedsPairing {
+		t.Fatalf("state = %+v", state)
+	}
+	if state.ErrorCode != CodePairingRequired {
+		t.Fatalf("error code = %q", state.ErrorCode)
+	}
+	if err := supervisor.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+}
+
+func TestStartWithoutLibraryCredentialsSkipsAutoPair(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	ws := newFakeSoloist(t, false)
+	zeroConf := newZeroConfTestServer(t, "device-ghi", "alice", []byte("unused"))
+	dataDir := t.TempDir()
+	programs := t.TempDir()
+	binary := installFakeBinaryWithZeroConf(t, programs, dataDir, ws.port, zeroConf.port(), time.Now().Add(-time.Hour).Unix(), "secret")
+
+	supervisor := NewSupervisor(SupervisorOptions{
+		Binary:       binary,
+		APIKey:       "secret",
+		DataDir:      dataDir,
+		CacheDir:     t.TempDir(),
+		LogPath:      filepath.Join(t.TempDir(), "soloist.log"),
+		StartTimeout: 5 * time.Second,
+		LoginTimeout: 50 * time.Millisecond,
+		EngineCredentials: func() (string, []byte, error) {
+			return "", nil, errors.New("the Spotify library account is not paired")
+		},
+	})
+
+	err := supervisor.Start(t.Context())
+	if !errors.Is(err, ErrPairingRequired) {
+		t.Fatalf("error = %v, want ErrPairingRequired", err)
+	}
+	infoCalls, addUserCalls := zeroConf.calls()
+	if infoCalls != 0 || addUserCalls != 0 {
+		t.Fatalf("ZeroConf calls: getInfo=%d addUser=%d, want none", infoCalls, addUserCalls)
+	}
+	if err := supervisor.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
 	}
 }

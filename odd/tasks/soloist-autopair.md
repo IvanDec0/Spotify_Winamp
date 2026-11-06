@@ -88,25 +88,25 @@ Out:
 
 ### Phase A — Credentials and pairing client
 
-- [ ] A1 `engine.Supervisor.StoredCredentials()`: read
+- [x] A1 `engine.Supervisor.StoredCredentials()`: read
       `<ConfigDir>/state.json`, parse `credentials.username` and
       `credentials.data`, base64-decode the data, and return a clear error when
       the file/account is missing. Never log the data.
-- [ ] A2 `internal/soloist/pair.go`:
+- [x] A2 `internal/soloist/pair.go`:
   - `PairWithCredentials(ctx, port int, path, deviceName, username string, credentials []byte) error`.
   - `getInfo` (device ID + public key), build the inner blob
     (`authType=1`, username, device ID), outer DH/AES blob, `addUser`.
   - Check the HTTP status and the JSON `status == 101`.
   - A `probeZeroConf(ctx, port int) (path string, err error)` helper that tries
     `/zc` then `/`.
-- [ ] A3 Tests: crypto round trip against a copied server parser; fake
+- [x] A3 Tests: crypto round trip against a copied server parser; fake
       `httptest` ZeroConf server for `getInfo`/`addUser`; invalid public key,
       checksum mismatch, non-101 response; credentials never appear in errors.
 
 ### Phase B — Supervisor auto-pair and wiring
 
-- [ ] B1 `soloist.SupervisorOptions.EngineCredentials func() (username string, data []byte, err error)`.
-- [ ] B2 After `Start` sees `!loggedIn`, before returning
+- [x] B1 `soloist.SupervisorOptions.EngineCredentials func() (username string, data []byte, err error)`.
+- [x] B2 After `Start` sees `!loggedIn`, before returning
       `ErrPairingRequired`:
       - discover the ZeroConf port/path from the log (poll up to ~5s) or `ss`;
       - call `PairWithCredentials` with the engine credentials and
@@ -114,18 +114,18 @@ Out:
       - wait for the next `auth_state.logged_in=true` (bounded, ~5s);
       - on success set `loggedIn`, clear the pairing error and continue;
       - on failure keep the pairing state.
-- [ ] B3 `main.go` passes `audioRuntime.StoredCredentials` into
+- [x] B3 `main.go` passes `audioRuntime.StoredCredentials` into
       `soloist.Options.EngineCredentials`.
-- [ ] B4 Tests: fake credentials + fake ZeroConf server + fake WS `auth_state`
+- [x] B4 Tests: fake credentials + fake ZeroConf server + fake WS `auth_state`
       flip; success returns nil and `State().LoggedIn`; failure returns
       `ErrPairingRequired`; no library credentials falls back.
 
 ### Phase C — Docs and verification
 
-- [ ] C1 `docs/spotify-setup.md`: automatic pairing when the library engine is
+- [x] C1 `docs/spotify-setup.md`: automatic pairing when the library engine is
       already paired; no Spotify app or second device needed; the one-tap flow
       remains only as a fallback.
-- [ ] C2 `odd/tasks/soloist-onboarding.md`: update the pairing notes.
+- [x] C2 `odd/tasks/soloist-onboarding.md`: update the pairing notes.
 - [ ] C3 Full checks and a manual E2E on the failing PC:
       - fresh config, library paired, key saved → Soloist logs in
         automatically and plays without opening Spotify;
@@ -171,3 +171,35 @@ Modified:
   loopback.
 - **Log parsing.** If Soloist changes the log line, the `ss` fallback covers it;
   if both fail, the one-tap flow remains.
+
+## Progress
+
+- [x] Phase A: `engine.Supervisor.StoredCredentials` and the ZeroConf client
+      (`internal/soloist/pair.go`) with a local PBKDF2-HMAC-SHA1 port. The
+      server parser is copied into `pair_test.go` for the crypto round trip.
+- [x] Phase B: supervisor auto-pair, ZeroConf discovery from the log and the
+      `ss -ltnp` fallback, service/main wiring and focused tests.
+- [x] Phase C1-C2: setup documentation and onboarding notes.
+- [ ] C3: real-build E2E on the failing PC (Soloist's actual ZeroConf port log
+      line and path are still unconfirmed on hardware).
+
+## Verification evidence
+
+- `gofmt -l internal/engine internal/soloist main.go`: clean.
+- `go vet ./internal/engine ./internal/soloist .`: clean.
+- `go test ./internal/engine ./internal/soloist -count=1`: pass, including the
+  crypto round trip (`authType=1`, exact 260 credential bytes), fake ZeroConf
+  success, `/zc` then `/` probing, wrong server key, bad checksum, HTTP 403,
+  `status != 101`, no credential leakage in errors, and the supervisor
+  auto-pair success/failure/no-credentials paths.
+- `go test -race ./internal/engine ./internal/soloist -count=1`: pass.
+- `go build ./...`: pass.
+- The `ss` fallback is only exercised when `ss` is installed; the log-line test
+  is the primary path and does not depend on it.
+
+### Protocol note
+
+The plan text describes PBKDF2 as `password=username, salt=sha1(deviceID)`.
+The actual server parser (`ap.ConnectBlob` in go-librespot and the spike that
+round-tripped it) uses `password=sha1(deviceID), salt=username`. The client
+follows the server, otherwise real Soloist would reject the blob.

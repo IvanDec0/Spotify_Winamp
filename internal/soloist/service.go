@@ -31,6 +31,9 @@ type Options struct {
 	DeviceName    string
 	CacheSizeMB   int
 	InitialVolume *int
+	// EngineCredentials returns the library engine's paired account and its
+	// reusable Spotify credentials for automatic Soloist pairing. Optional.
+	EngineCredentials func() (username string, data []byte, err error)
 	// Installer overrides the production installer. Nil builds an installer
 	// for ProgramsDir with the production Spotify-only HTTP client. Tests use
 	// this to inject an archive server without exposing a bypass on the
@@ -246,14 +249,15 @@ func (s *Service) ensureSupervisor(binary *Binary, key string) *Supervisor {
 		}
 	}
 	s.supervisor = NewSupervisor(SupervisorOptions{
-		Binary:        binary,
-		APIKey:        key,
-		DeviceName:    s.opts.DeviceName,
-		DataDir:       s.opts.DataDir,
-		CacheDir:      s.opts.CacheDir,
-		LogPath:       s.opts.LogPath,
-		CacheSizeMB:   s.opts.CacheSizeMB,
-		InitialVolume: s.opts.InitialVolume,
+		Binary:            binary,
+		APIKey:            key,
+		DeviceName:        s.opts.DeviceName,
+		DataDir:           s.opts.DataDir,
+		CacheDir:          s.opts.CacheDir,
+		LogPath:           s.opts.LogPath,
+		CacheSizeMB:       s.opts.CacheSizeMB,
+		InitialVolume:     s.opts.InitialVolume,
+		EngineCredentials: s.opts.EngineCredentials,
 		Emit: func(State) {
 			s.emitMerged()
 		},

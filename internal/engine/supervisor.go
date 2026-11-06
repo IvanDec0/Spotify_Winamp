@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -212,6 +214,45 @@ func (r *Supervisor) ConfigDir() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.configDir
+}
+
+// StoredCredentials returns the paired library account and its reusable
+// Spotify credentials for local device pairing. The data is a secret.
+func (r *Supervisor) StoredCredentials() (username string, data []byte, err error) {
+	r.mu.Lock()
+	configDir := r.configDir
+	r.mu.Unlock()
+	if configDir == "" {
+		return "", nil, errors.New("the go-librespot config directory is not configured")
+	}
+	payload, err := os.ReadFile(filepath.Join(configDir, "state.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil, errors.New("the Spotify library account is not paired")
+		}
+		return "", nil, errors.New("cannot read the Spotify library credentials")
+	}
+	var state struct {
+		Credentials struct {
+			Username string `json:"username"`
+			Data     string `json:"data"`
+		} `json:"credentials"`
+	}
+	if err := json.Unmarshal(payload, &state); err != nil {
+		return "", nil, errors.New("the Spotify library credentials are corrupt")
+	}
+	username = strings.TrimSpace(state.Credentials.Username)
+	if username == "" {
+		return "", nil, errors.New("the Spotify library account is not paired")
+	}
+	if strings.TrimSpace(state.Credentials.Data) == "" {
+		return "", nil, errors.New("the Spotify library credentials are empty")
+	}
+	data, err = base64.StdEncoding.DecodeString(state.Credentials.Data)
+	if err != nil || len(data) == 0 {
+		return "", nil, errors.New("the Spotify library credentials are invalid")
+	}
+	return username, data, nil
 }
 
 // Version returns the running engine version parsed from its log. It returns
