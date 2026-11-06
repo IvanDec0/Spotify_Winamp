@@ -39,7 +39,9 @@
     if (!open) return;
     restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     void tick().then(() => {
-      (focusable()[0] ?? dialog)?.focus();
+      const target =
+        dialog?.querySelector<HTMLElement>("[data-autofocus]") ?? focusable()[0] ?? dialog;
+      target?.focus();
     });
     return () => {
       restoreFocus?.focus();

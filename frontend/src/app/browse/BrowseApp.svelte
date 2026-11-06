@@ -16,6 +16,7 @@
   import QueueView from "./QueueView.svelte";
   import SearchView from "./SearchView.svelte";
   import SettingsView from "./SettingsView.svelte";
+  import SoloistSetupDialog from "./SoloistSetupDialog.svelte";
   import { browse, normalizeSection, type Section } from "./browse.svelte";
   import { clampBrowseSize, type BrowseSize } from "./browse-window";
   import { applyTokens, readSkinTokens, syncBrowseStylesheet } from "./theme.svelte";
@@ -31,6 +32,16 @@
     { id: "queue", label: "browse.queue", glyph: "queue" },
     { id: "settings", label: "browse.settings", glyph: "settings" },
   ];
+
+  const SOLOIST_PROMPT_KEY = "cadence.soloist.prompt.v1";
+
+  function readSoloistPromptDismissed(): boolean {
+    try {
+      return localStorage.getItem(SOLOIST_PROMPT_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
 
   let root: HTMLDivElement;
   let searchInputEl: HTMLInputElement;
@@ -48,6 +59,51 @@
   let resizePending: BrowseSize | null = null;
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   let resizeSession = 0;
+
+  let soloistPromptDismissed = $state(readSoloistPromptDismissed());
+  let soloistDialogOpen = $state(false);
+
+  let soloistNeedsSetup = $derived(
+    music.soloistMode &&
+      !music.audio.soloist?.apiKeySet &&
+      !music.audio.soloist?.installing &&
+      (Boolean(music.audio.soloist?.installed) || Boolean(music.audio.soloist?.error)),
+  );
+  let showSoloistDialog = $derived(
+    music.soloistMode &&
+      !music.loading &&
+      (soloistDialogOpen || (soloistNeedsSetup && !soloistPromptDismissed)),
+  );
+  let showSoloistBanner = $derived(
+    music.soloistMode &&
+      !music.audio.soloist?.apiKeySet &&
+      soloistPromptDismissed &&
+      (Boolean(music.audio.soloist?.installed) || Boolean(music.audio.soloist?.error)),
+  );
+
+  function dismissSoloistPrompt(): void {
+    soloistPromptDismissed = true;
+    soloistDialogOpen = false;
+    try {
+      localStorage.setItem(SOLOIST_PROMPT_KEY, "1");
+    } catch {
+      // Storage can be unavailable; the prompt still respects this session.
+    }
+  }
+
+  function clearSoloistPrompt(): void {
+    soloistPromptDismissed = false;
+    soloistDialogOpen = false;
+    try {
+      localStorage.removeItem(SOLOIST_PROMPT_KEY);
+    } catch {
+      // Storage can be unavailable; the prompt still resets this session.
+    }
+  }
+
+  function openSoloistDialog(): void {
+    soloistDialogOpen = true;
+  }
 
   let navItems = $derived(SECTIONS.map((item) => ({ ...item, label: t(item.label) })));
   let skinLabel = $derived.by(() => {
@@ -86,6 +142,10 @@
 
   $effect(() => {
     void browse.syncTrackLike(player.state.track.uri);
+  });
+
+  $effect(() => {
+    if (music.audio.soloist?.apiKeySet) clearSoloistPrompt();
   });
 
   $effect(() => {
@@ -352,7 +412,7 @@
   </header>
 
   <main class="content">
-    {#if browse.error || browse.notice}
+    {#if browse.error || browse.notice || showSoloistBanner}
       <div class="browse-banners">
         {#if browse.error}
           <div class="browse-banner is-error" role="alert" aria-live="assertive" aria-atomic="true">
@@ -364,6 +424,14 @@
           <div class="browse-banner is-info" role="status" aria-live="polite" aria-atomic="true">
             <span>{t(browse.notice.key, browse.notice.params)}</span>
             <button type="button" onclick={() => browse.dismissNotice()}>{t("ui.dismiss")}</button>
+          </div>
+        {/if}
+        {#if showSoloistBanner}
+          <div class="browse-banner is-info" role="status" aria-live="polite" aria-atomic="true">
+            <span>{t("browse.soloistKeyBanner")}</span>
+            <button type="button" onclick={openSoloistDialog}>
+              {t("browse.soloistKeyConfigure")}
+            </button>
           </div>
         {/if}
       </div>
@@ -396,6 +464,13 @@
     onpointerup={endResize}
     onpointercancel={endResize}
   ></div>
+
+  <SoloistSetupDialog
+    open={showSoloistDialog}
+    onclose={dismissSoloistPrompt}
+    ondismiss={dismissSoloistPrompt}
+    onstarted={clearSoloistPrompt}
+  />
 </div>
 
 <style>

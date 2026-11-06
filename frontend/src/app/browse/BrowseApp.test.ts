@@ -38,9 +38,18 @@ const mocks = vi.hoisted(() => ({
     loading: false,
     busy: false,
     error: null as string | null,
-    audio: { available: true, binaryPath: "/tmp/go-librespot" },
-    soloist: null,
-    soloistMode: false,
+    audio: {
+      available: true,
+      binaryPath: "/tmp/go-librespot",
+      playbackBackend: "librespot",
+      soloist: null as Record<string, unknown> | null,
+    },
+    get soloist(): Record<string, unknown> | null {
+      return this.audio.soloist;
+    },
+    get soloistMode(): boolean {
+      return this.audio.playbackBackend === "soloist";
+    },
     pairing: null as { code: string; url: string } | null,
     openPairing: vi.fn(() => Promise.resolve()),
     resetSession: vi.fn(() => Promise.resolve()),
@@ -72,6 +81,11 @@ const mocks = vi.hoisted(() => ({
     setEngineSettings: vi.fn(),
     getPlaybackSettings: vi.fn(),
     setPlaybackSettings: vi.fn(),
+    installSoloist: vi.fn(),
+    saveSoloistAPIKey: vi.fn(),
+    startSoloist: vi.fn(),
+    getState: vi.fn(),
+    openSoloistDashboard: vi.fn(),
     restart: vi.fn(),
   },
 }));
@@ -126,6 +140,30 @@ const engineSettings = {
   imageSize: "default",
 };
 
+const SOLOIST_PROMPT_KEY = "cadence.soloist.prompt.v1";
+
+function soloistState(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    installed: true,
+    installing: false,
+    installStage: "",
+    downloaded: 0,
+    total: 0,
+    loggedIn: false,
+    needsPairing: false,
+    apiKeySet: false,
+    error: "",
+    errorCode: "",
+    version: "1.0.0",
+    ...overrides,
+  };
+}
+
+function enableSoloist(overrides: Record<string, unknown> = {}): void {
+  mocks.music.audio.playbackBackend = "soloist";
+  mocks.music.audio.soloist = soloistState(overrides);
+}
+
 describe("Browse shell", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -157,6 +195,9 @@ describe("Browse shell", () => {
     });
     mocks.music.authenticated = true;
     mocks.music.pairing = null;
+    mocks.music.audio.playbackBackend = "librespot";
+    mocks.music.audio.soloist = null;
+    localStorage.clear();
     browse.reset();
     browseSettings.reset();
     preferences.setTheme("graphite");
@@ -311,5 +352,37 @@ describe("Browse shell", () => {
         }),
       ),
     );
+  });
+
+  it("prompts for the Soloist API key when the build is installed and no key is stored", () => {
+    enableSoloist();
+    render(BrowseApp);
+
+    expect(screen.getByRole("dialog", { name: "Set up Spotify Soloist" })).not.toBeNull();
+  });
+
+  it("leaves a Configure banner after the prompt is dismissed", async () => {
+    enableSoloist();
+    localStorage.setItem(SOLOIST_PROMPT_KEY, "1");
+    const { container } = render(BrowseApp);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(container.querySelector(".browse-banners .browse-banner.is-info")).not.toBeNull();
+    expect(screen.getByText("Spotify Soloist needs an API key before it can play.")).not.toBeNull();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Configure" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: "Set up Spotify Soloist" })).not.toBeNull(),
+    );
+  });
+
+  it("does not prompt or banner in librespot mode", () => {
+    mocks.music.audio.playbackBackend = "librespot";
+    mocks.music.audio.soloist = soloistState();
+    const { container } = render(BrowseApp);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(container.querySelector(".browse-banners")).toBeNull();
   });
 });
