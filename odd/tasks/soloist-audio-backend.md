@@ -477,6 +477,9 @@ existing librespot default.
       starts the process (`5e4947e`).
 - [x] Phase 6 implemented: docs, README and ADR (`0141302`).
 - [x] 14-day expiry warning in Settings (`5670f2b`).
+- [x] Final independent review corrections: lazy binary discovery, merged
+      reset/restart state, update-on-restart, localized Soloist errors,
+      throttled install progress and cancellable startup (`42f6858`).
 - [ ] Phase 0 spike on the failing PC.
 - [ ] Phase 7 manual E2E on the failing PC.
 
@@ -518,6 +521,22 @@ Phases 2–6 and the expiry warning:
 - The 14-day expiry warning is implemented and tested.
 - Still unverified: real Soloist playback, URI support, exact refusal log
   strings, and the full E2E checklist. These require Phase 0 on the failing PC.
+
+Final independent review (no critical findings) fixed before close:
+
+- `soloist.NewService` no longer probes `--version` during app construction;
+  discovery is lazy on the first `State`/`Start`/`Binary`.
+- `ResetSession`/`Restart` now return the merged `AudioState`, so the frontend
+  cannot fall back to a stale librespot backend after a retry/reset.
+- Installing a newer build applies on `Restart`; `State` reports the newest
+  installed version instead of the running supervisor's old build.
+- All `soloist_*` codes are localized in Settings and the player error copy.
+- Install progress is throttled to one `audio:state` per 200 ms; `Stop`
+  cancels an in-flight `Start` instead of waiting on the lifecycle mutex.
+- `task verify` after the correction: passed, 45 frontend test files / 265
+  tests, Go vet and Svelte checks clean, engine patches apply.
+
+Correction commit: `42f6858`.
 
 ## Next step
 
