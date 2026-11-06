@@ -149,6 +149,14 @@ export function OpenSoloistDownloads(): $CancellablePromise<void> {
 }
 
 /**
+ * OpenSpotify brings the Spotify app to the front for the one-time
+ * Spotify Connect pairing. The OS handles the spotify: URI.
+ */
+export function OpenSpotify(): $CancellablePromise<void> {
+    return $Call.ByID(3581841831);
+}
+
+/**
  * PlayContext starts playback of a playlist, album, artist, show or Liked
  * Songs collection. skipToURI selects a track inside the context.
  */

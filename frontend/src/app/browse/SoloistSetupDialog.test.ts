@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
   };
   return {
     openSoloistDashboard: vi.fn(),
+    openSpotify: vi.fn(),
     saveSoloistAPIKey: vi.fn(),
     startSoloist: vi.fn(),
     getState: vi.fn(),
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => {
 vi.mock("../../shared/api", () => ({
   audio: {
     openSoloistDashboard: mocks.openSoloistDashboard,
+    openSpotify: mocks.openSpotify,
     saveSoloistAPIKey: mocks.saveSoloistAPIKey,
     startSoloist: mocks.startSoloist,
     getState: mocks.getState,
@@ -66,12 +68,23 @@ async function openPasteStep(): Promise<void> {
   await waitFor(() => expect(screen.getByLabelText("API key")).not.toBeNull());
 }
 
+async function openPairingStep(): Promise<void> {
+  mocks.startSoloist.mockResolvedValue({ soloist: { needsPairing: true } });
+  await openPasteStep();
+  await fireEvent.input(screen.getByLabelText("API key"), { target: { value: "key-123" } });
+  await fireEvent.click(screen.getByRole("button", { name: "Save and start" }));
+  await waitFor(() =>
+    expect(screen.getByRole("dialog", { name: "Approve the pairing" })).not.toBeNull(),
+  );
+}
+
 describe("SoloistSetupDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.music.audio.playbackBackend = "soloist";
     mocks.music.soloist = soloist();
     mocks.openSoloistDashboard.mockResolvedValue(undefined);
+    mocks.openSpotify.mockResolvedValue(undefined);
     mocks.saveSoloistAPIKey.mockResolvedValue({});
     mocks.startSoloist.mockResolvedValue({ soloist: { needsPairing: false } });
     mocks.getState.mockResolvedValue({ soloist: null });
@@ -139,6 +152,54 @@ describe("SoloistSetupDialog", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Done" }));
 
     expect(onstarted).toHaveBeenCalledOnce();
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+
+  it("opens Spotify once when the pairing step starts", async () => {
+    renderDialog();
+    await openPairingStep();
+
+    await waitFor(() => expect(mocks.openSpotify).toHaveBeenCalledOnce());
+  });
+
+  it("re-opens Spotify from the Open Spotify button", async () => {
+    renderDialog();
+    await openPairingStep();
+    await waitFor(() => expect(mocks.openSpotify).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(
+        (screen.getByRole("button", { name: "Open Spotify" }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
+
+    await fireEvent.click(screen.getByRole("button", { name: "Open Spotify" }));
+
+    await waitFor(() => expect(mocks.openSpotify).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps the manual path when Spotify cannot be opened", async () => {
+    mocks.openSpotify.mockRejectedValue(new Error("no uri handler"));
+    renderDialog();
+    await openPairingStep();
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Spotify could not be opened. Open it manually and choose Cadence."),
+      ).not.toBeNull(),
+    );
+    expect(screen.getByRole("button", { name: "Open Spotify" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Done" })).not.toBeNull();
+  });
+
+  it("finishes automatically when Spotify signs Soloist in", async () => {
+    const onclose = vi.fn();
+    const onstarted = vi.fn();
+    renderDialog({ onclose, onstarted });
+    await openPairingStep();
+
+    (mocks.music.soloist as Record<string, unknown>).loggedIn = true;
+
+    await waitFor(() => expect(onstarted).toHaveBeenCalledOnce());
     expect(onclose).toHaveBeenCalledOnce();
   });
 

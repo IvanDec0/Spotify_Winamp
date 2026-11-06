@@ -226,8 +226,12 @@ Not changed:
   remain the escape hatch.
 - **Prune safety.** Never remove the running build. On Linux deleting a
   running binary is safe, but keeping it avoids surprising restarts.
-- **Two webviews.** The modal lives in Browse because `music` only starts
-  there; the compact player does not own the onboarding flow.
+- **Pairing cannot be fully automatic.** Soloist is a Spotify Connect device,
+  so the Spotify app must select it once. The reference implementation's
+  ZeroConf credential handoff did not work. The setup dialog opens Spotify,
+  watches `loggedIn` and closes itself; **Done** remains a manual fallback.
+- **Two webviews.** The setup dialog renders in Browse and in the compact
+  player; both share the dismissal flag and the `audio:state` stream.
 
 ## Progress
 

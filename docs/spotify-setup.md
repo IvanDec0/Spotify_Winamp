@@ -208,7 +208,7 @@ playback state and its own queue.
    API and does not automate or scrape the dashboard.
 4. Paste the key into the modal and select **Save and start**. Cadence validates
    it, stores it in `$XDG_CONFIG_HOME/cadence/soloist/api-key` (`0600`), starts
-   Soloist and shows the pairing hint.
+   Soloist and opens Spotify for the one-time pairing.
 5. **Later** dismisses the modal. A small banner in Browse and the **Spotify
    Soloist** card in Settings remain the way back. The dismissal is stored in the
    webview `localStorage` key `cadence.soloist.prompt.v1`, shared by both windows,
@@ -222,13 +222,26 @@ you. The key is the only manual step.
 
 ### Pairing
 
-1. Install Soloist and save an API key, as above.
-2. Open the Spotify app on a phone or another device on the same Wi-Fi network.
-3. Choose **Cadence** as the playback device. This pairs Soloist once.
-4. Do not choose **Cadence Library**, which is the go-librespot catalog engine.
+The API key authenticates Soloist against Spotify's audio service; it does not
+sign a Spotify account in. The first pairing is a Spotify Connect action that
+happens in the Spotify app, and Cadence cannot select its own device.
 
-If Spotify or the Settings card reports **Pairing required**, repeat this step.
-The pairing is stored by Soloist, so it survives Cadence restarts.
+1. Install Soloist and save an API key, as above. The setup dialog opens Spotify
+   automatically.
+2. In Spotify, open the device picker and choose **Cadence** once. Do not choose
+   **Cadence Library**, which is the go-librespot catalog engine.
+3. Cadence watches the Soloist state and closes the setup dialog as soon as
+   Spotify reports the selection. The pairing is stored by Soloist, so later
+   launches connect automatically.
+
+Cadence cannot complete the selection for you: the Spotify app must pick the
+device once. A ZeroConf credential handoff was tried in the reference
+implementation and did not work, so the one-tap flow is the safe path.
+
+If the Spotify app is not installed, the dialog shows a hint and keeps **Open
+Spotify** and **Done** so the pairing can be completed manually. If Spotify or
+the Settings card still reports **Pairing required**, choose **Cadence** again in
+Spotify; the device is only registered after that selection.
 
 ### Settings
 

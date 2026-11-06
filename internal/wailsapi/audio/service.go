@@ -434,6 +434,12 @@ func (s *Service) OpenSoloistDashboard() error {
 	return s.openURL(soloist.DashboardURL)
 }
 
+// OpenSpotify brings the Spotify app to the front for the one-time
+// Spotify Connect pairing. The OS handles the spotify: URI.
+func (s *Service) OpenSpotify() error {
+	return s.openURL("spotify:")
+}
+
 // OpenSoloistDownloads opens Spotify's official Soloist download page.
 func (s *Service) OpenSoloistDownloads() error {
 	return s.openURL(soloist.DownloadsURL)
