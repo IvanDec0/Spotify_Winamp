@@ -92,6 +92,9 @@ type Supervisor struct {
 	accounts  []string
 	errorText string
 	errorCode string
+	// startCancel cancels an in-flight Start so Stop can interrupt the port,
+	// dial and login waits instead of blocking behind lifecycleMu for them.
+	startCancel context.CancelFunc
 }
 
 // NewSupervisor returns a supervisor. LoginTimeout 0 is resolved at Start
@@ -137,12 +140,15 @@ func (s *Supervisor) startLocked(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	s.mu.Lock()
 	if s.running {
 		s.mu.Unlock()
 		return nil
 	}
+	s.startCancel = cancel
 	binary := s.binary
 	apiKey := s.apiKey
 	dataDir := s.dataDir
@@ -154,6 +160,11 @@ func (s *Supervisor) startLocked(ctx context.Context) error {
 	startTimeout := s.startTimeout
 	loginTimeout := s.loginTimeout
 	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.startCancel = nil
+		s.mu.Unlock()
+	}()
 
 	// A second Start while Soloist is running is a no-op and must not drop
 	// the diagnostic lines of the running process. Only a real new run resets
@@ -521,8 +532,16 @@ func exitCode(err error) int {
 	return -1
 }
 
-// Stop terminates Soloist and its process group. It is idempotent.
+// Stop terminates Soloist and its process group. It is idempotent. An
+// in-flight Start is cancelled first so Stop never waits behind the port or
+// login timeouts.
 func (s *Supervisor) Stop(ctx context.Context) error {
+	s.mu.Lock()
+	cancel := s.startCancel
+	s.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 	s.lifecycleMu.Lock()
 	defer s.lifecycleMu.Unlock()
 	return s.stopLocked(ctx)

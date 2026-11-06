@@ -643,3 +643,74 @@ func TestInitialVolumeIsValidated(t *testing.T) {
 		t.Fatalf("InitialVolume = %v, want 55", supervisor.initialVolume)
 	}
 }
+
+func TestStopCancelsAnInFlightStart(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	dataDir := t.TempDir()
+	pidFile := filepath.Join(t.TempDir(), "pids")
+	script := fmt.Sprintf(`#!/bin/sh
+echo $$ >> "%s"
+trap 'exit 0' TERM INT
+while :; do sleep 0.05; done
+`, pidFile)
+	path := writeScript(t, t.TempDir(), "soloist", script)
+	supervisor := NewSupervisor(SupervisorOptions{
+		Binary:       &Binary{Path: path, Version: "1.0.0", BuiltAt: time.Now().Add(-time.Hour)},
+		APIKey:       "secret",
+		DataDir:      dataDir,
+		CacheDir:     t.TempDir(),
+		LogPath:      filepath.Join(t.TempDir(), "soloist.log"),
+		StartTimeout: defaultStartTimeout,
+	})
+
+	started := make(chan error, 1)
+	go func() { started <- supervisor.Start(context.Background()) }()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if _, err := os.Stat(pidFile); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the fake Soloist did not start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	pids := readSpawnedPids(t, pidFile)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	stopped := make(chan error, 1)
+	begin := time.Now()
+	go func() { stopped <- supervisor.Stop(ctx) }()
+
+	select {
+	case err := <-stopped:
+		if err != nil {
+			t.Fatalf("stop: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Stop blocked behind the in-flight Start")
+	}
+	if elapsed := time.Since(begin); elapsed >= defaultStartTimeout {
+		t.Fatalf("Stop took %s; it must not wait for the start timeout", elapsed)
+	}
+
+	select {
+	case err := <-started:
+		if err == nil {
+			t.Fatal("Start succeeded although the fake never wrote ws.port")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Start did not return after cancellation")
+	}
+
+	if len(pids) == 0 {
+		t.Fatal("no spawned pid recorded")
+	}
+	if err := syscall.Kill(pids[0], 0); !errors.Is(err, syscall.ESRCH) {
+		t.Fatalf("process %d is still alive after Stop: %v", pids[0], err)
+	}
+}

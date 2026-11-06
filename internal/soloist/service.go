@@ -42,6 +42,7 @@ type Service struct {
 	inspect    func(context.Context, string) (*Binary, error)
 	binary     *Binary
 	binarySig  binarySignature
+	discovered bool
 	accounts   []string
 	supervisor *Supervisor
 	emit       func(State)
@@ -55,7 +56,9 @@ type binarySignature struct {
 	size    int64
 }
 
-// NewService discovers the installed binary and stored accounts.
+// NewService prepares the facade. Binary discovery is lazy: app construction
+// must never run `soloist --version`, because a slow or hung installed binary
+// would otherwise block startup before the window appears.
 func NewService(opts Options) *Service {
 	now := opts.Now
 	if now == nil {
@@ -76,16 +79,39 @@ func NewService(opts Options) *Service {
 			Now:         now,
 		})
 	}
-	binary, err := FindInstalled(opts.ProgramsDir, os.Getenv("CADENCE_SOLOIST"))
-	if err == nil {
-		service.cacheBinary(binary)
-	}
 	return service
+}
+
+// discover locates the installed binary once. It takes refreshMu with TryLock
+// so a concurrent version probe is never waited on, and caches "not found" so
+// a missing install does not re-probe on every state read.
+func (s *Service) discover() {
+	if !s.refreshMu.TryLock() {
+		return
+	}
+	defer s.refreshMu.Unlock()
+
+	s.mu.Lock()
+	if s.discovered {
+		s.mu.Unlock()
+		return
+	}
+	opts := s.opts
+	s.mu.Unlock()
+
+	binary, err := FindInstalled(opts.ProgramsDir, os.Getenv("CADENCE_SOLOIST"))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err == nil {
+		s.cacheBinaryLocked(binary)
+	}
+	s.discovered = true
 }
 
 // State merges binary, account, key and supervisor state. It never includes
 // the API key.
 func (s *Service) State() State {
+	s.discover()
 	s.refreshBinary()
 	s.mu.Lock()
 	binary := s.binary
@@ -100,6 +126,9 @@ func (s *Service) State() State {
 	state.Accounts = accounts
 	state.Error = errorText
 	state.ErrorCode = errorCode
+	// The service-level binary wins over the supervisor's copy: after an
+	// install the supervisor may still hold the build it was started with,
+	// while Settings must show the newest one.
 	if binary != nil {
 		state.Installed = true
 		state.BinaryPath = binary.Path
@@ -120,7 +149,7 @@ func (s *Service) State() State {
 		if len(supervisorState.Accounts) > 0 {
 			state.Accounts = supervisorState.Accounts
 		}
-		if supervisorState.Installed {
+		if binary == nil && supervisorState.Installed {
 			state.Installed = true
 			state.BinaryPath = supervisorState.BinaryPath
 			state.Version = supervisorState.Version
@@ -151,6 +180,7 @@ func (s *Service) State() State {
 // Start refreshes the install, checks the key and starts Soloist. A pairing
 // error is returned while the process keeps running.
 func (s *Service) Start(ctx context.Context) error {
+	s.discover()
 	s.refreshBinary()
 	s.mu.Lock()
 	binary := s.binary
@@ -235,12 +265,26 @@ func (s *Service) Stop(ctx context.Context) error {
 	return nil
 }
 
-// Restart stops and starts Soloist.
+// Restart stops and starts Soloist. When a new build was installed while the
+// old supervisor was stopped, the old supervisor is discarded so the restart
+// uses the new binary.
 func (s *Service) Restart(ctx context.Context) error {
 	s.mu.Lock()
 	supervisor := s.supervisor
+	binary := s.binary
 	s.mu.Unlock()
 	if supervisor == nil {
+		return s.Start(ctx)
+	}
+	if binary != nil && supervisor.State().BinaryPath != binary.Path {
+		if err := supervisor.Stop(ctx); err != nil {
+			return s.fail(err)
+		}
+		s.mu.Lock()
+		if s.supervisor == supervisor {
+			s.supervisor = nil
+		}
+		s.mu.Unlock()
 		return s.Start(ctx)
 	}
 	err := supervisor.Restart(ctx)
@@ -269,10 +313,21 @@ func (s *Service) Install(ctx context.Context, progress func(Progress)) (*Binary
 	}
 	s.mu.Lock()
 	s.cacheBinaryLocked(binary)
+	s.discovered = true
 	s.accounts = Accounts(s.opts.DataDir)
 	s.errorText = ""
 	s.errorCode = ""
+	supervisor := s.supervisor
 	s.mu.Unlock()
+	// A stopped supervisor still points at the previous build. Drop it so the
+	// next start builds a supervisor for the freshly installed binary.
+	if supervisor != nil && !supervisor.State().Running {
+		s.mu.Lock()
+		if s.supervisor == supervisor {
+			s.supervisor = nil
+		}
+		s.mu.Unlock()
+	}
 	s.emitMerged()
 	return binary, nil
 }
@@ -337,9 +392,10 @@ func (s *Service) Client() *Client {
 	return supervisor.Client()
 }
 
-// Binary returns a copy of the cached installed binary, refreshing it when
-// the file changed.
+// Binary returns a copy of the cached installed binary, discovering or
+// refreshing it on first use.
 func (s *Service) Binary() *Binary {
+	s.discover()
 	s.refreshBinary()
 	s.mu.Lock()
 	defer s.mu.Unlock()

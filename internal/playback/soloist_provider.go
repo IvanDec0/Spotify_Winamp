@@ -530,6 +530,8 @@ func (p *SoloistProvider) mapPlayback(playback *soloist.PlaybackState, backendSt
 		state.DurationMS = state.Track.DurationMS
 	}
 	if playback.Position != nil {
+		// The provider anchors progress at fetch time and assumes 1x playback
+		// speed; it does not extrapolate from position timestamps.
 		progress := int(playback.Position.PositionMS)
 		if progress < 0 {
 			progress = 0

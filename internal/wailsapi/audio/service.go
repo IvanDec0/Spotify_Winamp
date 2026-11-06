@@ -19,6 +19,12 @@ import (
 // pairing state.
 const AudioEvent = "audio:state"
 
+// installProgressInterval throttles download progress events. A 64 MB archive
+// arrives in thousands of 32 KiB chunks; one event per chunk would flood the
+// frontend bridge. Stage changes and the final state are still emitted
+// immediately.
+const installProgressInterval = 200 * time.Millisecond
+
 // SoloistBackend is the subset of *soloist.Service the audio adapter uses.
 // *soloist.Service satisfies it structurally.
 type SoloistBackend interface {
@@ -127,7 +133,13 @@ func (s *Service) ServiceShutdown() error {
 // GetState returns the engine state merged with the selected playback backend
 // and, in Soloist mode, the Soloist process and install state.
 func (s *Service) GetState() AudioState {
-	state := s.catalog.GetState()
+	return s.mergeState(s.catalog.GetState())
+}
+
+// mergeState adds the backend selection and Soloist state to a catalog state.
+// It is used by GetState and by the actions that return the state produced by
+// catalog.ResetSession and catalog.Restart, which carry neither field.
+func (s *Service) mergeState(state AudioState) AudioState {
 	state.PlaybackBackend = s.backend
 	// Soloist state is merged in both modes so Settings can install it and
 	// store the API key before the user switches backends. The process only
@@ -206,12 +218,14 @@ func (s *Service) OpenPairing() error {
 // ResetSession removes the stored go-librespot credentials and starts a new
 // pairing flow.
 func (s *Service) ResetSession() (AudioState, error) {
-	return s.catalog.ResetSession()
+	state, err := s.catalog.ResetSession()
+	return s.mergeState(state), err
 }
 
 // Restart restarts the engine while keeping the paired credentials.
 func (s *Service) Restart() (AudioState, error) {
-	return s.catalog.Restart()
+	state, err := s.catalog.Restart()
+	return s.mergeState(state), err
 }
 
 // InstallSoloist downloads and installs the newest Spotify Soloist build,
@@ -222,9 +236,25 @@ func (s *Service) InstallSoloist() (AudioState, error) {
 	}
 	s.setInstallProgress(true, "downloading", 0, 0)
 	s.emitMerged()
+	stage := "downloading"
+	var lastEmit time.Time
 	_, err := s.soloist.Install(context.Background(), func(progress soloist.Progress) {
+		// The snapshot is always current; only the event is throttled.
 		s.setInstallProgress(true, progress.Stage, progress.Downloaded, progress.Total)
-		s.emitMerged()
+		now := time.Now()
+		switch {
+		case progress.Stage != stage:
+			stage = progress.Stage
+			lastEmit = now
+			s.emitMerged()
+		case progress.Stage != "downloading":
+			// Extracting/verifying/installing emit immediately.
+			lastEmit = now
+			s.emitMerged()
+		case now.Sub(lastEmit) >= installProgressInterval:
+			lastEmit = now
+			s.emitMerged()
+		}
 	})
 	s.setInstallProgress(false, "", 0, 0)
 	s.emitMerged()

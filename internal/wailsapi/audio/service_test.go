@@ -387,6 +387,32 @@ func TestGetStateIncludesSoloistStateInLibrespotMode(t *testing.T) {
 	}
 }
 
+func TestMergeStateCarriesBackendAndSoloist(t *testing.T) {
+	fake := &fakeSoloistBackend{state: soloist.State{
+		Installed: true,
+		Version:   "1.3.10.12",
+		Running:   true,
+		Accounts:  []string{"listener@example.com"},
+	}}
+	for _, backend := range []string{settings.BackendSoloist, settings.BackendLibrespot} {
+		t.Run(backend, func(t *testing.T) {
+			service, _ := newTestService(t, backend, fake)
+			// catalog.ResetSession and catalog.Restart return a state without
+			// either field; mergeState must fill them in on its own.
+			merged := service.mergeState(AudioState{Engine: "go-librespot"})
+			if merged.PlaybackBackend != backend {
+				t.Fatalf("PlaybackBackend = %q, want %q", merged.PlaybackBackend, backend)
+			}
+			if merged.Soloist == nil || merged.Soloist.Version != "1.3.10.12" {
+				t.Fatalf("Soloist = %#v, want the backend state in both modes", merged.Soloist)
+			}
+			if len(merged.Soloist.Accounts) != 1 || merged.Soloist.Accounts[0] != "listener@example.com" {
+				t.Fatalf("Accounts = %#v", merged.Soloist.Accounts)
+			}
+		})
+	}
+}
+
 func TestStartSoloistPairingIsStateNotError(t *testing.T) {
 	fake := &fakeSoloistBackend{
 		state:    soloist.State{NeedsPairing: true, ErrorCode: soloist.CodePairingRequired},

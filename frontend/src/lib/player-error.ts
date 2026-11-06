@@ -22,6 +22,49 @@ const ERROR_COPY: Record<string, ErrorCopy> = {
     title: "errors.noActiveDevice",
     hint: "errors.noActiveDeviceHint",
   },
+  soloist_not_installed: {
+    title: "errors.soloistNotInstalled",
+    hint: "errors.soloistInstallHint",
+  },
+  soloist_unsupported_platform: {
+    title: "errors.soloistUnsupportedPlatform",
+  },
+  soloist_api_key_missing: {
+    title: "errors.soloistApiKeyMissing",
+    hint: "errors.soloistApiKeyHint",
+  },
+  soloist_api_key_invalid: {
+    title: "errors.soloistApiKeyInvalid",
+    hint: "errors.soloistApiKeyHint",
+  },
+  soloist_api_key_rejected: {
+    title: "errors.soloistApiKeyRejected",
+    hint: "errors.soloistApiKeyHint",
+  },
+  soloist_not_logged_in: {
+    title: "errors.soloistNotLoggedIn",
+    hint: "errors.soloistPairingRequiredHint",
+  },
+  soloist_pairing_required: {
+    title: "errors.soloistPairingRequired",
+    hint: "errors.soloistPairingRequiredHint",
+  },
+  soloist_build_expired: {
+    title: "errors.soloistBuildExpired",
+    hint: "errors.soloistUpdateHint",
+  },
+  soloist_start_failed: {
+    title: "errors.soloistStartFailed",
+  },
+  soloist_download_failed: {
+    title: "errors.soloistDownloadFailed",
+  },
+  soloist_protocol_error: {
+    title: "errors.soloistProtocolError",
+  },
+  soloist_unsupported: {
+    title: "errors.soloistUnsupported",
+  },
 };
 
 export interface PlayerErrorCopy {

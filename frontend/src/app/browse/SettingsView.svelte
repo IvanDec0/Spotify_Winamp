@@ -10,7 +10,7 @@
   } from "../../lib/preferences.svelte";
   import { skins } from "../../lib/skins.svelte";
   import { music } from "../../lib/music.svelte";
-  import { i18n, t, type Locale } from "../../shared/i18n";
+  import { i18n, t, type Locale, type MessageKey } from "../../shared/i18n";
   import Button from "../../shared/ui/Button.svelte";
   import Dialog from "../../shared/ui/Dialog.svelte";
   import Skeleton from "../../shared/ui/Skeleton.svelte";
@@ -138,6 +138,37 @@
   function downloadPercent(downloaded: number, total: number): number {
     if (total <= 0) return 0;
     return Math.min(100, Math.round((downloaded / total) * 100));
+  }
+
+  function soloistErrorLabel(code: string): MessageKey {
+    switch (code) {
+      case "soloist_not_installed":
+        return "errors.soloistNotInstalled";
+      case "soloist_unsupported_platform":
+        return "errors.soloistUnsupportedPlatform";
+      case "soloist_api_key_missing":
+        return "errors.soloistApiKeyMissing";
+      case "soloist_api_key_invalid":
+        return "errors.soloistApiKeyInvalid";
+      case "soloist_api_key_rejected":
+        return "errors.soloistApiKeyRejected";
+      case "soloist_not_logged_in":
+        return "errors.soloistNotLoggedIn";
+      case "soloist_pairing_required":
+        return "errors.soloistPairingRequired";
+      case "soloist_build_expired":
+        return "errors.soloistBuildExpired";
+      case "soloist_start_failed":
+        return "errors.soloistStartFailed";
+      case "soloist_download_failed":
+        return "errors.soloistDownloadFailed";
+      case "soloist_protocol_error":
+        return "errors.soloistProtocolError";
+      case "soloist_unsupported":
+        return "errors.soloistUnsupported";
+      default:
+        return "browse.soloistError";
+    }
   }
 
   function chooseBackend(event: Event): void {
@@ -283,7 +314,8 @@
 
         {#if soloist?.error}
           <div class="settings-notice is-error" role="alert" aria-live="assertive">
-            <span>{t("browse.soloistError")} {soloist.error}</span>
+            <span>{t(soloistErrorLabel(soloist.errorCode))}</span>
+            <p class="settings-help">{soloist.error}</p>
           </div>
         {/if}
 

@@ -403,6 +403,23 @@ describe("SettingsView", () => {
     expect(screen.getByText(/choose Cadence as the device/)).not.toBeNull();
   });
 
+  it("renders a localized headline for a coded Soloist error", async () => {
+    mocks.music.soloist = soloistState({
+      needsPairing: true,
+      loggedIn: false,
+      errorCode: "soloist_pairing_required",
+      error: "Spotify Soloist needs to be paired with a Spotify account",
+    });
+
+    await renderSettings();
+
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toContain("Spotify pairing required");
+    expect(alert.textContent).toContain(
+      "Spotify Soloist needs to be paired with a Spotify account",
+    );
+  });
+
   it("warns when the Soloist build is close to expiry", async () => {
     mocks.music.soloist = soloistState({ daysLeft: 10 });
 

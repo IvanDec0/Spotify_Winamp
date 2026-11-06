@@ -3,9 +3,11 @@ package soloist
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -267,5 +269,111 @@ func TestStateDoesNotBlockOnTheVersionProbe(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("State did not finish")
+	}
+}
+
+func TestNewServiceDoesNotProbeTheVersion(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	// serviceOptions empties PATH, so use the real sleep binary by absolute
+	// path; otherwise the fake probe would return instantly.
+	sleepPath, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("sleep is not available")
+	}
+	opts := serviceOptions(t)
+	built := time.Now().Add(-time.Hour).Unix()
+	script := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "--version" ]; then
+  %s 1
+fi
+echo "soloist 1.0.0 build %d (20260101)"
+`, sleepPath, built)
+	writeScript(t, filepath.Join(opts.ProgramsDir, fmt.Sprintf("%d", built)), "soloist", script)
+
+	started := time.Now()
+	service := NewService(opts)
+	if elapsed := time.Since(started); elapsed > 500*time.Millisecond {
+		t.Fatalf("NewService took %s; construction must not run --version", elapsed)
+	}
+
+	probeStart := time.Now()
+	state := service.State()
+	if elapsed := time.Since(probeStart); elapsed < 500*time.Millisecond {
+		t.Fatalf("State took %s; the slow --version probe seems to have been skipped", elapsed)
+	}
+	if !state.Installed || state.Version != "1.0.0" {
+		t.Fatalf("state = %+v, want the slow binary discovered on first read", state)
+	}
+}
+
+func TestStateReportsTheServiceBinaryOverTheSupervisor(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	opts := serviceOptions(t)
+	now := time.Now()
+	oldBuilt := now.Add(-48 * time.Hour).Unix()
+	newBuilt := now.Add(-time.Hour).Unix()
+	oldBinary := installFakeBinary(t, opts.ProgramsDir, opts.DataDir, 12345, oldBuilt, "secret")
+	newBinary := installFakeBinary(t, opts.ProgramsDir, opts.DataDir, 12345, newBuilt, "secret")
+
+	service := NewService(opts)
+	service.mu.Lock()
+	service.cacheBinaryLocked(newBinary)
+	service.discovered = true
+	service.supervisor = NewSupervisor(SupervisorOptions{Binary: oldBinary})
+	service.mu.Unlock()
+
+	state := service.State()
+	if state.BinaryPath != newBinary.Path || !state.BuiltAt.Equal(newBinary.BuiltAt) {
+		t.Fatalf("state = %+v, want the service-level binary %+v", state, newBinary)
+	}
+}
+
+func TestInstallClearsAStoppedSupervisor(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	opts := serviceOptions(t)
+	built := int64(1792756912)
+	archive := tarGzArchive(t, []archiveMember{{Name: "soloist", Body: versionScript("1.3.10.12", built), Mode: 0o755}})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(archive)
+	}))
+	defer server.Close()
+
+	opts.Now = func() time.Time { return time.Unix(built+86400, 0) }
+	installer := NewInstaller(InstallerOptions{
+		ProgramsDir:  opts.ProgramsDir,
+		HTTPClient:   server.Client(),
+		AllowAnyHost: true,
+		GOOS:         "linux",
+		GOARCH:       "amd64",
+		Now:          opts.Now,
+	})
+	installer.archiveBaseURL = server.URL + "/"
+	opts.Installer = installer
+
+	service := NewService(opts)
+	oldBinary := installFakeBinary(t, opts.ProgramsDir, opts.DataDir, 12345, built-3600, "secret")
+	service.mu.Lock()
+	service.supervisor = NewSupervisor(SupervisorOptions{Binary: oldBinary, APIKey: "secret", DataDir: opts.DataDir})
+	service.mu.Unlock()
+
+	if _, err := service.Install(t.Context(), nil); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	service.mu.Lock()
+	supervisor := service.supervisor
+	service.mu.Unlock()
+	if supervisor != nil {
+		t.Fatal("a stopped supervisor still points at the old build after Install")
+	}
+	state := service.State()
+	if !state.Installed || state.Version != "1.3.10.12" {
+		t.Fatalf("state = %+v, want the installed build", state)
 	}
 }

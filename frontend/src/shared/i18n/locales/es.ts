@@ -47,6 +47,25 @@ export const es: Record<MessageKey, string> = {
   "errors.engineHelp": "Revisa el detalle técnico y vuelve a intentar o reinicia el motor.",
   "errors.engineDisabledHelp":
     "Cadence está en modo demostración. Reinicia sin --demo para usar el motor de audio local.",
+  "errors.soloistNotInstalled": "Spotify Soloist no está instalado",
+  "errors.soloistUnsupportedPlatform": "Spotify Soloist no está disponible en esta plataforma",
+  "errors.soloistApiKeyMissing": "Spotify Soloist necesita una clave de API",
+  "errors.soloistApiKeyInvalid": "La clave de API de Spotify Soloist no es válida",
+  "errors.soloistApiKeyRejected": "Spotify rechazó la clave de API de Soloist",
+  "errors.soloistNotLoggedIn": "Spotify Soloist no tiene sesión iniciada",
+  "errors.soloistPairingRequired": "Se requiere vincular Spotify",
+  "errors.soloistBuildExpired": "La compilación de Spotify Soloist venció",
+  "errors.soloistStartFailed": "No se pudo iniciar Spotify Soloist",
+  "errors.soloistDownloadFailed": "Falló la descarga de Spotify Soloist",
+  "errors.soloistProtocolError": "Spotify Soloist envió una respuesta inesperada",
+  "errors.soloistUnsupported": "Esta acción no está disponible en Spotify Soloist",
+  "errors.soloistInstallHint": "Instala o actualiza Spotify Soloist desde Configuración.",
+  "errors.soloistApiKeyHint":
+    "Crea una clave de API en el panel para desarrolladores de Spotify y guárdala en Configuración.",
+  "errors.soloistUpdateHint":
+    "Instala una actualización desde Configuración para seguir reproduciendo.",
+  "errors.soloistPairingRequiredHint":
+    "Abre Spotify, elige Cadence como dispositivo y aprueba la solicitud de vinculación.",
   "errors.detail": "Detalle técnico",
   "transport.controls": "Controles de reproducción",
   "transport.shuffle": "Aleatorio",
