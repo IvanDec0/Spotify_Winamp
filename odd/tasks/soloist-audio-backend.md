@@ -232,84 +232,84 @@ Execution order is P3 → P4 → P2: `main.go` cannot select a Soloist
 seam before the wiring can be coherent. P2 closes the loop with settings, the
 additive `AudioState`, the Wails adapter, `main.go` and the ADR.
 
-- [ ] P2.1 `settings.PlaybackState` (`backend`), constants, default,
+- [x] P2.1 `settings.PlaybackState` (`backend`), constants, default,
       normalization and `UpdatePlayback`; `Load` fills a missing section; no
       schema bump.
-- [ ] P2.2 `engine.AudioState` additive fields: `PlaybackBackend` and
+- [x] P2.2 `engine.AudioState` additive fields: `PlaybackBackend` and
       `Soloist *SoloistState`.
-- [ ] P2.3 `wailsapi/audio`: `PlaybackSettings`, get/set backend, merged
+- [x] P2.3 `wailsapi/audio`: `PlaybackSettings`, get/set backend, merged
       `GetState`, Soloist emitter, startup/shutdown, install/key/dashboard
       methods and a `SoloistBackend` interface for tests.
-- [ ] P2.4 `main.go`: credentials/supervisor/service construction, provider
+- [x] P2.4 `main.go`: credentials/supervisor/service construction, provider
       selection, catalog playback injection, `Cadence Library` naming, MPRIS and
       cache forced off in Soloist mode.
-- [ ] P2.5 ADR `docs/adr/0004-dual-audio-backend.md`.
-- [ ] P2.6 Tests: settings round-trip/normalization and audio service merge/
+- [x] P2.5 ADR `docs/adr/0004-dual-audio-backend.md`.
+- [x] P2.6 Tests: settings round-trip/normalization and audio service merge/
       backend selection with a fake Soloist backend.
 
 ### Phase 3 — Soloist playback provider
 
-- [ ] P3.1 `internal/playback/soloist_provider.go`: `Provider`, `Streamer` and
+- [x] P3.1 `internal/playback/soloist_provider.go`: `Provider`, `Streamer` and
       the four catalog playback methods.
-- [ ] P3.2 State mapping: status, track/artists/album/cover/duration, progress
+- [x] P3.2 State mapping: status, track/artists/album/cover/duration, progress
       anchor, volume, shuffle, repeat, device, `canSeek`/`canControl`, errors.
-- [ ] P3.3 Queue mapping: current + upcoming from `get_queue`, cap 50,
+- [x] P3.3 Queue mapping: current + upcoming from `get_queue`, cap 50,
       current/next flags.
-- [ ] P3.4 Commands: activate-before-play, play/pause/toggle/next/prev/seek/
+- [x] P3.4 Commands: activate-before-play, play/pause/toggle/next/prev/seek/
       volume/shuffle/repeat/transfer; wait for matching events with bounded
       timeouts; two-command repeat sequences; track-only `add_to_queue`; radio
       unsupported; standalone track for `skipToURI`.
-- [ ] P3.5 Stream: auth state, initial snapshot, dirty refresh every 100 ms,
+- [x] P3.5 Stream: auth state, initial snapshot, dirty refresh every 100 ms,
       position sync, return on close so the player service reconnects.
-- [ ] P3.6 Tests with a fake Soloist WS server: mapping, commands, event waits,
+- [x] P3.6 Tests with a fake Soloist WS server: mapping, commands, event waits,
       errors and reconnection.
 
 ### Phase 4 — Catalog playback routing
 
-- [ ] P4.1 Add `catalog.Playback` and `Options.Playback`; default to an internal
+- [x] P4.1 Add `catalog.Playback` and `Options.Playback`; default to an internal
       librespot wrapper that preserves current behavior.
-- [ ] P4.2 Route `PlayContext`, `PlayTrack`, `AddToQueue`, `StartRadio` through
+- [x] P4.2 Route `PlayContext`, `PlayTrack`, `AddToQueue`, `StartRadio` through
       the seam; keep trim/validation behavior.
-- [ ] P4.3 Return the Soloist unsupported error for radio.
-- [ ] P4.4 Tests: default wrapper, injected fake, radio error.
+- [x] P4.3 Return the Soloist unsupported error for radio.
+- [x] P4.4 Tests: default wrapper, injected fake, radio error.
 
 ### Phase 5 — Frontend and UX
 
-- [ ] P5.1 Regenerate Wails bindings with `task common:generate:bindings`.
-- [ ] P5.2 Add new types and `audio.ts` facade methods.
-- [ ] P5.3 Normalize `playbackBackend` and `soloist` in `music.svelte.ts`.
-- [ ] P5.4 Extend `settings.svelte.ts` with backend, Soloist actions and
+- [x] P5.1 Regenerate Wails bindings with `task common:generate:bindings`.
+- [x] P5.2 Add new types and `audio.ts` facade methods.
+- [x] P5.3 Normalize `playbackBackend` and `soloist` in `music.svelte.ts`.
+- [x] P5.4 Extend `settings.svelte.ts` with backend, Soloist actions and
       notices.
-- [ ] P5.5 `SettingsView.svelte`: Audio backend card (selector + restart notice)
+- [x] P5.5 `SettingsView.svelte`: Audio backend card (selector + restart notice)
       and Spotify Soloist card (status, version/expiry, install/update, key,
       dashboard). Disable go-librespot-only controls in Soloist mode.
-- [ ] P5.6 Gate radio actions in `EntityView.svelte` and `SearchView.svelte` when
+- [x] P5.6 Gate radio actions in `EntityView.svelte` and `SearchView.svelte` when
       the backend is Soloist.
-- [ ] P5.7 Add `en.ts`/`es.ts` keys for every new string and error code.
-- [ ] P5.8 Tests: settings store/view, music normalization, radio gating.
+- [x] P5.7 Add `en.ts`/`es.ts` keys for every new string and error code.
+- [x] P5.8 Tests: settings store/view, music normalization, radio gating.
 
 ### Phase 6 — Documentation
 
-- [ ] P6.1 Finish ADR 0004.
-- [ ] P6.2 `docs/spotify-setup.md`: Soloist section (why, key, install, switch,
+- [x] P6.1 Finish ADR 0004.
+- [x] P6.2 `docs/spotify-setup.md`: Soloist section (why, key, install, switch,
       devices, limits, expiry, logs, paths).
-- [ ] P6.3 `docs/installation.md`: Soloist is never bundled; runtime download
+- [x] P6.3 `docs/installation.md`: Soloist is never bundled; runtime download
       and paths.
-- [ ] P6.4 `docs/architecture.md`: backend seam and package ownership.
-- [ ] P6.5 `README.md`, `docs/README.md`, `docs/i18n.md`.
-- [ ] P6.6 `docs/development.md`: `CADENCE_SOLOIST` override and fake WS test
+- [x] P6.4 `docs/architecture.md`: backend seam and package ownership.
+- [x] P6.5 `README.md`, `docs/README.md`, `docs/i18n.md`.
+- [x] P6.6 `docs/development.md`: `CADENCE_SOLOIST` override and fake WS test
       conventions.
 
 ### Phase 7 — Verification and delivery
 
-- [ ] P7.1 Run `task check`, `task test` and `task verify`.
+- [x] P7.1 Run `task check`, `task test` and `task verify`.
 - [ ] P7.2 Manual E2E on the failing PC: install from Settings, save key, switch
       backend, restart, pair go-librespot, play track/album/playlist/artist/
       Liked Songs, seek, volume, shuffle/repeat, queue, visualizer and every
       error state.
-- [ ] P7.3 Work-unit commits on the current feature branch; no PR unless
+- [x] P7.3 Work-unit commits on the current feature branch; no PR unless
       requested.
-- [ ] P7.4 Record verification evidence here and refresh the Engram mirror.
+- [x] P7.4 Record verification evidence here and refresh the Engram mirror.
 
 ## File map
 
@@ -465,8 +465,20 @@ existing librespot default.
 - [x] Plan written and mirrored to Engram.
 - [x] Phase 1 implemented: `internal/soloist` (4,858 lines including tests),
       four work-unit commits `b5dce70`, `151a724`, `e748bfc`, `96bbb4b`.
+- [x] Phase 3 implemented: `playback.SoloistProvider` and its tests (`5e0b10f`).
+- [x] Phase 4 implemented: `catalog.Playback` seam and Soloist catalog methods
+      (`587b40d`).
+- [x] Phase 2 implemented: settings, additive `AudioState`, Wails adapter,
+      `main.go` wiring and ADR 0004 (`26571eb`).
+- [x] Phase 5 implemented: bindings, frontend store, Settings cards, radio
+      gating, i18n and tests (`689a864`).
+- [x] Install-before-switch fix: the Soloist service is constructed in both
+      modes and its state is returned to Settings; only the Soloist backend
+      starts the process (`5e4947e`).
+- [x] Phase 6 implemented: docs, README and ADR (`0141302`).
+- [x] 14-day expiry warning in Settings (`5670f2b`).
 - [ ] Phase 0 spike on the failing PC.
-- [ ] Phases 2–7.
+- [ ] Phase 7 manual E2E on the failing PC.
 
 ## Verification evidence
 
@@ -490,11 +502,31 @@ trimming, host/HTTPS download validation, strict `command_result` matching and
 non-blocking binary inspection. The corrected suite passes `-count=10` and
 `-race -count=3`.
 
+Phases 2–6 and the expiry warning:
+
+- `task verify`: passed. Go vet, Svelte type checks, Prettier, all Go tests,
+  44 frontend test files / 259 tests, and `go-librespot` patches apply cleanly.
+- Focused suites: `go test ./internal/settings ./internal/engine
+  ./internal/wailsapi/audio ./internal/catalog ./internal/playback -count=1`
+  and `-race` on settings/audio.
+- `gofmt -l` clean on every touched Go package; `npm run check`,
+  `npm run lint`, `npm run i18n:check` clean.
+- Independent Phase 5 review surfaced the install-before-switch gap: the
+  Soloist service is now constructed in both modes and its state is available
+  to Settings, while only the Soloist backend starts the process. The UI hides
+  Start/Stop/Restart in librespot mode and keeps install/key available.
+- The 14-day expiry warning is implemented and tested.
+- Still unverified: real Soloist playback, URI support, exact refusal log
+  strings, and the full E2E checklist. These require Phase 0 on the failing PC.
+
 ## Next step
 
-Phase 2 (settings, additive state and wiring) can proceed without the Phase 0
-result. Phase 3 and the E2E gate still depend on Phase 0 confirming that the
-failing account plays through Soloist and on the captured URI matrix/payloads.
+Run Phase 0 on the failing PC: confirm `P0.2` and `P0.7` (the account plays
+through Soloist), capture the URI matrix and WS payloads, and confirm the exact
+start-failure strings. Then run the Phase 7 E2E from Settings: install, save
+key, switch backend, restart, pair `Cadence`, play track/album/playlist/artist/
+Liked Songs, seek, volume, shuffle/repeat, queue, visualizer and every error
+state. Record the results here.
 
 ## Engram mirror
 
