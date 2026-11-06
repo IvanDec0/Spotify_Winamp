@@ -25,6 +25,8 @@ export type EngineSettings = settings$0.EngineState;
 
 export type LibraryContext = catalog$0.LibraryContext;
 
+export type PlaybackSettings = settings$0.PlaybackState;
+
 export type PlaylistPage = engine$0.PlaylistPage;
 
 export type SearchResults = engine$0.SearchResults;

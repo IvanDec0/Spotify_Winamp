@@ -163,6 +163,7 @@ func (s *Service) soloistState() *engine.SoloistState {
 		Active:       domain.Active,
 		DeviceName:   domain.DeviceName,
 		Accounts:     append([]string(nil), domain.Accounts...),
+		APIKeySet:    s.soloist.HasAPIKey(),
 		Error:        domain.Error,
 		ErrorCode:    domain.ErrorCode,
 	}

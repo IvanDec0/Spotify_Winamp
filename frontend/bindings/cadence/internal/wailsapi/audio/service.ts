@@ -44,6 +44,13 @@ export function Artists(offset: number, limit: number): $CancellablePromise<$mod
 }
 
 /**
+ * ClearSoloistAPIKey removes the stored Soloist API key.
+ */
+export function ClearSoloistAPIKey(): $CancellablePromise<$models.AudioState> {
+    return $Call.ByID(1004799834);
+}
+
+/**
  * ContextTracks lists the tracks of a playlist, album, artist, show or the
  * Liked Songs collection.
  */
@@ -67,10 +74,27 @@ export function GetEngineSettings(): $CancellablePromise<$models.EngineSettings>
 }
 
 /**
- * GetState returns the engine and pairing state.
+ * GetPlaybackSettings returns the persisted audio backend, defaulting to
+ * librespot when the settings file has no playback section.
+ */
+export function GetPlaybackSettings(): $CancellablePromise<$models.PlaybackSettings> {
+    return $Call.ByID(997209145);
+}
+
+/**
+ * GetState returns the engine state merged with the selected playback backend
+ * and, in Soloist mode, the Soloist process and install state.
  */
 export function GetState(): $CancellablePromise<$models.AudioState> {
     return $Call.ByID(2632866718);
+}
+
+/**
+ * InstallSoloist downloads and installs the newest Spotify Soloist build,
+ * reporting progress through the merged audio state.
+ */
+export function InstallSoloist(): $CancellablePromise<$models.AudioState> {
+    return $Call.ByID(1287935651);
 }
 
 /**
@@ -107,6 +131,21 @@ export function IsShowSaved(uri: string): $CancellablePromise<boolean> {
  */
 export function OpenPairing(): $CancellablePromise<void> {
     return $Call.ByID(2163459145);
+}
+
+/**
+ * OpenSoloistDashboard opens Spotify's dashboard page where the user creates a
+ * Soloist API key.
+ */
+export function OpenSoloistDashboard(): $CancellablePromise<void> {
+    return $Call.ByID(935386096);
+}
+
+/**
+ * OpenSoloistDownloads opens Spotify's official Soloist download page.
+ */
+export function OpenSoloistDownloads(): $CancellablePromise<void> {
+    return $Call.ByID(3984634501);
 }
 
 /**
@@ -154,6 +193,14 @@ export function Restart(): $CancellablePromise<$models.AudioState> {
 }
 
 /**
+ * RestartSoloist restarts the Soloist process. A pairing requirement is
+ * reported through the state, not as an action error.
+ */
+export function RestartSoloist(): $CancellablePromise<$models.AudioState> {
+    return $Call.ByID(1616099723);
+}
+
+/**
  * SaveAlbum saves or removes an album in the user's collection.
  */
 export function SaveAlbum(uri: string, saved: boolean): $CancellablePromise<void> {
@@ -165,6 +212,13 @@ export function SaveAlbum(uri: string, saved: boolean): $CancellablePromise<void
  */
 export function SaveShow(uri: string, saved: boolean): $CancellablePromise<void> {
     return $Call.ByID(820548083, uri, saved);
+}
+
+/**
+ * SaveSoloistAPIKey stores the user's Soloist API key without returning it.
+ */
+export function SaveSoloistAPIKey(key: string): $CancellablePromise<$models.AudioState> {
+    return $Call.ByID(2155207668, key);
 }
 
 /**
@@ -192,11 +246,35 @@ export function SetLiked(uri: string, liked: boolean): $CancellablePromise<void>
 }
 
 /**
+ * SetPlaybackSettings validates and persists the audio backend. It never
+ * starts, stops or switches a backend: the new value applies on the next
+ * application start.
+ */
+export function SetPlaybackSettings(value: $models.PlaybackSettings): $CancellablePromise<$models.PlaybackSettings> {
+    return $Call.ByID(2827451741, value);
+}
+
+/**
  * StartRadio plays a Spotify radio station seeded by a track, album, artist or
  * playlist uri.
  */
 export function StartRadio(uri: string): $CancellablePromise<void> {
     return $Call.ByID(181944504, uri);
+}
+
+/**
+ * StartSoloist starts the Soloist process. A pairing requirement is reported
+ * through the state, not as an action error.
+ */
+export function StartSoloist(): $CancellablePromise<$models.AudioState> {
+    return $Call.ByID(3374873890);
+}
+
+/**
+ * StopSoloist stops the Soloist process.
+ */
+export function StopSoloist(): $CancellablePromise<$models.AudioState> {
+    return $Call.ByID(2997637440);
 }
 
 /**

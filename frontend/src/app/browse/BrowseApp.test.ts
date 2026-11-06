@@ -39,6 +39,8 @@ const mocks = vi.hoisted(() => ({
     busy: false,
     error: null as string | null,
     audio: { available: true, binaryPath: "/tmp/go-librespot" },
+    soloist: null,
+    soloistMode: false,
     pairing: null as { code: string; url: string } | null,
     openPairing: vi.fn(() => Promise.resolve()),
     resetSession: vi.fn(() => Promise.resolve()),
@@ -68,6 +70,8 @@ const mocks = vi.hoisted(() => ({
     removeFromPlaylist: vi.fn(),
     getEngineSettings: vi.fn(),
     setEngineSettings: vi.fn(),
+    getPlaybackSettings: vi.fn(),
+    setPlaybackSettings: vi.fn(),
     restart: vi.fn(),
   },
 }));
@@ -127,6 +131,7 @@ describe("Browse shell", () => {
     vi.clearAllMocks();
     mocks.audio.isLiked.mockResolvedValue(false);
     mocks.audio.getEngineSettings.mockResolvedValue(engineSettings);
+    mocks.audio.getPlaybackSettings.mockResolvedValue({ backend: "librespot" });
     mocks.audio.playlists.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
     mocks.audio.albums.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
     mocks.audio.artists.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
@@ -225,7 +230,9 @@ describe("Browse shell", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
     expect(screen.getByRole("heading", { name: "Settings" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Save settings" })).not.toBeNull();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save settings" })).not.toBeNull(),
+    );
 
     await fireEvent.click(screen.getByRole("button", { name: "Pause" }));
     expect(playerMock.toggle).toHaveBeenCalledOnce();

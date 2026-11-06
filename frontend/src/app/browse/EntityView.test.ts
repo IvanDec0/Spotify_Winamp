@@ -27,12 +27,20 @@ const mocks = vi.hoisted(() => ({
     addToPlaylist: vi.fn(),
     removeFromPlaylist: vi.fn(),
   },
+  music: {
+    audio: { playbackBackend: "librespot" },
+    get soloistMode(): boolean {
+      return this.audio.playbackBackend === "soloist";
+    },
+  },
 }));
 
 vi.mock("../../shared/api", () => ({
   audio: mocks.audio,
   toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
 }));
+
+vi.mock("../../lib/music.svelte", () => ({ music: mocks.music }));
 
 vi.mock("../../lib/player.svelte", async () => {
   const { playerMock } = await import("../../lib/testing/player-mock.svelte");
@@ -86,6 +94,7 @@ describe("EntityView", () => {
       ],
     });
     mocks.audio.addToPlaylist.mockResolvedValue(undefined);
+    mocks.music.audio.playbackBackend = "librespot";
 
     originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
     Object.defineProperty(HTMLElement.prototype, "clientHeight", {
@@ -147,5 +156,19 @@ describe("EntityView", () => {
         "spotify:track:1",
       ),
     );
+  });
+
+  it("hides the radio action in Soloist mode", () => {
+    mocks.music.audio.playbackBackend = "soloist";
+
+    render(EntityView);
+
+    expect(screen.queryByRole("button", { name: "Radio" })).toBeNull();
+  });
+
+  it("offers the radio action with the go-librespot backend", () => {
+    render(EntityView);
+
+    expect(screen.getByRole("button", { name: "Radio" })).not.toBeNull();
   });
 });

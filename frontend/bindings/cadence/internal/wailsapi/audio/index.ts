@@ -12,6 +12,7 @@ export type {
     AudioState,
     EngineSettings,
     LibraryContext,
+    PlaybackSettings,
     PlaylistPage,
     SearchResults
 } from "./models.js";

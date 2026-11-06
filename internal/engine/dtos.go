@@ -108,6 +108,7 @@ type SoloistState struct {
 	InstallStage string   `json:"installStage"`
 	Downloaded   int64    `json:"downloaded"`
 	Total        int64    `json:"total"`
+	APIKeySet    bool     `json:"apiKeySet"`
 	Error        string   `json:"error"`
 	ErrorCode    string   `json:"errorCode"`
 }

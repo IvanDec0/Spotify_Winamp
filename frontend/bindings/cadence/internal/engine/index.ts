@@ -14,5 +14,6 @@ export type {
     SearchArtist,
     SearchGroup,
     SearchHit,
-    SearchResults
+    SearchResults,
+    SoloistState
 } from "./models.js";

@@ -18,3 +18,11 @@ export interface EngineState {
     "deviceIsGroup": boolean;
     "imageSize": string;
 }
+
+/**
+ * PlaybackState is the persisted audio backend selection. Changing it takes
+ * effect on the next application start.
+ */
+export interface PlaybackState {
+    "backend": string;
+}

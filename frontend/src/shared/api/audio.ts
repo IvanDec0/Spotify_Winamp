@@ -1,5 +1,5 @@
 import { Service } from "../../../bindings/cadence/internal/wailsapi/audio";
-import type { EngineSettings } from "./types";
+import type { EngineSettings, PlaybackSettings } from "./types";
 import { call } from "./client";
 
 /**
@@ -10,6 +10,17 @@ export const audio = {
   getState: () => call(() => Service.GetState()),
   getEngineSettings: () => call(() => Service.GetEngineSettings()),
   setEngineSettings: (settings: EngineSettings) => call(() => Service.SetEngineSettings(settings)),
+  getPlaybackSettings: () => call(() => Service.GetPlaybackSettings()),
+  setPlaybackSettings: (settings: PlaybackSettings) =>
+    call(() => Service.SetPlaybackSettings(settings)),
+  installSoloist: () => call(() => Service.InstallSoloist()),
+  saveSoloistAPIKey: (key: string) => call(() => Service.SaveSoloistAPIKey(key)),
+  clearSoloistAPIKey: () => call(() => Service.ClearSoloistAPIKey()),
+  startSoloist: () => call(() => Service.StartSoloist()),
+  stopSoloist: () => call(() => Service.StopSoloist()),
+  restartSoloist: () => call(() => Service.RestartSoloist()),
+  openSoloistDashboard: () => call(() => Service.OpenSoloistDashboard()),
+  openSoloistDownloads: () => call(() => Service.OpenSoloistDownloads()),
   openPairing: () => call(() => Service.OpenPairing()),
   resetSession: () => call(() => Service.ResetSession()),
   restart: () => call(() => Service.Restart()),

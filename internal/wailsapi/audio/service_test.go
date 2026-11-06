@@ -341,7 +341,7 @@ func TestGetStateMergesSoloistState(t *testing.T) {
 		DeviceName:   "Cadence",
 		Accounts:     []string{"listener@example.com"},
 		ErrorCode:    soloist.CodePairingRequired,
-	}}
+	}, hasKey: true}
 	service, _ := newTestService(t, settings.BackendSoloist, fake)
 
 	state := service.GetState()
@@ -365,6 +365,9 @@ func TestGetStateMergesSoloistState(t *testing.T) {
 	}
 	if len(state.Soloist.Accounts) != 1 || state.Soloist.Accounts[0] != "listener@example.com" {
 		t.Fatalf("Accounts = %#v", state.Soloist.Accounts)
+	}
+	if !state.Soloist.APIKeySet {
+		t.Fatal("APIKeySet = false, want true")
 	}
 }
 

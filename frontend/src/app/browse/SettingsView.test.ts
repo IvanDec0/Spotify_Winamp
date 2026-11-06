@@ -44,10 +44,28 @@ const mocks = vi.hoisted(() => {
     { id: "oscilloscope", label: "Scope", glyph: "∿" },
     { id: "grid", label: "Grid", glyph: "⣿" },
   ];
+  const music = {
+    audio: { playbackBackend: "librespot" },
+    soloist: null as unknown,
+    get soloistMode(): boolean {
+      return this.audio.playbackBackend === "soloist";
+    },
+  };
   return {
     getEngineSettings: vi.fn(),
     setEngineSettings: vi.fn(),
+    getPlaybackSettings: vi.fn(),
+    setPlaybackSettings: vi.fn(),
+    installSoloist: vi.fn(),
+    saveSoloistAPIKey: vi.fn(),
+    clearSoloistAPIKey: vi.fn(),
+    startSoloist: vi.fn(),
+    stopSoloist: vi.fn(),
+    restartSoloist: vi.fn(),
+    openSoloistDashboard: vi.fn(),
+    openSoloistDownloads: vi.fn(),
     restart: vi.fn(),
+    music,
     preferences,
     skins,
     themes,
@@ -59,10 +77,22 @@ vi.mock("../../shared/api", () => ({
   audio: {
     getEngineSettings: mocks.getEngineSettings,
     setEngineSettings: mocks.setEngineSettings,
+    getPlaybackSettings: mocks.getPlaybackSettings,
+    setPlaybackSettings: mocks.setPlaybackSettings,
+    installSoloist: mocks.installSoloist,
+    saveSoloistAPIKey: mocks.saveSoloistAPIKey,
+    clearSoloistAPIKey: mocks.clearSoloistAPIKey,
+    startSoloist: mocks.startSoloist,
+    stopSoloist: mocks.stopSoloist,
+    restartSoloist: mocks.restartSoloist,
+    openSoloistDashboard: mocks.openSoloistDashboard,
+    openSoloistDownloads: mocks.openSoloistDownloads,
     restart: mocks.restart,
   },
   toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
 }));
+
+vi.mock("../../lib/music.svelte", () => ({ music: mocks.music }));
 
 vi.mock("../../lib/preferences.svelte", () => ({
   preferences: mocks.preferences,
@@ -90,8 +120,33 @@ function settings(overrides: Partial<EngineSettings> = {}): EngineSettings {
   };
 }
 
-function skinCatalog() {
+function soloistState(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
+    installed: true,
+    binaryPath: "/tmp/soloist",
+    version: "1.3.10.12",
+    builtAt: "2026-10-23T00:00:00Z",
+    expiresAt: "2027-01-21T00:00:00Z",
+    expired: false,
+    daysLeft: 76,
+    running: true,
+    loggedIn: true,
+    needsPairing: false,
+    active: true,
+    deviceName: "Cadence",
+    accounts: ["listener@example.com"],
+    installing: false,
+    installStage: "",
+    downloaded: 0,
+    total: 0,
+    apiKeySet: true,
+    error: "",
+    errorCode: "",
+    ...overrides,
+  };
+}
+
+function skinCatalog() {  return {
     skins: [
       {
         id: "clarity",
@@ -146,7 +201,22 @@ describe("SettingsView", () => {
     browseSettings.reset();
     mocks.getEngineSettings.mockResolvedValue(settings());
     mocks.setEngineSettings.mockImplementation((value: EngineSettings) => Promise.resolve(value));
+    mocks.getPlaybackSettings.mockResolvedValue({ backend: "librespot" });
+    mocks.setPlaybackSettings.mockImplementation((value: { backend: string }) =>
+      Promise.resolve(value),
+    );
+    mocks.installSoloist.mockResolvedValue({});
+    mocks.saveSoloistAPIKey.mockResolvedValue({});
+    mocks.clearSoloistAPIKey.mockResolvedValue({});
+    mocks.startSoloist.mockResolvedValue({});
+    mocks.stopSoloist.mockResolvedValue({});
+    mocks.restartSoloist.mockResolvedValue({});
+    mocks.openSoloistDashboard.mockResolvedValue(undefined);
+    mocks.openSoloistDownloads.mockResolvedValue(undefined);
     mocks.restart.mockResolvedValue({});
+
+    mocks.music.audio.playbackBackend = "librespot";
+    mocks.music.soloist = null;
 
     mocks.preferences.theme = "graphite";
     mocks.preferences.visualizer = "spectrum";
@@ -296,5 +366,80 @@ describe("SettingsView", () => {
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("engine offline"));
     expect(browseSettings.settings?.bitrate).toBe(96);
     expect(screen.getByLabelText("Bitrate")).not.toBeNull();
+  });
+
+  it("shows the running backend and flags a saved switch as restart-pending", async () => {
+    await renderSettings();
+
+    const select = screen.getByLabelText("Backend") as HTMLSelectElement;
+    expect(select.value).toBe("librespot");
+    expect(screen.queryByText(/Restart Cadence to switch the audio backend/)).toBeNull();
+
+    await fireEvent.change(select, { target: { value: "soloist" } });
+    await fireEvent.click(screen.getByRole("button", { name: "Apply backend" }));
+
+    await waitFor(() =>
+      expect(mocks.setPlaybackSettings).toHaveBeenCalledWith({ backend: "soloist" }),
+    );
+    expect(screen.getByText(/Restart Cadence to switch the audio backend/)).not.toBeNull();
+    expect(screen.getByText("Audio backend saved. Restart Cadence to apply it.")).not.toBeNull();
+  });
+
+  it("shows the Soloist install state with an install action", async () => {
+    await renderSettings();
+
+    expect(screen.getByText("Not installed")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Install Soloist" })).not.toBeNull();
+    expect(screen.getByText(/never bundled/)).not.toBeNull();
+  });
+
+  it("renders the pairing hint while Soloist waits for approval", async () => {
+    mocks.music.soloist = soloistState({ needsPairing: true, loggedIn: false });
+
+    await renderSettings();
+
+    expect(screen.getByText("Pairing required")).not.toBeNull();
+    expect(screen.getByText(/choose Cadence as the device/)).not.toBeNull();
+  });
+
+  it("disables go-librespot-only controls in Soloist mode", async () => {
+    mocks.music.audio.playbackBackend = "soloist";
+    mocks.music.soloist = soloistState();
+
+    await renderSettings();
+
+    expect((screen.getByLabelText("Bitrate") as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Crossfade") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Disable normalisation") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Enable disk cache") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Size limit") as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByLabelText("FLAC") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("MPRIS") as HTMLInputElement).disabled).toBe(true);
+    expect(
+      (screen.getByLabelText("Advertise as a speaker group") as HTMLInputElement).disabled,
+    ).toBe(true);
+    expect((screen.getByLabelText("Image size") as HTMLSelectElement).disabled).toBe(false);
+    expect(screen.getByText(/These options apply to go-librespot only/)).not.toBeNull();
+  });
+
+  it("shows install progress and disables the install action", async () => {
+    mocks.music.soloist = soloistState({
+      installed: false,
+      installing: true,
+      installStage: "downloading",
+      downloaded: 50,
+      total: 100,
+    });
+
+    await renderSettings();
+
+    expect(screen.getByText("Installing Soloist…")).not.toBeNull();
+    const progress = screen.getByRole("progressbar");
+    expect(progress.getAttribute("value")).toBe("50");
+    expect(progress.getAttribute("max")).toBe("100");
+    expect(screen.getByText(/Downloading 50%/)).not.toBeNull();
+
+    const install = screen.getByRole("button", { name: "Install Soloist" });
+    expect(install.hasAttribute("disabled")).toBe(true);
   });
 });

@@ -27,9 +27,13 @@ export type {
   SearchGroup,
   SearchHit,
   SearchResults,
+  SoloistState,
 } from "../../../bindings/cadence/internal/engine/models";
 
-export type { EngineSettings } from "../../../bindings/cadence/internal/wailsapi/audio/models";
+export type {
+  EngineSettings,
+  PlaybackSettings,
+} from "../../../bindings/cadence/internal/wailsapi/audio/models";
 
 export type {
   InstallResult,

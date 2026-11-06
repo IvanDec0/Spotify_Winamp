@@ -5,6 +5,7 @@
   import Button from "../../shared/ui/Button.svelte";
   import Skeleton from "../../shared/ui/Skeleton.svelte";
   import { coverURL } from "../../lib/artwork";
+  import { music } from "../../lib/music.svelte";
   import { player } from "../../lib/player.svelte";
   import DiscoverView from "./DiscoverView.svelte";
   import Icon from "./Icon.svelte";
@@ -184,15 +185,17 @@
                   >
                     <Icon name="plus" size={13} />
                   </button>
-                  <button
-                    class="icon-button"
-                    type="button"
-                    title={t("browse.radioNamed", { title: hit.name })}
-                    aria-label={t("browse.radioNamed", { title: hit.name })}
-                    onclick={() => void browse.startRadio(hit.uri)}
-                  >
-                    <Icon name="radio" size={13} />
-                  </button>
+                  {#if !music.soloistMode}
+                    <button
+                      class="icon-button"
+                      type="button"
+                      title={t("browse.radioNamed", { title: hit.name })}
+                      aria-label={t("browse.radioNamed", { title: hit.name })}
+                      onclick={() => void browse.startRadio(hit.uri)}
+                    >
+                      <Icon name="radio" size={13} />
+                    </button>
+                  {/if}
                 </div>
               {:else if browse.searchTab === "episodes"}
                 <div class="row-actions">
