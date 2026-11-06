@@ -174,8 +174,8 @@ func TestDefaultPlaybackState(t *testing.T) {
 	if config.Playback == nil {
 		t.Fatal("Default().Playback = nil")
 	}
-	if config.Playback.Backend != BackendLibrespot {
-		t.Fatalf("default backend = %q, want %q", config.Playback.Backend, BackendLibrespot)
+	if config.Playback.Backend != BackendSoloist {
+		t.Fatalf("default backend = %q, want %q", config.Playback.Backend, BackendSoloist)
 	}
 }
 
@@ -185,12 +185,14 @@ func TestNormalizePlaybackBackend(t *testing.T) {
 		value string
 		want  string
 	}{
-		{name: "empty", value: "", want: BackendLibrespot},
-		{name: "unknown", value: "pulse", want: BackendLibrespot},
+		{name: "empty", value: "", want: BackendSoloist},
+		{name: "unknown", value: "pulse", want: BackendSoloist},
 		{name: "librespot", value: BackendLibrespot, want: BackendLibrespot},
+		{name: "padded and upper case librespot", value: " LIBRESPOT ", want: BackendLibrespot},
+		{name: "mixed case librespot", value: "LibreSpot", want: BackendLibrespot},
 		{name: "soloist", value: BackendSoloist, want: BackendSoloist},
-		{name: "padded and upper case", value: " SOLOIST ", want: BackendSoloist},
-		{name: "mixed case", value: "SoLoIsT", want: BackendSoloist},
+		{name: "padded and upper case soloist", value: " SOLOIST ", want: BackendSoloist},
+		{name: "mixed case soloist", value: "SoLoIsT", want: BackendSoloist},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -225,8 +227,8 @@ func TestStoreLegacyFileWithoutPlaybackGetsDefault(t *testing.T) {
 	if config.Playback == nil {
 		t.Fatal("legacy playback = nil")
 	}
-	if config.Playback.Backend != BackendLibrespot {
-		t.Fatalf("legacy playback backend = %q, want %q", config.Playback.Backend, BackendLibrespot)
+	if config.Playback.Backend != BackendSoloist {
+		t.Fatalf("legacy playback backend = %q, want %q", config.Playback.Backend, BackendSoloist)
 	}
 }
 
@@ -237,8 +239,9 @@ func TestStoreNormalizesStoredPlaybackBackend(t *testing.T) {
 		want  string
 	}{
 		{name: "padded soloist", value: " SOLOIST ", want: BackendSoloist},
-		{name: "unknown", value: "pulse", want: BackendLibrespot},
-		{name: "empty", value: "", want: BackendLibrespot},
+		{name: "explicit librespot", value: " LIBRESPOT ", want: BackendLibrespot},
+		{name: "unknown", value: "pulse", want: BackendSoloist},
+		{name: "empty", value: "", want: BackendSoloist},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -328,6 +331,24 @@ func TestStoreSaveNormalizesPlaybackBackend(t *testing.T) {
 	config.Playback.Backend = "bogus"
 	if err := store.Save(config); err != nil {
 		t.Fatalf("Save() error = %v", err)
+	}
+
+	loaded, err := store.Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if loaded.Playback == nil || loaded.Playback.Backend != BackendSoloist {
+		t.Fatalf("playback = %#v, want %q", loaded.Playback, BackendSoloist)
+	}
+}
+
+func TestStoreKeepsExplicitLibrespot(t *testing.T) {
+	store := NewStore(filepath.Join(t.TempDir(), "config.json"))
+	if err := store.UpdatePlayback(func(state *PlaybackState) error {
+		state.Backend = " LibreSpot "
+		return nil
+	}); err != nil {
+		t.Fatalf("UpdatePlayback() error = %v", err)
 	}
 
 	loaded, err := store.Load()

@@ -65,13 +65,25 @@ describe("MusicStore", () => {
     vi.clearAllMocks();
   });
 
-  it("defaults to the librespot backend without Soloist state", () => {
+  it("defaults to the soloist backend without Soloist state", () => {
     const store = new MusicStore();
 
-    expect(store.audio.playbackBackend).toBe("librespot");
+    expect(store.audio.playbackBackend).toBe("soloist");
     expect(store.audio.soloist).toBeNull();
     expect(store.soloist).toBeNull();
-    expect(store.soloistMode).toBe(false);
+    expect(store.soloistMode).toBe(true);
+  });
+
+  it("normalizes a missing playback backend to soloist", async () => {
+    mocks.getState.mockResolvedValue(
+      audioState({ playbackBackend: null as unknown as string, soloist: null }),
+    );
+    const store = new MusicStore();
+
+    await store.refresh();
+
+    expect(store.audio.playbackBackend).toBe("soloist");
+    expect(store.soloistMode).toBe(true);
   });
 
   it("normalizes nullable Soloist fields from the API", async () => {

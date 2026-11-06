@@ -3,9 +3,21 @@ package soloist
 import (
 	"context"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+)
+
+const (
+	// updateAge is how old an installed build may get before maintenance
+	// replaces it. It runs before the 90-day build lifetime, so a successful
+	// update is never racing the expiry.
+	updateAge = 89 * 24 * time.Hour
+	// staleTempAge bounds download and staging directories left behind by an
+	// interrupted install. Fresh ones may belong to a running install.
+	staleTempAge = 24 * time.Hour
 )
 
 // Options configures the Soloist service. All paths are injected; this
@@ -330,6 +342,109 @@ func (s *Service) Install(ctx context.Context, progress func(Progress)) (*Binary
 	}
 	s.emitMerged()
 	return binary, nil
+}
+
+// UpdateDue reports whether the installed build is missing, at least 89 days
+// old, or within a day of expiry. It never downloads anything.
+func (s *Service) UpdateDue(now time.Time) bool {
+	s.discover()
+	s.mu.Lock()
+	binary := s.binary
+	s.mu.Unlock()
+	return updateDue(binary, now)
+}
+
+func updateDue(binary *Binary, now time.Time) bool {
+	if binary == nil {
+		return true
+	}
+	if now.Sub(binary.BuiltAt) >= updateAge {
+		return true
+	}
+	// "Within a day" is the real remaining lifetime, not the floored
+	// DaysLeft: 25 hours left is still more than a day.
+	return binary.ExpiresAt().Sub(now) <= 24*time.Hour
+}
+
+// AutoUpdate installs Soloist when missing and updates it when due. It
+// returns the current/new binary and whether a different build was installed.
+// A fresh build makes no network request.
+func (s *Service) AutoUpdate(ctx context.Context, progress func(Progress)) (*Binary, bool, error) {
+	s.discover()
+	s.mu.Lock()
+	current := s.binary
+	s.mu.Unlock()
+	if !updateDue(current, s.now()) {
+		return current, false, nil
+	}
+
+	next, err := s.Install(ctx, progress)
+	if err != nil {
+		return nil, false, err
+	}
+	updated := current == nil || !next.BuiltAt.Equal(current.BuiltAt) || next.Path != current.Path
+	// Pruning is best effort: the install result is what the caller acts on.
+	_ = s.Prune()
+	return next, updated, nil
+}
+
+// Prune keeps the newest installed build and the build a supervisor was
+// started with, removing older versioned directories and temp directories left
+// behind by interrupted installs. Removal failures are ignored; only an
+// unreadable programs directory is returned.
+func (s *Service) Prune() error {
+	s.mu.Lock()
+	programsDir := s.opts.ProgramsDir
+	supervisor := s.supervisor
+	s.mu.Unlock()
+	if programsDir == "" {
+		return nil
+	}
+
+	entries, err := os.ReadDir(programsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	keep := make(map[string]bool)
+	if path := newestInstalledPath(programsDir); path != "" {
+		keep[filepath.Clean(filepath.Dir(path))] = true
+	}
+	if supervisor != nil {
+		if path := supervisor.State().BinaryPath; path != "" {
+			keep[filepath.Clean(filepath.Dir(path))] = true
+		}
+	}
+
+	now := s.now()
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		full := filepath.Join(programsDir, entry.Name())
+		if keep[filepath.Clean(full)] {
+			continue
+		}
+		if _, err := strconv.ParseInt(entry.Name(), 10, 64); err == nil {
+			_ = os.RemoveAll(full)
+			continue
+		}
+		if !strings.HasPrefix(entry.Name(), ".soloist-download-") &&
+			!strings.Contains(entry.Name(), ".tmp-") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if now.Sub(info.ModTime()) >= staleTempAge {
+			_ = os.RemoveAll(full)
+		}
+	}
+	return nil
 }
 
 // SaveAPIKey stores the user's Soloist API key with owner-only permissions.

@@ -332,6 +332,248 @@ func TestStateReportsTheServiceBinaryOverTheSupervisor(t *testing.T) {
 	}
 }
 
+func TestUpdateDue(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0).UTC()
+	tests := []struct {
+		name    string
+		missing bool
+		builtAt time.Time
+		want    bool
+	}{
+		{name: "missing binary", missing: true, want: true},
+		{name: "fresh build", builtAt: now.Add(-10 * 24 * time.Hour), want: false},
+		{name: "exactly 89 days", builtAt: now.Add(-89 * 24 * time.Hour), want: true},
+		{name: "88 days 23 hours", builtAt: now.Add(-(88*24*time.Hour + 23*time.Hour)), want: false},
+		{name: "expired", builtAt: now.Add(-91 * 24 * time.Hour), want: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			opts := serviceOptions(t)
+			service := NewService(opts)
+			service.mu.Lock()
+			service.discovered = true
+			if !test.missing {
+				service.binary = &Binary{
+					Path:    filepath.Join(opts.ProgramsDir, "1", executableName(runtime.GOOS)),
+					BuiltAt: test.builtAt,
+				}
+			}
+			service.mu.Unlock()
+
+			if got := service.UpdateDue(now); got != test.want {
+				t.Fatalf("UpdateDue() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestAutoUpdateInstallsWhenMissing(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	opts := serviceOptions(t)
+	built := int64(1792756912)
+	archive := tarGzArchive(t, []archiveMember{{Name: "soloist", Body: versionScript("1.3.10.12", built), Mode: 0o755}})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(archive)
+	}))
+	defer server.Close()
+
+	opts.Now = func() time.Time { return time.Unix(built+86400, 0) }
+	installer := NewInstaller(InstallerOptions{
+		ProgramsDir:  opts.ProgramsDir,
+		HTTPClient:   server.Client(),
+		AllowAnyHost: true,
+		GOOS:         "linux",
+		GOARCH:       "amd64",
+		Now:          opts.Now,
+	})
+	installer.archiveBaseURL = server.URL + "/"
+	opts.Installer = installer
+
+	service := NewService(opts)
+	binary, updated, err := service.AutoUpdate(t.Context(), nil)
+	if err != nil {
+		t.Fatalf("AutoUpdate() error = %v", err)
+	}
+	if !updated {
+		t.Fatal("AutoUpdate() updated = false, want true for a missing build")
+	}
+	if binary == nil || binary.Version != "1.3.10.12" {
+		t.Fatalf("binary = %+v", binary)
+	}
+	state := service.State()
+	if !state.Installed || state.BinaryPath != binary.Path {
+		t.Fatalf("state = %+v, want the installed build", state)
+	}
+}
+
+func TestAutoUpdateNoOpWhenFresh(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	opts := serviceOptions(t)
+	built := int64(1792756912)
+	var requests atomic.Int32
+	archive := tarGzArchive(t, []archiveMember{{Name: "soloist", Body: versionScript("1.3.10.12", built), Mode: 0o755}})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		_, _ = w.Write(archive)
+	}))
+	defer server.Close()
+
+	opts.Now = func() time.Time { return time.Unix(built+86400, 0) }
+	installer := NewInstaller(InstallerOptions{
+		ProgramsDir:  opts.ProgramsDir,
+		HTTPClient:   server.Client(),
+		AllowAnyHost: true,
+		GOOS:         "linux",
+		GOARCH:       "amd64",
+		Now:          opts.Now,
+	})
+	installer.archiveBaseURL = server.URL + "/"
+	opts.Installer = installer
+
+	service := NewService(opts)
+	first, err := service.Install(t.Context(), nil)
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	before := requests.Load()
+
+	binary, updated, err := service.AutoUpdate(t.Context(), nil)
+	if err != nil {
+		t.Fatalf("AutoUpdate() error = %v", err)
+	}
+	if updated {
+		t.Fatal("AutoUpdate() updated = true for a fresh build")
+	}
+	if binary == nil || binary.Path != first.Path {
+		t.Fatalf("binary = %+v, want the existing build %+v", binary, first)
+	}
+	if after := requests.Load(); after != before {
+		t.Fatalf("AutoUpdate() made %d network requests, want none", after-before)
+	}
+}
+
+func TestAutoUpdateUpdatesAt89Days(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the fake Soloist is a shell script")
+	}
+	opts := serviceOptions(t)
+	now := time.Unix(1_800_000_000, 0).UTC()
+	oldBuilt := now.Add(-89 * 24 * time.Hour).Unix()
+	newBuilt := now.Unix()
+	oldBinary := installFakeBinary(t, opts.ProgramsDir, opts.DataDir, 12345, oldBuilt, "secret")
+
+	archive := tarGzArchive(t, []archiveMember{{Name: "soloist", Body: versionScript("1.4.0.0", newBuilt), Mode: 0o755}})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(archive)
+	}))
+	defer server.Close()
+
+	opts.Now = func() time.Time { return now }
+	installer := NewInstaller(InstallerOptions{
+		ProgramsDir:  opts.ProgramsDir,
+		HTTPClient:   server.Client(),
+		AllowAnyHost: true,
+		GOOS:         "linux",
+		GOARCH:       "amd64",
+		Now:          opts.Now,
+	})
+	installer.archiveBaseURL = server.URL + "/"
+	opts.Installer = installer
+
+	service := NewService(opts)
+	if !service.UpdateDue(now) {
+		t.Fatal("UpdateDue() = false for an 89-day-old build")
+	}
+
+	next, updated, err := service.AutoUpdate(t.Context(), nil)
+	if err != nil {
+		t.Fatalf("AutoUpdate() error = %v", err)
+	}
+	if !updated {
+		t.Fatal("AutoUpdate() updated = false, want true")
+	}
+	if next == nil || next.Version != "1.4.0.0" || next.BuiltAt.Unix() != newBuilt {
+		t.Fatalf("next = %+v, want the new build", next)
+	}
+	if got := service.Binary(); got == nil || got.Path != next.Path {
+		t.Fatalf("cached binary = %+v, want %s", got, next.Path)
+	}
+	if _, err := os.Stat(filepath.Dir(oldBinary.Path)); !os.IsNotExist(err) {
+		t.Fatalf("old build directory still exists: %v", err)
+	}
+	if _, err := os.Stat(next.Path); err != nil {
+		t.Fatalf("new build is missing: %v", err)
+	}
+}
+
+func TestPruneKeepsNewestAndRunning(t *testing.T) {
+	opts := serviceOptions(t)
+	programs := opts.ProgramsDir
+	executable := executableName(runtime.GOOS)
+	for _, version := range []string{"100", "200", "300"} {
+		dir := filepath.Join(programs, version)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, executable), []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatalf("write binary: %v", err)
+		}
+	}
+	fresh := filepath.Join(programs, ".soloist-download-fresh")
+	stale := filepath.Join(programs, ".soloist-download-stale")
+	for _, dir := range []string{fresh, stale} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir temp: %v", err)
+		}
+	}
+	old := time.Now().Add(-25 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
+	notePath := filepath.Join(programs, "notes.txt")
+	if err := os.WriteFile(notePath, []byte("keep me"), 0o600); err != nil {
+		t.Fatalf("write note: %v", err)
+	}
+
+	service := NewService(opts)
+	service.mu.Lock()
+	service.cacheBinaryLocked(&Binary{Path: filepath.Join(programs, "300", executable), BuiltAt: time.Now()})
+	service.discovered = true
+	service.supervisor = NewSupervisor(SupervisorOptions{
+		Binary: &Binary{Path: filepath.Join(programs, "200", executable)},
+	})
+	service.mu.Unlock()
+
+	if err := service.Prune(); err != nil {
+		t.Fatalf("Prune() error = %v", err)
+	}
+
+	for _, version := range []string{"200", "300"} {
+		if _, err := os.Stat(filepath.Join(programs, version)); err != nil {
+			t.Fatalf("kept build %s is missing: %v", version, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(programs, "100")); !os.IsNotExist(err) {
+		t.Fatalf("old build was not pruned: %v", err)
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Fatalf("fresh temp dir was removed: %v", err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("stale temp dir was not removed: %v", err)
+	}
+	if _, err := os.Stat(notePath); err != nil {
+		t.Fatalf("non-directory file was removed: %v", err)
+	}
+	if _, err := os.Stat(programs); err != nil {
+		t.Fatalf("ProgramsDir itself was removed: %v", err)
+	}
+}
+
 func TestInstallClearsAStoppedSupervisor(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("the fake Soloist is a shell script")

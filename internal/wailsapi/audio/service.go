@@ -33,6 +33,9 @@ type SoloistBackend interface {
 	Stop(context.Context) error
 	Restart(context.Context) error
 	Install(context.Context, func(soloist.Progress)) (*soloist.Binary, error)
+	UpdateDue(time.Time) bool
+	AutoUpdate(context.Context, func(soloist.Progress)) (*soloist.Binary, bool, error)
+	Prune() error
 	SaveAPIKey(string) error
 	ClearAPIKey() error
 	HasAPIKey() bool
@@ -70,8 +73,9 @@ type Service struct {
 	backend    string
 	progress   installProgress
 
-	mu  sync.Mutex
-	app *application.App
+	mu                sync.Mutex
+	app               *application.App
+	maintenanceCancel context.CancelFunc
 }
 
 func NewService(options Options) *Service {
@@ -100,13 +104,11 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 	}
 	if s.enabled {
 		if s.soloist != nil && s.backend == settings.BackendSoloist {
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-				defer cancel()
-				// A pairing requirement and other start failures are reported
-				// through the merged state, never by logging credentials.
-				_ = s.soloist.Start(ctx)
-			}()
+			ctx, cancel := context.WithCancel(context.Background())
+			s.mu.Lock()
+			s.maintenanceCancel = cancel
+			s.mu.Unlock()
+			go s.maintainSoloist(ctx)
 		}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -118,6 +120,14 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 }
 
 func (s *Service) ServiceShutdown() error {
+	s.mu.Lock()
+	cancel := s.maintenanceCancel
+	s.maintenanceCancel = nil
+	s.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var errs []error
@@ -128,6 +138,99 @@ func (s *Service) ServiceShutdown() error {
 		errs = append(errs, s.soloist.Stop(ctx))
 	}
 	return errors.Join(errs...)
+}
+
+// maintainSoloist runs maintenance immediately and then every six hours until
+// the context is cancelled by ServiceShutdown.
+func (s *Service) maintainSoloist(ctx context.Context) {
+	s.runMaintenance(ctx)
+	ticker := time.NewTicker(6 * time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.runMaintenance(ctx)
+		}
+	}
+}
+
+// runMaintenance installs or updates Soloist when due, starts it when a key
+// exists, and restarts a running process after an update. Failures stay in the
+// merged state; this path never logs credentials or blocks startup.
+func (s *Service) runMaintenance(ctx context.Context) {
+	if s.soloist == nil {
+		return
+	}
+	s.progress.mu.Lock()
+	installing := s.progress.installing
+	s.progress.mu.Unlock()
+	if installing {
+		// A manual install owns the progress state.
+		return
+	}
+
+	if !s.soloist.UpdateDue(time.Now()) {
+		if s.soloist.HasAPIKey() && !s.soloist.State().Running {
+			s.startSoloistMaintenance(ctx, 45*time.Second)
+			s.emitMerged()
+		}
+		return
+	}
+
+	s.setInstallProgress(true, "downloading", 0, 0)
+	s.emitMerged()
+	stage := "downloading"
+	var lastEmit time.Time
+	_, updated, err := s.soloist.AutoUpdate(ctx, func(progress soloist.Progress) {
+		// The snapshot is always current; only the event is throttled.
+		s.setInstallProgress(true, progress.Stage, progress.Downloaded, progress.Total)
+		now := time.Now()
+		switch {
+		case progress.Stage != stage:
+			stage = progress.Stage
+			lastEmit = now
+			s.emitMerged()
+		case progress.Stage != "downloading":
+			lastEmit = now
+			s.emitMerged()
+		case now.Sub(lastEmit) >= installProgressInterval:
+			lastEmit = now
+			s.emitMerged()
+		}
+	})
+	s.setInstallProgress(false, "", 0, 0)
+	s.emitMerged()
+	if err != nil {
+		// The Soloist service already stored the error in its state.
+		return
+	}
+	if !s.soloist.HasAPIKey() {
+		// Leave it stopped so the onboarding modal can ask for the key.
+		return
+	}
+	switch {
+	case updated && s.soloist.State().Running:
+		s.restartSoloistMaintenance(ctx)
+	case !s.soloist.State().Running:
+		s.startSoloistMaintenance(ctx, 45*time.Second)
+	}
+	s.emitMerged()
+}
+
+func (s *Service) startSoloistMaintenance(ctx context.Context, timeout time.Duration) {
+	startCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	// Pairing is a state, not a maintenance failure. Any other error is
+	// already reflected in the merged state by the Soloist service.
+	_ = s.soloist.Start(startCtx)
+}
+
+func (s *Service) restartSoloistMaintenance(ctx context.Context) {
+	restartCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	_ = s.soloist.Restart(restartCtx)
 }
 
 // GetState returns the engine state merged with the selected playback backend
@@ -393,7 +496,7 @@ func (s *Service) SetEngineSettings(value EngineSettings) (EngineSettings, error
 }
 
 // GetPlaybackSettings returns the persisted audio backend, defaulting to
-// librespot when the settings file has no playback section.
+// Soloist when the settings file has no playback section.
 func (s *Service) GetPlaybackSettings() (PlaybackSettings, error) {
 	if s.settings == nil {
 		return PlaybackSettings{}, errors.New("the settings store is not configured")
@@ -403,7 +506,7 @@ func (s *Service) GetPlaybackSettings() (PlaybackSettings, error) {
 		return PlaybackSettings{}, err
 	}
 	if config.Playback == nil {
-		return PlaybackSettings{Backend: settings.BackendLibrespot}, nil
+		return PlaybackSettings{Backend: settings.BackendSoloist}, nil
 	}
 	return PlaybackSettings{Backend: settings.NormalizePlaybackBackend(config.Playback.Backend)}, nil
 }

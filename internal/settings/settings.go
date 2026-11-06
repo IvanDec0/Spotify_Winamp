@@ -71,17 +71,18 @@ func defaultEngine() EngineState {
 }
 
 func defaultPlayback() PlaybackState {
-	return PlaybackState{Backend: BackendLibrespot}
+	return PlaybackState{Backend: BackendSoloist}
 }
 
 // NormalizePlaybackBackend maps an arbitrary stored value to a supported
-// backend. Empty, unknown and case variants fall back to librespot; the only
-// opt-in value is "soloist" after trimming and case folding.
+// backend. Soloist is the default: empty and unknown values resolve to it,
+// while an explicit "librespot" after trimming and case folding is kept as the
+// opt-out escape hatch.
 func NormalizePlaybackBackend(value string) string {
-	if strings.EqualFold(strings.TrimSpace(value), BackendSoloist) {
-		return BackendSoloist
+	if strings.EqualFold(strings.TrimSpace(value), BackendLibrespot) {
+		return BackendLibrespot
 	}
-	return BackendLibrespot
+	return BackendSoloist
 }
 
 // Default returns a configuration that always selects the built-in skin, uses

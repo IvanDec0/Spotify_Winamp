@@ -113,15 +113,23 @@ type fakeSoloistBackend struct {
 	restartErr error
 	installErr error
 
-	installVersion string
-	savedKey       string
-	hasKey         bool
+	installVersion    string
+	savedKey          string
+	hasKey            bool
+	due               bool
+	autoUpdated       bool
+	autoUpdateErr     error
+	autoUpdateVersion string
 
-	startCalls    int
-	stopCalls     int
-	restartCalls  int
-	installCalls  int
-	progressCalls int
+	startCalls        int
+	stopCalls         int
+	restartCalls      int
+	installCalls      int
+	progressCalls     int
+	updateDueCalls    int
+	autoUpdateCalls   int
+	autoProgressCalls int
+	pruneCalls        int
 
 	onProgress func()
 	emitter    func(soloist.State)
@@ -189,6 +197,56 @@ func (f *fakeSoloistBackend) Install(_ context.Context, progress func(soloist.Pr
 	return &soloist.Binary{Path: "/tmp/soloist", Version: version}, nil
 }
 
+func (f *fakeSoloistBackend) UpdateDue(time.Time) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.updateDueCalls++
+	return f.due
+}
+
+func (f *fakeSoloistBackend) AutoUpdate(_ context.Context, progress func(soloist.Progress)) (*soloist.Binary, bool, error) {
+	f.mu.Lock()
+	f.autoUpdateCalls++
+	err := f.autoUpdateErr
+	updated := f.autoUpdated
+	version := f.autoUpdateVersion
+	if version == "" {
+		version = f.installVersion
+	}
+	// A successful auto-update installs the build; a running process keeps
+	// running until the adapter restarts it.
+	f.state.Installed = true
+	if version != "" {
+		f.state.Version = version
+	}
+	f.mu.Unlock()
+
+	if err != nil {
+		return nil, false, err
+	}
+	if progress != nil {
+		f.mu.Lock()
+		f.autoProgressCalls++
+		f.mu.Unlock()
+		progress(soloist.Progress{Stage: "downloading", Downloaded: 10, Total: 100})
+		if f.onProgress != nil {
+			f.onProgress()
+		}
+		f.mu.Lock()
+		f.autoProgressCalls++
+		f.mu.Unlock()
+		progress(soloist.Progress{Stage: "installing", Downloaded: 100, Total: 100})
+	}
+	return &soloist.Binary{Path: "/tmp/soloist", Version: version}, updated, nil
+}
+
+func (f *fakeSoloistBackend) Prune() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pruneCalls++
+	return nil
+}
+
 func (f *fakeSoloistBackend) SaveAPIKey(key string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -243,8 +301,8 @@ func TestPlaybackSettingsDefaultsAndPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPlaybackSettings() error = %v", err)
 	}
-	if defaults.Backend != settings.BackendLibrespot {
-		t.Fatalf("default backend = %q, want %q", defaults.Backend, settings.BackendLibrespot)
+	if defaults.Backend != settings.BackendSoloist {
+		t.Fatalf("default backend = %q, want %q", defaults.Backend, settings.BackendSoloist)
 	}
 
 	if err := store.UpdateSkins(func(state *settings.SkinState) error {
@@ -305,10 +363,10 @@ func TestPlaybackSettingsNormalizesUnknownBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetPlaybackSettings() error = %v", err)
 	}
-	if saved.Backend != settings.BackendLibrespot {
-		t.Fatalf("saved backend = %q, want %q", saved.Backend, settings.BackendLibrespot)
+	if saved.Backend != settings.BackendSoloist {
+		t.Fatalf("saved backend = %q, want %q", saved.Backend, settings.BackendSoloist)
 	}
-	if got, err := service.GetPlaybackSettings(); err != nil || got.Backend != settings.BackendLibrespot {
+	if got, err := service.GetPlaybackSettings(); err != nil || got.Backend != settings.BackendSoloist {
 		t.Fatalf("GetPlaybackSettings() = %#v, %v", got, err)
 	}
 }
@@ -514,6 +572,128 @@ func TestSoloistActionsRequireBackend(t *testing.T) {
 	}
 	if _, err := service.RestartSoloist(); err == nil {
 		t.Fatal("RestartSoloist() error = nil")
+	}
+}
+
+func TestMaintenanceInstallsAndStartsWithKey(t *testing.T) {
+	fake := &fakeSoloistBackend{
+		due:               true,
+		hasKey:            true,
+		autoUpdated:       true,
+		autoUpdateVersion: "1.3.10.12",
+	}
+	service, _ := newTestService(t, settings.BackendSoloist, fake)
+
+	var duringInstalling bool
+	var duringStage string
+	fake.onProgress = func() {
+		state := service.GetState()
+		duringInstalling = state.Soloist != nil && state.Soloist.Installing
+		if state.Soloist != nil {
+			duringStage = state.Soloist.InstallStage
+		}
+	}
+
+	service.runMaintenance(t.Context())
+
+	if fake.autoUpdateCalls != 1 {
+		t.Fatalf("autoUpdateCalls = %d, want 1", fake.autoUpdateCalls)
+	}
+	if fake.startCalls != 1 {
+		t.Fatalf("startCalls = %d, want 1", fake.startCalls)
+	}
+	if fake.restartCalls != 0 {
+		t.Fatalf("restartCalls = %d, want 0", fake.restartCalls)
+	}
+	if !duringInstalling || duringStage != "downloading" {
+		t.Fatalf("progress during update = installing:%v stage:%q", duringInstalling, duringStage)
+	}
+	if fake.autoProgressCalls != 2 {
+		t.Fatalf("autoProgressCalls = %d, want 2", fake.autoProgressCalls)
+	}
+	state := service.GetState()
+	if state.Soloist == nil || state.Soloist.Installing || state.Soloist.InstallStage != "" {
+		t.Fatalf("install progress not cleared: %#v", state.Soloist)
+	}
+	if !state.Soloist.Installed || state.Soloist.Version != "1.3.10.12" {
+		t.Fatalf("state.Soloist = %#v, want the installed build", state.Soloist)
+	}
+}
+
+func TestMaintenanceSkipsStartWithoutKey(t *testing.T) {
+	fake := &fakeSoloistBackend{due: true, hasKey: false, autoUpdated: true}
+	service, _ := newTestService(t, settings.BackendSoloist, fake)
+
+	service.runMaintenance(t.Context())
+
+	if fake.autoUpdateCalls != 1 {
+		t.Fatalf("autoUpdateCalls = %d, want 1", fake.autoUpdateCalls)
+	}
+	if fake.startCalls != 0 {
+		t.Fatalf("startCalls = %d, want 0 without a key", fake.startCalls)
+	}
+	state := service.GetState()
+	if state.Soloist == nil || state.Soloist.Installing {
+		t.Fatalf("install progress not cleared: %#v", state.Soloist)
+	}
+}
+
+func TestMaintenanceUpdatesAndRestarts(t *testing.T) {
+	fake := &fakeSoloistBackend{
+		state:             soloist.State{Installed: true, Running: true},
+		due:               true,
+		hasKey:            true,
+		autoUpdated:       true,
+		autoUpdateVersion: "1.3.11.0",
+	}
+	service, _ := newTestService(t, settings.BackendSoloist, fake)
+
+	service.runMaintenance(t.Context())
+
+	if fake.autoUpdateCalls != 1 {
+		t.Fatalf("autoUpdateCalls = %d, want 1", fake.autoUpdateCalls)
+	}
+	if fake.restartCalls != 1 {
+		t.Fatalf("restartCalls = %d, want 1", fake.restartCalls)
+	}
+	if fake.startCalls != 0 {
+		t.Fatalf("startCalls = %d, want 0 after an update restart", fake.startCalls)
+	}
+}
+
+func TestMaintenanceNoOpWhenFresh(t *testing.T) {
+	fake := &fakeSoloistBackend{
+		state:  soloist.State{Installed: true},
+		due:    false,
+		hasKey: true,
+	}
+	service, _ := newTestService(t, settings.BackendSoloist, fake)
+
+	service.runMaintenance(t.Context())
+
+	if fake.autoUpdateCalls != 0 {
+		t.Fatalf("autoUpdateCalls = %d, want 0 for a fresh build", fake.autoUpdateCalls)
+	}
+	if fake.startCalls != 1 {
+		t.Fatalf("startCalls = %d, want 1 for a stopped fresh install", fake.startCalls)
+	}
+}
+
+func TestMaintenanceFreshRunningNoOp(t *testing.T) {
+	fake := &fakeSoloistBackend{
+		state:  soloist.State{Installed: true, Running: true},
+		due:    false,
+		hasKey: true,
+	}
+	service, _ := newTestService(t, settings.BackendSoloist, fake)
+
+	service.runMaintenance(t.Context())
+
+	if fake.autoUpdateCalls != 0 {
+		t.Fatalf("autoUpdateCalls = %d, want 0", fake.autoUpdateCalls)
+	}
+	if fake.startCalls != 0 {
+		t.Fatalf("startCalls = %d, want 0", fake.startCalls)
 	}
 }
 

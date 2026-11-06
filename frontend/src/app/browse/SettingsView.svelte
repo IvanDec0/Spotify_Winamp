@@ -272,7 +272,7 @@
           <div class="settings-control">
             <select
               id="settings-backend"
-              value={playback?.backend ?? "librespot"}
+              value={playback?.backend ?? "soloist"}
               aria-describedby="settings-backend-help"
               onchange={chooseBackend}
             >

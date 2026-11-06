@@ -134,7 +134,7 @@ func main() {
 		defaults := settings.Default()
 		engineSettings = defaults.Engine
 	}
-	playbackBackend := settings.BackendLibrespot
+	playbackBackend := settings.BackendSoloist
 	if savedSettings.Playback != nil {
 		playbackBackend = settings.NormalizePlaybackBackend(savedSettings.Playback.Backend)
 	}

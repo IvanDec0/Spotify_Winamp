@@ -386,6 +386,15 @@ describe("SettingsView", () => {
     expect(screen.getByText("Audio backend saved. Restart Cadence to apply it.")).not.toBeNull();
   });
 
+  it("falls back to soloist when the playback settings cannot be loaded", async () => {
+    mocks.getPlaybackSettings.mockRejectedValueOnce(new Error("playback unavailable"));
+
+    await renderSettings();
+
+    const select = screen.getByLabelText("Backend") as HTMLSelectElement;
+    expect(select.value).toBe("soloist");
+  });
+
   it("shows the Soloist install state with an install action", async () => {
     await renderSettings();
 
