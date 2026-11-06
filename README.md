@@ -6,12 +6,13 @@
 
 **0.2.0: two-window playback.** Cadence is a real Spotify player. A compact,
 skinnable player and a dedicated **Browse** window cover playback, search, the
-user's library, podcasts, the queue and settings. Audio is decoded locally by a
-managed **go-librespot** engine and plays through PulseAudio/PipeWire; the
-official Spotify client is not required. Premium accounts that go-librespot
-refuses can opt into **Spotify Soloist** for audio, downloaded from Spotify at
-runtime. Pairing uses Spotify's device flow, and the frontend never receives
-playback credentials.
+user's library, podcasts, the queue and settings. Audio is played by
+**Spotify Soloist** by default, downloaded from Spotify at runtime and updated
+before its 90-day expiry; a managed **go-librespot** engine serves the library
+and catalog and remains the explicit fallback. Both play through
+PulseAudio/PipeWire, and the official Spotify client is not required. Pairing
+uses Spotify's device flow, and the frontend never receives playback
+credentials.
 
 - Installation: [`docs/installation.md`](docs/installation.md)
 - Release history: [`CHANGELOG.md`](CHANGELOG.md)
@@ -28,10 +29,12 @@ playback credentials.
 Cadence is a desktop **Spotify player** with two surfaces: a compact, skinnable
 player and a larger Browse window for the catalog.
 
-- **Audio is local.** A bundled or externally installed `go-librespot` process decodes and plays Spotify audio through PulseAudio or PipeWire.
-- **Soloist is an opt-in fallback.** If go-librespot is refused an audio key on your Premium account, switch the audio backend to **Spotify Soloist** in Browse Settings. Soloist is downloaded from Spotify at runtime, never bundled, and requires an API key from the Spotify developer dashboard. The default backend stays go-librespot.
+- **Audio is local.** Spotify Soloist and the managed `go-librespot` engine run as separate local processes and output through PulseAudio or PipeWire.
+- **Soloist is the default playback backend.** Cadence downloads the right Soloist build from Spotify at first launch, guides the one-time developer API key with a modal that opens the official dashboard, and refreshes the build before it expires. Soloist is never bundled, so the app stays light.
+- **go-librespot owns the catalog.** Library, search, context resolution, queue metadata and the catalog session stay on go-librespot in both backend modes. It appears as **Cadence Library**; Soloist is **Cadence**.
+- **`librespot` is an explicit fallback.** Accounts that work with go-librespot can select it in Browse Settings and restart. Automatic Soloist download and updates stop in that mode.
 - **Soloist trade-offs are explicit.** Radio is unavailable in Soloist mode, and the go-librespot bitrate, FLAC, normalisation, crossfade, cache, MPRIS and speaker-group options are disabled. Soloist uses its own defaults.
-- **No Spotify Desktop dependency.** Cadence appears to Spotify as a device named **Cadence** and is paired once through `spotify.com/pair`.
+- **No Spotify Desktop dependency.** Cadence appears to Spotify as the playback device **Cadence** (Soloist) and the catalog device **Cadence Library** (go-librespot). Make sure you pick **Cadence** when you start playback from the Spotify app.
 - **Browse is the library.** Playlists, saved albums, followed artists, Liked Songs and Your Episodes live in Browse. Search the catalog, open entity pages, queue tracks and manage saves and follows there.
 - **Search and podcasts.** Search results are grouped into tracks, albums, artists, playlists, shows and episodes. Podcast episodes play through the local engine, and show pages support saving.
 - **Spotify radio, locally.** Start a radio station from a track, album, artist or playlist and keep it playing through the local engine.
@@ -94,7 +97,8 @@ and a bottom-right resize grip.
 - `internal/engine/supervisor.go` owns the sidecar process, its config and pairing state.
 - `internal/engine/rest.go` is the loopback REST client.
 - `internal/playback/engine_provider.go` maps engine state to the provider-independent player model.
-- `internal/playback/soloist_provider.go` maps the opt-in Soloist state to the same model; `internal/soloist` owns the Soloist protocol client, installer, credentials and process supervisor.
+- `internal/playback/soloist_provider.go` maps the default Soloist state to the same model; `internal/soloist` owns the Soloist protocol client, installer, updater, pruning, credentials and process supervisor.
+- `internal/wailsapi/audio/service.go` also runs the Soloist maintenance loop: auto-install, 89-day/24-hour update checks, pruning and restart.
 - `internal/catalog/service.go` implements library, search, context, save/follow and playback selection; `internal/wailsapi/audio/service.go` exposes it to the frontend.
 - `internal/catalog` consumes a small `Playback` interface, so `PlayContext`, `PlayTrack`, `AddToQueue` and `StartRadio` reach the active backend without changing `playback.Provider`.
 - `internal/artwork/cache.go` proxies and bounds album art.
@@ -108,7 +112,7 @@ and a bottom-right resize grip.
   state.
 - Package graph, dependency rule and event flow: [`docs/architecture.md`](docs/architecture.md).
 
-The engine binds only to `127.0.0.1` on a random port and stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json`. The frontend receives token-free state. The default audio process is go-librespot. In Soloist mode, `internal/soloist` supervises Spotify Soloist and go-librespot keeps the catalog session as `Cadence Library`.
+The engine binds only to `127.0.0.1` on a random port and stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json`. The frontend receives token-free state. Soloist is the default playback process. In both modes go-librespot keeps the catalog session as `Cadence Library`, and `librespot` remains the explicit audio fallback.
 
 ## Stack
 
@@ -120,7 +124,7 @@ The engine binds only to `127.0.0.1` on a random port and stores its credentials
 - Vitest 5.0.5, ESLint 10.13.0, Prettier 3.9.10
 - Node.js 26.12.1 / npm 12.2.1
 - go-librespot pinned to `v0.10.6-0.20261104085532-16b65bb4cd2b` (GPL-3.0 binary, separate process)
-- Spotify Soloist (optional): downloaded from Spotify at runtime, never bundled; builds expire 90 days after their build timestamp
+- Spotify Soloist (default): downloaded from Spotify at runtime, never bundled; updated automatically before the 90-day build expiry
 
 TypeScript 7 is intentionally not used because `svelte-check` 4.7.7 and `typescript-eslint` 8.72.0 are not compatible with it.
 
@@ -136,11 +140,11 @@ Arch Linux x86_64 only.
 | [`plan/nombre_plan.md`](plan/nombre_plan.md) | Actionable implementation plan and test gates |
 | [`docs/development.md`](docs/development.md) | Local setup, commands and tooling notes |
 | [`docs/architecture.md`](docs/architecture.md) | Package layout, dependency rule, event flow and the audio backend seam |
-| [`docs/adr/0004-dual-audio-backend.md`](docs/adr/0004-dual-audio-backend.md) | ADR: opt-in Spotify Soloist backend next to the go-librespot default |
+| [`docs/adr/0004-dual-audio-backend.md`](docs/adr/0004-dual-audio-backend.md) | ADR: Soloist as the default audio backend, go-librespot as the catalog engine and fallback |
 | [`docs/installation.md`](docs/installation.md) | Release installation, pairing and uninstall |
 | [`docs/skin-format.md`](docs/skin-format.md) | Skin package, layout, theme and security reference |
 | [`docs/skin-authoring.md`](docs/skin-authoring.md) | Step-by-step guide to creating and installing a skin |
-| [`docs/spotify-setup.md`](docs/spotify-setup.md) | Local engine build, pairing, library and troubleshooting |
+| [`docs/spotify-setup.md`](docs/spotify-setup.md) | Default Soloist setup, one-time API key, pairing, auto-updates and troubleshooting |
 | [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md) | Original design baseline (historical architecture sections) |
 | [`docs/archive/documentacion-cliente-musical-skins.es.md`](docs/archive/documentacion-cliente-musical-skins.es.md) | Original Spanish design document (archived) |
 
@@ -205,32 +209,43 @@ The engine binary is not committed. `task audio:build` downloads the pinned sour
 
 ## Spotify setup
 
-1. Build the engine with `task audio:build`.
-2. Start Cadence without `--demo`.
+1. Build the engine with `task audio:build`. It serves the catalog in both backend modes.
+2. Start Cadence without `--demo`. Soloist is already the selected backend and downloads in the background.
 3. Click **Browse** in the compact titlebar.
-4. If the engine is not paired, copy the pairing code or choose **Open pairing page**.
-5. Approve **Cadence** at `spotify.com/pair`.
-6. Browse the Library, search the catalog, or play a track from Browse. Closing Browse returns to the compact player without stopping playback.
+4. If the catalog engine is not paired, copy the pairing code or choose **Open pairing page**, then approve **Cadence Library** at `spotify.com/pair`.
+5. When the Soloist download completes, the setup modal asks for the one-time API key. **Generate API key** opens the Spotify dashboard; paste the key and select **Save and start**.
+6. Choose **Cadence** in the Spotify app on the same Wi-Fi network and confirm the pairing.
+7. Browse the Library, search the catalog, or play a track from Browse. Closing Browse returns to the compact player without stopping playback.
 
-Playback requires Spotify Premium and an audio sink. The engine runs as a separate process; its log is written to `$XDG_CACHE_HOME/cadence/logs/go-librespot.log`.
+Playback requires Spotify Premium and an audio sink. Both engines run as separate processes; the go-librespot log is written to `$XDG_CACHE_HOME/cadence/logs/go-librespot.log` and the Soloist log to `$XDG_CACHE_HOME/cadence/logs/soloist.log`.
 
 See [`docs/spotify-setup.md`](docs/spotify-setup.md) for prerequisites, binary discovery, reset pairing and troubleshooting.
 
-### Spotify Soloist (opt-in)
+### Spotify Soloist (default)
 
-The default audio backend stays go-librespot. If go-librespot fails with
-`failed retrieving audio key: failed retrieving aes key with code 1`, open
-**Browse → Settings**, install or update Spotify Soloist, save an API key from
-[`developer.spotify.com/dashboard`](https://developer.spotify.com/dashboard),
-apply the **Spotify Soloist** backend and restart Cadence. Then choose
-**Cadence** as the device in Spotify.
+Spotify Soloist plays audio by default. Cadence downloads the right build for the
+host architecture from Spotify at first launch and refreshes it in the
+background at 89 days or within 24 hours of expiry, pruning old builds and
+restarting Soloist after the update.
 
-Soloist is downloaded from Spotify at runtime and is never part of the Cadence
-artifact. It requires a Spotify developer API key and a Premium account. Radio
-and the go-librespot bitrate, FLAC, normalisation, crossfade, cache, MPRIS and
-speaker-group options are unavailable in Soloist mode. See the
-[Soloist setup section](docs/spotify-setup.md#spotify-soloist-backend-opt-in)
-for devices, paths, expiry and troubleshooting.
+The only manual step is the one-time API key. Spotify requires a signed-in
+dashboard session, accepting the terms and clicking **Generate API key**, so the
+first-run modal opens
+[`developer.spotify.com/dashboard`](https://developer.spotify.com/dashboard) in
+your browser and asks for one paste. Cadence validates the key, stores it in
+`$XDG_CONFIG_HOME/cadence/soloist/api-key` (`0600`) and starts Soloist. **Later**
+dismisses the prompt; a Browse banner and the Settings card remain the way back.
+
+Soloist is never part of the Cadence artifact, and no headless browser or stored
+Spotify password is involved. Radio and the go-librespot bitrate, FLAC,
+normalisation, crossfade, cache, MPRIS and speaker-group options are unavailable
+in Soloist mode. Accounts that work with go-librespot can select the `librespot`
+backend in Settings; automatic Soloist download and updates stop in that mode.
+
+See the
+[Soloist setup section](docs/spotify-setup.md#spotify-soloist-backend-default)
+for devices, paths, expiry and troubleshooting, and
+[ADR 0004](docs/adr/0004-dual-audio-backend.md) for the decision.
 
 ## Search and radio
 
@@ -302,7 +317,7 @@ Shaped windows need a compositing environment with an alpha channel. Sway and th
 │   ├── engine/                      # Sidecar supervisor, REST client and wire DTOs
 │   ├── catalog/                     # Library, search and context orchestration
 │   ├── playback/                    # Provider, player state, demo and engine providers
-│   ├── soloist/                     # Opt-in Soloist protocol, installer and process supervisor
+│   ├── soloist/                     # Default Soloist protocol, installer, updater, pruning and process supervisor
 │   ├── artwork/                     # Album-art proxying and caching
 │   ├── visualizer/                  # Monitor capture and spectrum/RMS/waveform analysis
 │   ├── buildinfo/                   # Release version and commit stamping

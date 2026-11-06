@@ -1,8 +1,10 @@
 # ADR 0004 — Dual audio backend
 
-- **Status:** Accepted
+- **Status:** Accepted; amended for default Soloist, automatic install and guided
+  key onboarding
 - **Date:** 2026-11-06
-- **Implemented:** Phases 1–5 of the ODD feature
+- **Implemented:** Phases 1–5 of the original ODD feature, plus Phases A–B of
+  [`../../odd/tasks/soloist-onboarding.md`](../../odd/tasks/soloist-onboarding.md)
 - **Source:** [`../../odd/tasks/soloist-audio-backend.md`](../../odd/tasks/soloist-audio-backend.md)
 - **Companion:** [`../architecture.md`](../architecture.md), [`../spotify-setup.md`](../spotify-setup.md)
 
@@ -28,7 +30,8 @@ Cadence relies on, and still do not solve DRM playback on the affected accounts.
 
 ## Decision
 
-Keep go-librespot and add Soloist as an opt-in audio backend:
+Use Soloist as the default audio backend and keep go-librespot as the catalog
+engine and an explicit fallback:
 
 ```text
 main.go
@@ -38,13 +41,44 @@ main.go
   soloist.Supervisor (audio) ── soloist.Provider
   catalog.Service ── catalog.Playback ── active provider
   wailsapi/audio.Service ── merged AudioState + Soloist actions
+             └─ Soloist maintenance loop (install, update, prune, start)
 ```
 
 - **Hybrid ownership.** go-librespot keeps library, search, context resolution,
-  queue metadata and catalog authentication. Soloist owns audio playback only.
-- **Startup selection.** `playback.backend` is persisted in `config.json`
-  (`librespot` by default, `soloist` opt-in) and read once at startup. There is
-  no runtime provider hot-swap; switching requires an app restart.
+  queue metadata and catalog authentication in both backend modes. Soloist owns
+  audio playback only.
+- **Soloist by default.** `settings.Default()` and
+  `NormalizePlaybackBackend` resolve empty and unknown values to `soloist`.
+  Configs without a `playback` section move to Soloist; an explicit `librespot`
+  is preserved as the escape hatch for accounts that work with go-librespot.
+- **Startup selection.** `playback.backend` is persisted in `config.json` and
+  read once at startup. There is no runtime provider hot-swap; switching requires
+  an app restart.
+- **Backend-owned setup.** The audio adapter runs a maintenance loop at startup
+  and every six hours while `soloist` is selected: install when missing, fetch a
+  new build when the installed one is at least 89 days old or within 24 hours of
+  expiry, prune old builds, and start Soloist when a key exists. Without a key it
+  stays stopped so onboarding can ask for one. The loop runs outside the window,
+  never blocks startup, and is cancelled on shutdown. In `librespot` mode it does
+  not run, so automatic download and updates stop; manual controls remain.
+- **Downloaded, never bundled.** Soloist is not part of the AppImage, tarball,
+  checksums or repository. The ~10 MB build is downloaded from Spotify's official
+  hosts at runtime, validated with `soloist --version`, and installed atomically
+  under a build-numbered directory. Only Spotify hosts are accepted.
+- **Update before expiry, keep two builds.** A successful update installs next to
+  the running build and restarts Soloist when it was running, so the new build is
+  active before day 90. Pruning keeps the newest build and the one currently
+  running, and removes interrupted download/staging directories older than 24
+  hours. Network failures retry silently; a failed first download surfaces a
+  localized retry in the setup dialog and the Settings card.
+- **Guided one-time API key.** Spotify requires an authenticated dashboard
+  session, accepting the terms and clicking **Generate API key**; there is no
+  API to create the key and the dashboard is not automatable. Cadence opens the
+  official dashboard in the system browser, accepts one paste, validates it,
+  stores it in a `0600` file outside `config.json`, and starts Soloist. The
+  prompt is shown once per install: **Later** stores a dismissal in the webview
+  `localStorage` key `cadence.soloist.prompt.v1`, and a Browse banner plus the
+  Settings card remain the way back.
 - **One provider contract.** `playback.Provider` is unchanged. The Soloist
   provider also implements the four catalog playback methods, and `catalog`
   declares the `catalog.Playback` interface it consumes, so audio can be routed
@@ -54,12 +88,8 @@ main.go
   devices are distinguishable.
 - **Quiet library engine.** In Soloist mode go-librespot MPRIS and its audio
   cache are disabled; Soloist manages its own cache and has no MPRIS surface.
-- **Key outside JSON.** The Soloist API key lives in a `0600` file outside
-  `config.json`, is passed to Soloist through argv because the CLI requires it,
-  and is never logged or returned to the frontend.
-- **Spotify-only downloads.** Soloist is never bundled or redistributed.
-  Versioned builds are downloaded from Spotify's official hosts, validated with
-  `--version`, and installed atomically.
+- **Key outside JSON.** The Soloist API key is passed to Soloist through argv
+  because the CLI requires it, and is never logged or returned to the frontend.
 
 ## Consequences
 
@@ -76,11 +106,17 @@ main.go
 - Process supervision stays Linux-first: `Setpgid`, `Pdeathsig` and Unix
   signalling match the rest of Cadence. The installer still maps macOS and
   Windows archives, but those platforms are not advertised yet.
-- Soloist builds expire 90 days after their build timestamp. Updates are manual:
-  the settings card shows the remaining days, blocks at expiry, and links to
-  Spotify's download page.
+- Soloist builds expire 90 days after their build timestamp. Cadence updates them
+  in the background before expiry and restarts Soloist after the switch; the
+  Settings card still shows the remaining days, a manual **Update Soloist**
+  action, and the expiry block.
+- An expired build blocks playback and offers the update; it cannot be revived.
+- The one-time key is the only manual step. It cannot be generated or fetched by
+  Cadence, and a rejected key must be replaced in the dashboard.
 - The frontend consumes one merged `audio:state` event with additive
   `playbackBackend` and `soloist` fields; no new event name is introduced.
+- Automatic setup only runs in Soloist mode. A user who selects `librespot` gets
+  the old manual behavior and no background downloads.
 
 ## Alternatives rejected
 
@@ -93,14 +129,27 @@ main.go
 - **Runtime backend hot-swap.** The provider, catalog router, process lifecycle
   and generated engine config all depend on the backend. A restart is
   predictable; hot-swapping adds races for little user benefit.
+- **Headless browser, embedded Chromium or dashboard automation.** Spotify
+  requires an authenticated dashboard session, accepting the terms and clicking
+  **Generate API key**; there is no public API to create developer keys. A
+  headless browser would add hundreds of MB, need the user's Spotify password or
+  session, fight CAPTCHA/2FA and break on dashboard changes. The one-click
+  handoff plus a paste is the lightest safe flow.
+- **Bundle or redistribute Soloist.** It would grow the artifact and is not
+  allowed by Spotify's terms. The runtime download keeps the release light and
+  the checksums free of the archive.
+- **Block the window until Soloist is ready.** The download needs no secret and
+  the app must stay usable without a network or key. Setup is a background pass
+  plus a prompt that can be dismissed immediately.
 
 ## Follow-up
 
 - Phase 0: confirm on the failing account that Soloist plays, capture the real
   URI matrix and the exact start-failure strings, and record the evidence in the
   ODD feature document.
-- Phase 7: manual E2E on the failing machine (install, key, switch, restart,
-  pairing, contexts, seek, volume, shuffle/repeat, queue and error states).
+- Manual E2E on the failing machine: fresh config → Soloist default →
+  auto-download → guided key → pairing → playback; then an old build (89 days)
+  to verify the background update, the restart and the prune.
 - Documentation lives in [`../spotify-setup.md`](../spotify-setup.md),
   [`../installation.md`](../installation.md) and
   [`../architecture.md`](../architecture.md).
