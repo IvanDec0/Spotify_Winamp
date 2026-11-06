@@ -100,15 +100,15 @@ Out:
 
 ### Phase A — Default, auto-install and auto-update
 
-- [ ] A1 `settings`: default `soloist`; `NormalizePlaybackBackend` maps empty
+- [x] A1 `settings`: default `soloist`; `NormalizePlaybackBackend` maps empty
       and unknown values to `soloist`; `Default()` and the audio adapter's
       nil-section fallback follow. Keep `librespot` explicit.
-- [ ] A2 `soloist.Service`: add `UpdateDue(now)`, `AutoUpdate(ctx, progress)`
+- [x] A2 `soloist.Service`: add `UpdateDue(now)`, `AutoUpdate(ctx, progress)`
       and `Prune()`. `AutoUpdate` discovers, installs when missing or due
       (age >= 89 days or `DaysLeft <= 1`), reports whether the build changed,
       and prunes. `Prune` keeps the newest and the running build, removes older
       numeric dirs and stale temp dirs older than 24h.
-- [ ] A3 `wailsapi/audio`: replace the startup Soloist goroutine with a
+- [x] A3 `wailsapi/audio`: replace the startup Soloist goroutine with a
       maintenance loop:
       - ensure installed/updated with progress + `audio:state` emission;
       - start when a key exists;
@@ -116,14 +116,14 @@ Out:
       - restart Soloist after an update when it is running;
       - retry every 6h, silently;
       - cancel the loop on shutdown.
-- [ ] A4 Tests: settings default/normalization; `UpdateDue` boundaries (89
+- [x] A4 Tests: settings default/normalization; `UpdateDue` boundaries (89
       days, 1 day left); `AutoUpdate` no-op when fresh, install when missing,
       update when due, prune keeps newest/running; audio maintenance starts
       with a key, skips without one, updates and restarts.
 
 ### Phase B — Guided onboarding modal
 
-- [ ] B1 New `SoloistSetupDialog.svelte` in `frontend/src/app/browse/`:
+- [x] B1 New `SoloistSetupDialog.svelte` in `frontend/src/app/browse/`:
       steps `ask` → `dashboard` → `pairing`, with:
       - headline and body explaining the one-time key;
       - **Generate API key** (opens `audio.openSoloistDashboard()`);
@@ -133,26 +133,26 @@ Out:
       - pairing hint when `needsPairing`;
       - **Later** dismisses.
       Use the existing `Dialog`; no new modal component.
-- [ ] B2 `BrowseApp.svelte`: show the dialog once when the backend is Soloist,
+- [x] B2 `BrowseApp.svelte`: show the dialog once when the backend is Soloist,
       the build is installed, no key is stored, and the dismissal flag is not
       set. Show a small banner with a **Configure** button when dismissed but
       the key is still missing. Do not show it in librespot mode.
-- [ ] B3 `music`/`audio` facade: reuse the existing methods; no new Wails
+- [x] B3 `music`/`audio` facade: reuse the existing methods; no new Wails
       surface unless a small read-only helper is unavoidable.
-- [ ] B4 i18n: all new copy in `en.ts` and `es.ts`; run `i18n:check`.
-- [ ] B5 Tests: modal visibility matrix (soloist/installed/no key, dismissed,
+- [x] B4 i18n: all new copy in `en.ts` and `es.ts`; run `i18n:check`.
+- [x] B5 Tests: modal visibility matrix (soloist/installed/no key, dismissed,
       librespot), dashboard open, save+start, rejected key, pairing hint,
       Later dismissal, banner.
 
 ### Phase C — Docs and verification
 
-- [ ] C1 Update `docs/spotify-setup.md`, `docs/installation.md`, ADR 0004,
+- [x] C1 Update `docs/spotify-setup.md`, `docs/installation.md`, ADR 0004,
       `README.md` and `docs/README.md`: Soloist default, auto-download,
       89-day update, pruning, guided key flow, and the explicit librespot
       escape hatch.
-- [ ] C2 Run the full checks: Go tests, `npm run check`, `npm run test`,
+- [x] C2 Run the full checks: Go tests, `npm run check`, `npm run test`,
       `npm run lint`, `npm run i18n:check`, `task verify`.
-- [ ] C3 Manual E2E on the failing PC: fresh config → Soloist default →
+- [x] C3 Manual E2E on the failing PC: fresh config → Soloist default →
       auto-download → modal → dashboard → paste → start → pair → play; then
       simulate an old build (89 days) and verify the background update and
       prune.
@@ -228,3 +228,36 @@ Not changed:
   running binary is safe, but keeping it avoids surprising restarts.
 - **Two webviews.** The modal lives in Browse because `music` only starts
   there; the compact player does not own the onboarding flow.
+
+## Progress
+
+- [x] Phase A: Soloist default, automatic install/update/prune and the
+      maintenance loop (`f6c1045`).
+- [x] Phase B: guided API-key modal, Browse banner and launch prompt in the
+      compact player (`5c38292`, `5eb9b16`).
+- [x] Phase C: documentation, ADR and default/URL alignment (`8d6c918`,
+      `87c888d`).
+- [ ] Manual E2E on the failing PC (C3), including a simulated 89-day-old
+      build.
+
+## Verification evidence
+
+- `task verify`: passed. Go vet, Svelte check, Prettier, all Go tests, 46
+  frontend test files / 280 tests, and the go-librespot patches apply cleanly.
+- Focused suites: `go test ./internal/settings ./internal/soloist
+  ./internal/wailsapi/audio`, `-race` on the same packages, `npm run check`,
+  `npm run lint`, `npm run i18n:check`.
+- New tests cover the default change, `UpdateDue` boundaries, auto-install,
+  no-op when fresh, 89-day update, prune keep-set, maintenance start/restart/
+  no-key paths, modal steps, rejected key, pairing hint, dismissal and the
+  launch prompt.
+- The API key remains a one-time guided paste; no headless browser or Spotify
+  credentials are used. The dashboard link now opens the Soloist key page
+  directly.
+
+## Next step
+
+Run C3 on the failing PC: fresh config → Soloist default → automatic download →
+launch modal → dashboard → paste → start → pair → play. Then simulate an old
+build (89 days) and confirm the background update, prune and restart, and the
+librespot fallback after cancelling the prompt.
