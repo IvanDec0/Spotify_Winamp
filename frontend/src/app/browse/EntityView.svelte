@@ -19,11 +19,13 @@
   let context = $derived(browse.context);
   let items = $derived(context?.items ?? []);
   let coverSrc = $derived(entity?.image ? coverURL(entity.image, 120) : "");
+  let webMode = $derived(music.audio.playbackBackend === "web");
   let canToggle = $derived(
     entity?.kind === "album" || entity?.kind === "show" || entity?.kind === "artist",
   );
   let canRadio = $derived(
     !music.soloistMode &&
+      !webMode &&
       (entity?.kind === "album" || entity?.kind === "artist" || entity?.kind === "playlist"),
   );
   let editable = $derived(entity?.kind === "playlist" && Boolean(entity.canEdit));

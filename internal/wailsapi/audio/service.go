@@ -49,6 +49,8 @@ type Options struct {
 	Settings        *settings.Store
 	Enabled         bool
 	Soloist         SoloistBackend
+	Web             WebBackend
+	Developer       DeveloperBackend
 	PlaybackBackend string
 }
 
@@ -70,6 +72,8 @@ type Service struct {
 	settings   *settings.Store
 	enabled    bool
 	soloist    SoloistBackend
+	web        WebBackend
+	developer  DeveloperBackend
 	backend    string
 	progress   installProgress
 
@@ -85,6 +89,8 @@ func NewService(options Options) *Service {
 		settings:   options.Settings,
 		enabled:    options.Enabled,
 		soloist:    options.Soloist,
+		web:        options.Web,
+		developer:  options.Developer,
 		backend:    settings.NormalizePlaybackBackend(options.PlaybackBackend),
 	}
 }
@@ -495,8 +501,8 @@ func (s *Service) SetEngineSettings(value EngineSettings) (EngineSettings, error
 	return saved, nil
 }
 
-// GetPlaybackSettings returns the persisted audio backend, defaulting to
-// Soloist when the settings file has no playback section.
+// GetPlaybackSettings returns the persisted audio backend, defaulting to the
+// web player when the settings file has no playback section.
 func (s *Service) GetPlaybackSettings() (PlaybackSettings, error) {
 	if s.settings == nil {
 		return PlaybackSettings{}, errors.New("the settings store is not configured")
@@ -506,7 +512,7 @@ func (s *Service) GetPlaybackSettings() (PlaybackSettings, error) {
 		return PlaybackSettings{}, err
 	}
 	if config.Playback == nil {
-		return PlaybackSettings{Backend: settings.BackendSoloist}, nil
+		return PlaybackSettings{Backend: settings.BackendWeb}, nil
 	}
 	return PlaybackSettings{Backend: settings.NormalizePlaybackBackend(config.Playback.Backend)}, nil
 }

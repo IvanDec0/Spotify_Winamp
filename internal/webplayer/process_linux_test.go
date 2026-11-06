@@ -12,6 +12,68 @@ import (
 	"time"
 )
 
+// TestProcessUsesAppDirAndOmitsEmptyPlayerURL verifies the developer helper
+// path: a custom app directory and no --cadence-url argument.
+func TestProcessUsesAppDirAndOmitsEmptyPlayerURL(t *testing.T) {
+	root := t.TempDir()
+	appDir := filepath.Join(root, "developer-helper")
+	if err := os.MkdirAll(appDir, 0o700); err != nil {
+		t.Fatalf("mkdir app: %v", err)
+	}
+	scriptPath := filepath.Join(root, "helper-bin")
+	script := "#!/bin/sh\nprintf 'args: %s\\n' \"$*\"\nsleep 30\n"
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+
+	runtime := NewRuntime(RuntimeOptions{Root: root, GOOS: "linux", GOARCH: "amd64"})
+	process, err := runtime.Start(context.Background(), Install{
+		Version:    "test",
+		Dir:        root,
+		Executable: scriptPath,
+		HelperDir:  filepath.Join(root, "embedded-helper"),
+	}, StartOptions{
+		ControlURL: "ws://127.0.0.1:4321/control?nonce=control-nonce",
+		AppDir:     appDir,
+		LogPath:    filepath.Join(root, "logs", "developer.log"),
+		ExtraArgs:  []string{"--cadence-action=web-app"},
+	})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = process.Stop(ctx)
+	})
+
+	deadline := time.Now().Add(5 * time.Second)
+	var lines []string
+	for time.Now().Before(deadline) {
+		lines = process.Tail()
+		if len(lines) >= 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(lines) < 1 {
+		t.Fatalf("tail did not capture the helper output: %#v", lines)
+	}
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, appDir) {
+		t.Fatalf("args do not start with the app dir: %s", joined)
+	}
+	if strings.Contains(joined, filepath.Join(root, "embedded-helper")) {
+		t.Fatalf("args use the embedded helper dir instead of AppDir: %s", joined)
+	}
+	if strings.Contains(joined, "--cadence-url=") {
+		t.Fatalf("args contain --cadence-url without a player URL: %s", joined)
+	}
+	if !strings.Contains(joined, "--cadence-action=web-app") {
+		t.Fatalf("extra args were not appended: %s", joined)
+	}
+}
+
 // TestProcessLifecycle exercises Start, Tail, Stop and log redaction with a
 // plain shell process. No Electron or network is involved.
 func TestProcessLifecycle(t *testing.T) {

@@ -30,3 +30,20 @@ export type PlaybackSettings = settings$0.PlaybackState;
 export type PlaylistPage = engine$0.PlaylistPage;
 
 export type SearchResults = engine$0.SearchResults;
+
+/**
+ * WebPlayerStatus is the web player state shown by the settings UI. It never
+ * carries tokens.
+ */
+export interface WebPlayerStatus {
+    "available": boolean;
+    "loggedIn": boolean;
+    "running": boolean;
+    "runtimeInstalled": boolean;
+    "runtimeVersion": string;
+    "deviceId": string;
+    "account": string;
+    "lastError": string;
+    "clientId": string;
+    "restartRequired": boolean;
+}

@@ -36,6 +36,7 @@
   let playback = $derived(browseSettings.playback);
   let soloist = $derived(music.soloist);
   let soloistMode = $derived(music.soloistMode);
+  let webStatus = $derived(browseSettings.webStatus);
   let backendChanged = $derived(
     Boolean(playback) && playback?.backend !== music.audio.playbackBackend,
   );
@@ -50,6 +51,13 @@
 
   onMount(() => {
     void browseSettings.load();
+  });
+
+  $effect(() => {
+    const timer = setInterval(() => {
+      if (!document.hidden) void browseSettings.refreshWebStatus();
+    }, 3000);
+    return () => clearInterval(timer);
   });
 
   function labelFromSlug(value: string): string {
@@ -175,6 +183,51 @@
     browseSettings.updateBackend((event.currentTarget as HTMLSelectElement).value);
   }
 
+  function webErrorLabel(code: string): MessageKey {
+    switch (code) {
+      case "webplayer_login_required":
+        return "errors.webLoginRequired";
+      case "webplayer_login_timeout":
+        return "errors.webLoginTimeout";
+      case "webplayer_login_in_progress":
+        return "errors.webLoginInProgress";
+      case "webplayer_runtime_missing":
+        return "errors.webRuntimeMissing";
+      case "webplayer_runtime_failed":
+        return "errors.webRuntimeFailed";
+      case "webplayer_download_failed":
+        return "errors.webDownloadFailed";
+      case "webplayer_checksum_mismatch":
+        return "errors.webChecksumMismatch";
+      case "webplayer_install_failed":
+        return "errors.webInstallFailed";
+      case "webplayer_server_failed":
+        return "errors.webServerFailed";
+      case "webplayer_widevine":
+        return "errors.webWidevine";
+      case "webplayer_api":
+        return "errors.webApiError";
+      case "webplayer_rate_limited":
+        return "errors.webRateLimited";
+      case "webplayer_premium":
+        return "errors.webPremiumRequired";
+      case "webplayer_device_missing":
+        return "errors.webDeviceMissing";
+      case "webplayer_unsupported":
+        return "errors.webUnsupported";
+      case "developer_login_required":
+        return "errors.developerLoginRequired";
+      case "developer_premium_required":
+        return "errors.developerPremiumRequired";
+      case "developer_app_limit":
+        return "errors.developerAppLimit";
+      case "developer_failed":
+        return "errors.developerFailed";
+      default:
+        return "errors.webError";
+    }
+  }
+
   async function saveSoloistKey(): Promise<void> {
     const key = apiKey.trim();
     if (!key) return;
@@ -272,19 +325,24 @@
           <div class="settings-control">
             <select
               id="settings-backend"
-              value={playback?.backend ?? "soloist"}
+              value={playback?.backend ?? "web"}
               aria-describedby="settings-backend-help"
               onchange={chooseBackend}
             >
               <option value="librespot">{t("browse.settingsBackendLibrespot")}</option>
               <option value="soloist">{t("browse.settingsBackendSoloist")}</option>
+              <option value="web">{t("browse.settingsBackendWeb")}</option>
             </select>
           </div>
           <p class="settings-help" id="settings-backend-help">
             {t("browse.settingsBackendHelp")}
-            {playback?.backend === "soloist"
-              ? t("browse.settingsBackendSoloistHelp")
-              : t("browse.settingsBackendLibrespotHelp")}
+            {#if playback?.backend === "soloist"}
+              {t("browse.settingsBackendSoloistHelp")}
+            {:else if playback?.backend === "web"}
+              {t("browse.settingsBackendWebHelp")}
+            {:else}
+              {t("browse.settingsBackendLibrespotHelp")}
+            {/if}
           </p>
         </div>
 
@@ -429,6 +487,24 @@
             >
               {t("browse.soloistApiKeyClear")}
             </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={browseSettings.developerBusy || browseSettings.soloistBusy}
+              onclick={() => void browseSettings.generateSoloistAPIKey(false)}
+            >
+              {t("browse.soloistGenerateKey")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={browseSettings.developerBusy ||
+                browseSettings.soloistBusy ||
+                !soloist?.apiKeySet}
+              onclick={() => void browseSettings.generateSoloistAPIKey(true)}
+            >
+              {t("browse.soloistRotateKey")}
+            </Button>
           </div>
           <p class="settings-help" id="settings-soloist-api-key-help">
             {t("browse.soloistApiKeyHelp")}
@@ -491,6 +567,132 @@
           </div>
         </div>
       </fieldset>
+
+      {#if webStatus?.available !== false}
+        <fieldset class="settings-section is-wide">
+          <legend>{t("browse.webTitle")}</legend>
+          <p class="settings-help is-lead">{t("browse.webIntro")}</p>
+
+          {#if webStatus?.lastError}
+            <div class="settings-notice is-error" role="alert" aria-live="assertive">
+              <span>{t(webErrorLabel(webStatus.lastError))}</span>
+            </div>
+          {/if}
+
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.webAccount")}</span>
+            <div class="settings-control soloist-status">
+              <span class="soloist-badge" class:is-on={webStatus?.loggedIn}>
+                {webStatus?.loggedIn ? t("browse.webConnected") : t("browse.webDisconnected")}
+              </span>
+              {#if webStatus?.account}
+                <span class="settings-value">{webStatus.account}</span>
+              {/if}
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.webBusy}
+                onclick={() => void browseSettings.connectWebPlayer()}
+              >
+                {webStatus?.loggedIn ? t("browse.webReconnect") : t("browse.webConnect")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={browseSettings.webBusy || !webStatus?.loggedIn}
+                onclick={() => void browseSettings.disconnectWebPlayer()}
+              >
+                {t("browse.webDisconnect")}
+              </Button>
+            </div>
+            <p class="settings-help">{t("browse.webConnectHelp")}</p>
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.webClientId")}</span>
+            <div class="settings-control soloist-status">
+              <span class="settings-value">{webStatus?.clientId || "—"}</span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.developerBusy}
+                onclick={() => void browseSettings.configureWebPlayerApp()}
+              >
+                {browseSettings.developerBusy ? t("browse.webBusy") : t("browse.webConfigureApp")}
+              </Button>
+            </div>
+            {#if webStatus?.restartRequired}
+              <p class="settings-notice" role="status" aria-live="polite">
+                {t("browse.webRestartReconnect")}
+              </p>
+            {/if}
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.webRuntime")}</span>
+            <div class="settings-control soloist-status">
+              <span class="soloist-badge" class:is-on={webStatus?.runtimeInstalled}>
+                {webStatus?.runtimeInstalled
+                  ? t("browse.webRuntimeInstalled")
+                  : t("browse.webRuntimeMissing")}
+              </span>
+              {#if webStatus?.runtimeInstalled && webStatus.runtimeVersion}
+                <span class="settings-value">
+                  {t("browse.webRuntimeVersion", { version: webStatus.runtimeVersion })}
+                </span>
+              {/if}
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.webBusy}
+                onclick={() => void browseSettings.installWebRuntime()}
+              >
+                {webStatus?.runtimeInstalled ? t("browse.webUpdate") : t("browse.webInstall")}
+              </Button>
+            </div>
+            <p class="settings-help">{t("browse.webInstallHelp")}</p>
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.webStatus")}</span>
+            <div class="settings-control soloist-status">
+              <span class="soloist-badge" class:is-on={webStatus?.running}>
+                {webStatus?.running ? t("browse.webRunning") : t("browse.webStopped")}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.webBusy ||
+                  !webStatus?.loggedIn ||
+                  !webStatus?.runtimeInstalled ||
+                  webStatus?.running}
+                onclick={() => void browseSettings.startWebPlayer()}
+              >
+                {t("browse.webStart")}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.webBusy || !webStatus?.running}
+                onclick={() => void browseSettings.stopWebPlayer()}
+              >
+                {t("browse.webStop")}
+              </Button>
+            </div>
+            <p class="settings-help">{t("browse.webControlsHelp")}</p>
+          </div>
+
+          {#if playback?.backend !== "web"}
+            <p class="settings-notice" role="status" aria-live="polite">
+              {t("browse.webBackendNotice")}
+            </p>
+          {/if}
+
+          {#if browseSettings.webBusy}
+            <p class="settings-help" aria-live="polite">{t("browse.webBusy")}</p>
+          {/if}
+        </fieldset>
+      {/if}
 
       <fieldset class="settings-section">
         <legend>{t("browse.settingsEngine")}</legend>

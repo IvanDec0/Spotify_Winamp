@@ -56,7 +56,7 @@ function normalizeAudio(state: AudioState): MusicAudioState {
     binaryPath: state.binaryPath ?? "",
     configDirectory: state.configDirectory ?? "",
     audioBackend: state.audioBackend ?? "",
-    playbackBackend: state.playbackBackend ?? "soloist",
+    playbackBackend: state.playbackBackend ?? "web",
     soloist: normalizeSoloist(state.soloist),
   };
 }
@@ -75,7 +75,7 @@ const initialState: MusicAudioState = {
   binaryPath: "",
   configDirectory: "",
   audioBackend: "",
-  playbackBackend: "soloist",
+  playbackBackend: "web",
   soloist: null,
 };
 

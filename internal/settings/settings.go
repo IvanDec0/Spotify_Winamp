@@ -72,21 +72,21 @@ func defaultEngine() EngineState {
 }
 
 func defaultPlayback() PlaybackState {
-	return PlaybackState{Backend: BackendSoloist}
+	return PlaybackState{Backend: BackendWeb}
 }
 
 // NormalizePlaybackBackend maps an arbitrary stored value to a supported
-// backend. Soloist is the default: empty and unknown values resolve to it,
-// while an explicit "librespot" or "web" after trimming and case folding is
+// backend. Web is the default: empty and unknown values resolve to it, while
+// an explicit "librespot" or "soloist" after trimming and case folding is
 // kept.
 func NormalizePlaybackBackend(value string) string {
 	switch {
 	case strings.EqualFold(strings.TrimSpace(value), BackendLibrespot):
 		return BackendLibrespot
-	case strings.EqualFold(strings.TrimSpace(value), BackendWeb):
-		return BackendWeb
-	default:
+	case strings.EqualFold(strings.TrimSpace(value), BackendSoloist):
 		return BackendSoloist
+	default:
+		return BackendWeb
 	}
 }
 

@@ -263,6 +263,8 @@ func TestOAuthRefreshAndRotation(t *testing.T) {
 		TokenType:    "Bearer",
 		Scope:        strings.Join(DefaultScopes, " "),
 		Expiry:       now.Add(-time.Minute),
+		ClientID:     "client-id",
+		Account:      "Listener",
 	}); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
@@ -283,6 +285,9 @@ func TestOAuthRefreshAndRotation(t *testing.T) {
 	}
 	if tokens.RefreshToken != "refresh-2" {
 		t.Fatalf("refresh token = %q, want the rotated value", tokens.RefreshToken)
+	}
+	if tokens.Account != "Listener" {
+		t.Fatalf("account label = %q, want it preserved across a refresh", tokens.Account)
 	}
 	form := endpoint.form(0)
 	if form.Get("grant_type") != "refresh_token" || form.Get("refresh_token") != "refresh-1" {
@@ -318,6 +323,7 @@ func TestOAuthAccessTokenUsesValidToken(t *testing.T) {
 		AccessToken:  "current",
 		RefreshToken: "refresh",
 		Expiry:       now.Add(2 * time.Minute),
+		ClientID:     "client-id",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -337,6 +343,7 @@ func TestOAuthAccessTokenUsesValidToken(t *testing.T) {
 		AccessToken:  "current",
 		RefreshToken: "refresh",
 		Expiry:       now.Add(30 * time.Second),
+		ClientID:     "client-id",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -352,11 +359,58 @@ func TestOAuthAccessTokenUsesValidToken(t *testing.T) {
 	}
 }
 
+func TestOAuthRejectsSessionFromAnotherClientID(t *testing.T) {
+	endpoint := &fakeTokenEndpoint{accessToken: "new", refreshToken: "new-refresh", expiresIn: 3600}
+	server := newFakeTokenServer(t, endpoint)
+	oauth, store, now := oauthForTest(t, server.URL, func(string) error { return nil })
+
+	// The old token file predates the Client ID binding and must be treated as
+	// signed out instead of being sent to the token endpoint.
+	if err := store.Save(Tokens{
+		AccessToken:  "current",
+		RefreshToken: "refresh",
+		Expiry:       now.Add(2 * time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if oauth.LoggedIn() {
+		t.Fatal("LoggedIn() = true for a session without a Client ID")
+	}
+	if _, _, err := oauth.AccessToken(context.Background()); !errors.Is(err, ErrLoginRequired) {
+		t.Fatalf("AccessToken() error = %v, want ErrLoginRequired", err)
+	}
+	if _, _, err := oauth.Refresh(context.Background()); !errors.Is(err, ErrLoginRequired) {
+		t.Fatalf("Refresh() error = %v, want ErrLoginRequired", err)
+	}
+	if endpoint.formCount() != 0 {
+		t.Fatalf("a mismatched session reached the token endpoint: %d requests", endpoint.formCount())
+	}
+
+	// A session from another app is equally invalid.
+	if err := store.Save(Tokens{
+		AccessToken:  "current",
+		RefreshToken: "refresh",
+		Expiry:       now.Add(2 * time.Minute),
+		ClientID:     "another-client",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if oauth.LoggedIn() {
+		t.Fatal("LoggedIn() = true for a session from another Client ID")
+	}
+	if _, _, err := oauth.AccessToken(context.Background()); !errors.Is(err, ErrLoginRequired) {
+		t.Fatalf("AccessToken() error = %v, want ErrLoginRequired", err)
+	}
+	if endpoint.formCount() != 0 {
+		t.Fatalf("a session from another app reached the token endpoint: %d requests", endpoint.formCount())
+	}
+}
+
 func TestOAuthInvalidGrantClearsStore(t *testing.T) {
 	endpoint := &fakeTokenEndpoint{invalidGrant: true}
 	server := newFakeTokenServer(t, endpoint)
 	oauth, store, _ := oauthForTest(t, server.URL, func(string) error { return nil })
-	if err := store.Save(Tokens{AccessToken: "access", RefreshToken: "refresh"}); err != nil {
+	if err := store.Save(Tokens{AccessToken: "access", RefreshToken: "refresh", ClientID: "client-id"}); err != nil {
 		t.Fatal(err)
 	}
 

@@ -27,6 +27,8 @@ var (
 	jsonTokenPattern = regexp.MustCompile(`"access_token"\s*:\s*"[^"]*"`)
 	// queryTokenPattern matches an access_token query parameter.
 	queryTokenPattern = regexp.MustCompile(`access_token=[^&\s]+`)
+	// soloistKeyPattern matches Spotify Developer API keys.
+	soloistKeyPattern = regexp.MustCompile(`spak_[A-Za-z0-9]+`)
 )
 
 // redactLog removes token-shaped secrets from one log line. It never logs the
@@ -35,6 +37,7 @@ func redactLog(line string) string {
 	line = jsonTokenPattern.ReplaceAllString(line, `"access_token":"[redacted]"`)
 	line = bearerTokenPattern.ReplaceAllString(line, "[redacted]")
 	line = queryTokenPattern.ReplaceAllString(line, "access_token=[redacted]")
+	line = soloistKeyPattern.ReplaceAllString(line, "[redacted]")
 	return line
 }
 

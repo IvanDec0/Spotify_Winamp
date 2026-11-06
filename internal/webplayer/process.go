@@ -18,6 +18,10 @@ const stopGrace = 3 * time.Second
 type StartOptions struct {
 	ControlURL string
 	PlayerURL  string
+	// AppDir overrides the helper application directory. The web player uses
+	// the embedded helper materialized next to the runtime; other helpers
+	// (the developer dashboard) bring their own app.
+	AppDir     string
 	ProfileDir string
 	LogPath    string
 	ExtraArgs  []string
@@ -52,8 +56,17 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 	if err := validateControlURL(opts.ControlURL); err != nil {
 		return nil, err
 	}
-	if err := validatePlayerURL(opts.PlayerURL); err != nil {
-		return nil, err
+	// The developer dashboard helper renders a remote page it controls and
+	// has no local player page. The player URL is optional in that case.
+	if opts.PlayerURL != "" {
+		if err := validatePlayerURL(opts.PlayerURL); err != nil {
+			return nil, err
+		}
+	}
+
+	appDir := opts.AppDir
+	if appDir == "" {
+		appDir = install.HelperDir
 	}
 
 	profileDir := opts.ProfileDir
@@ -81,9 +94,8 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 	writer := newRedactingWriter(logFile, tail)
 
 	args := []string{
-		install.HelperDir,
+		appDir,
 		"--cadence-control=" + opts.ControlURL,
-		"--cadence-url=" + opts.PlayerURL,
 		"--user-data-dir=" + profileDir,
 		"--disk-cache-size=67108864",
 		"--media-cache-size=33554432",
@@ -94,6 +106,9 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 		"--disable-background-timer-throttling",
 		"--disable-renderer-backgrounding",
 		"--disable-backgrounding-occluded-windows",
+	}
+	if opts.PlayerURL != "" {
+		args = append(args, "--cadence-url="+opts.PlayerURL)
 	}
 	// Deliberately absent: --no-sandbox (user namespaces work here and the
 	// Chromium sandbox must stay on) and --disable-component-update (the

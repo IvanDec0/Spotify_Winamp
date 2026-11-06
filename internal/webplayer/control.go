@@ -21,13 +21,18 @@ const (
 )
 
 // Message is one control-socket message. Type is "hello", "ready", "error",
-// "show", "hide" or "shutdown" depending on the direction.
+// "show", "hide", "shutdown", "webApp" or "soloistKey" depending on the
+// direction. ClientID, Key and State carry the developer dashboard results;
+// Key is a secret and must never be logged.
 type Message struct {
 	Type     string `json:"type"`
 	Version  string `json:"version,omitempty"`
 	DeviceID string `json:"deviceId,omitempty"`
 	Code     string `json:"code,omitempty"`
 	Message  string `json:"message,omitempty"`
+	ClientID string `json:"clientId,omitempty"`
+	Key      string `json:"key,omitempty"`
+	State    string `json:"state,omitempty"`
 }
 
 // Control is the loopback WebSocket endpoint the helper connects to. It
@@ -209,7 +214,7 @@ func (c *Control) readLoop(conn *websocket.Conn) {
 			continue
 		}
 		switch message.Type {
-		case "ready", "error":
+		case "ready", "error", "webApp", "soloistKey":
 			c.emit(message)
 		}
 	}

@@ -23,6 +23,7 @@
   ];
 
   let results = $derived(browse.results);
+  let webMode = $derived(music.audio.playbackBackend === "web");
   let counts = $derived({
     tracks: results?.tracks.length ?? 0,
     albums: results?.albums.length ?? 0,
@@ -185,7 +186,7 @@
                   >
                     <Icon name="plus" size={13} />
                   </button>
-                  {#if !music.soloistMode}
+                  {#if !music.soloistMode && !webMode}
                     <button
                       class="icon-button"
                       type="button"

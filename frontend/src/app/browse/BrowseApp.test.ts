@@ -87,6 +87,14 @@ const mocks = vi.hoisted(() => ({
     getState: vi.fn(),
     openSoloistDashboard: vi.fn(),
     restart: vi.fn(),
+    getWebPlayerStatus: vi.fn(),
+    connectWebPlayer: vi.fn(),
+    disconnectWebPlayer: vi.fn(),
+    installWebPlayerRuntime: vi.fn(),
+    startWebPlayer: vi.fn(),
+    stopWebPlayer: vi.fn(),
+    configureWebPlayerApp: vi.fn(),
+    generateSoloistAPIKey: vi.fn(),
   },
 }));
 
@@ -170,6 +178,18 @@ describe("Browse shell", () => {
     mocks.audio.isLiked.mockResolvedValue(false);
     mocks.audio.getEngineSettings.mockResolvedValue(engineSettings);
     mocks.audio.getPlaybackSettings.mockResolvedValue({ backend: "librespot" });
+    mocks.audio.getWebPlayerStatus.mockResolvedValue({
+      available: false,
+      loggedIn: false,
+      running: false,
+      runtimeInstalled: false,
+      runtimeVersion: "",
+      deviceId: "",
+      account: "",
+      lastError: "",
+      clientId: "",
+      restartRequired: false,
+    });
     mocks.audio.playlists.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
     mocks.audio.albums.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });
     mocks.audio.artists.mockResolvedValue({ total: 0, offset: 0, limit: 50, items: [] });

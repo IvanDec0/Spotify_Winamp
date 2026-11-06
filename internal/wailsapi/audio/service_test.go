@@ -301,8 +301,8 @@ func TestPlaybackSettingsDefaultsAndPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPlaybackSettings() error = %v", err)
 	}
-	if defaults.Backend != settings.BackendSoloist {
-		t.Fatalf("default backend = %q, want %q", defaults.Backend, settings.BackendSoloist)
+	if defaults.Backend != settings.BackendWeb {
+		t.Fatalf("default backend = %q, want %q", defaults.Backend, settings.BackendWeb)
 	}
 
 	if err := store.UpdateSkins(func(state *settings.SkinState) error {
@@ -363,10 +363,10 @@ func TestPlaybackSettingsNormalizesUnknownBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetPlaybackSettings() error = %v", err)
 	}
-	if saved.Backend != settings.BackendSoloist {
-		t.Fatalf("saved backend = %q, want %q", saved.Backend, settings.BackendSoloist)
+	if saved.Backend != settings.BackendWeb {
+		t.Fatalf("saved backend = %q, want %q", saved.Backend, settings.BackendWeb)
 	}
-	if got, err := service.GetPlaybackSettings(); err != nil || got.Backend != settings.BackendSoloist {
+	if got, err := service.GetPlaybackSettings(); err != nil || got.Backend != settings.BackendWeb {
 		t.Fatalf("GetPlaybackSettings() = %#v, %v", got, err)
 	}
 }

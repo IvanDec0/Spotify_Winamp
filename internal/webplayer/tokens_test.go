@@ -16,6 +16,7 @@ func sampleTokenSession() Tokens {
 		TokenType:    "Bearer",
 		Scope:        strings.Join(DefaultScopes, " "),
 		Expiry:       time.Now().Add(time.Hour).UTC().Truncate(time.Second),
+		Account:      "Listener",
 	}
 }
 

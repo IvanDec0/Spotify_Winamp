@@ -15,7 +15,7 @@
     onstarted: () => void;
   }
 
-  type Step = "ask" | "dashboard" | "pairing";
+  type Step = "ask" | "dashboard" | "pairing" | "web";
   type SetupError = { title: MessageKey; detail: string };
 
   let { open, onclose, ondismiss, onstarted }: Props = $props();
@@ -62,7 +62,9 @@
       ? t("browse.soloistSetupDashboardTitle")
       : step === "pairing"
         ? t("browse.soloistSetupPairingTitle")
-        : t("browse.soloistSetupTitle"),
+        : step === "web"
+          ? t("browse.soloistWebTitle")
+          : t("browse.soloistSetupTitle"),
   );
 
   let installFailure = $derived.by(() => {
@@ -106,6 +108,20 @@
         await tick();
         keyInput?.focus();
       }
+    } catch (cause) {
+      error = { title: "browse.soloistError", detail: toApiError(cause).message };
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function useWebPlayer(): Promise<void> {
+    if (busy) return;
+    busy = true;
+    error = null;
+    try {
+      await audio.setPlaybackSettings({ backend: "web" });
+      step = "web";
     } catch (cause) {
       error = { title: "browse.soloistError", detail: toApiError(cause).message };
     } finally {
@@ -273,6 +289,9 @@
         <Button variant="ghost" size="sm" onclick={ondismiss}>
           {t("browse.soloistSetupLater")}
         </Button>
+        <Button variant="ghost" size="sm" disabled={busy} onclick={() => void useWebPlayer()}>
+          {t("browse.soloistUseWeb")}
+        </Button>
         <Button
           variant="primary"
           size="sm"
@@ -281,6 +300,16 @@
           onclick={() => void openDashboard(true)}
         >
           {t("browse.soloistSetupGenerate")}
+        </Button>
+      </div>
+    </div>
+  {:else if step === "web"}
+    <div class="soloist-setup">
+      <p class="soloist-setup-copy">{t("browse.soloistWebBody")}</p>
+      <p class="soloist-setup-copy">{t("browse.soloistWebRestart")}</p>
+      <div class="soloist-setup-actions">
+        <Button variant="primary" size="sm" data-autofocus onclick={onclose}>
+          {t("ui.close")}
         </Button>
       </div>
     </div>

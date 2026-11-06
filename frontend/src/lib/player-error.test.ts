@@ -32,6 +32,39 @@ describe("playerErrorCopy", () => {
     expect(copy.detail).toBe("raw backend detail");
   });
 
+  it("maps web player login and runtime codes to localized copy", () => {
+    const login = playerErrorCopy(error("webplayer_login_required"));
+    expect(login.titleKey).toBe("errors.webLoginRequired");
+    expect(login.hintKey).toBe("errors.webLoginHint");
+
+    const runtime = playerErrorCopy(error("webplayer_runtime_missing"));
+    expect(runtime.titleKey).toBe("errors.webRuntimeMissing");
+    expect(runtime.hintKey).toBe("errors.webRuntimeHint");
+  });
+
+  it("maps web player limits, devices and Widevine to localized copy", () => {
+    const rateLimited = playerErrorCopy(error("webplayer_rate_limited"));
+    expect(rateLimited.titleKey).toBe("errors.webRateLimited");
+    expect(rateLimited.hintKey).toBe("errors.webRateLimitedHint");
+
+    const premium = playerErrorCopy(error("webplayer_premium"));
+    expect(premium.titleKey).toBe("errors.webPremiumRequired");
+
+    const device = playerErrorCopy(error("webplayer_device_missing"));
+    expect(device.titleKey).toBe("errors.webDeviceMissing");
+    expect(device.hintKey).toBe("errors.webDeviceHint");
+
+    const widevine = playerErrorCopy(error("webplayer_widevine"));
+    expect(widevine.titleKey).toBe("errors.webWidevine");
+    expect(widevine.hintKey).toBe("errors.webWidevineHint");
+
+    const api = playerErrorCopy(error("webplayer_api"));
+    expect(api.titleKey).toBe("errors.webApiError");
+
+    const unsupported = playerErrorCopy(error("webplayer_unsupported"));
+    expect(unsupported.titleKey).toBe("errors.webUnsupported");
+  });
+
   it("falls back to the generic playback copy for unknown codes", () => {
     const copy = playerErrorCopy(error("soloist_something_new"));
 

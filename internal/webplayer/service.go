@@ -67,23 +67,28 @@ type Service struct {
 	runtime  *Runtime
 	provider *Provider
 
-	mu       sync.Mutex
-	startMu  sync.Mutex
-	serverMu sync.Mutex
-	server   *Server
-	process  *Process
-	control  *Control
-	deviceID string
+	mu        sync.Mutex
+	startMu   sync.Mutex
+	serverMu  sync.Mutex
+	server    *Server
+	process   *Process
+	control   *Control
+	deviceID  string
+	lastError string
 }
 
 // Status is the web player status shown by the settings UI. It never starts
 // anything.
 type Status struct {
-	LoggedIn         bool
-	Running          bool
-	RuntimeInstalled bool
-	RuntimeVersion   string
-	DeviceID         string
+	LoggedIn           bool
+	Running            bool
+	RuntimeInstalled   bool
+	RuntimeVersion     string
+	DeviceID           string
+	Account            string
+	LastError          string
+	ClientID           string
+	ConfiguredClientID string
 }
 
 var _ ProviderBackend = (*Service)(nil)
@@ -92,9 +97,6 @@ var _ ProviderBackend = (*Service)(nil)
 // provider objects. It does not bind the HTTP server, download the runtime or
 // start the helper.
 func NewService(opts ServiceOptions) (*Service, error) {
-	if strings.TrimSpace(opts.ClientID) == "" {
-		opts.ClientID = DefaultClientID
-	}
 	if strings.TrimSpace(opts.RedirectURI) == "" {
 		opts.RedirectURI = DefaultRedirectURI
 	}
@@ -106,6 +108,14 @@ func NewService(opts ServiceOptions) (*Service, error) {
 	}
 	if strings.TrimSpace(opts.ConfigDir) == "" {
 		opts.ConfigDir = defaultConfigDir()
+	}
+	// An explicit Client ID wins (environment override and flags). Otherwise
+	// the app configured by Settings is used, then the built-in public app.
+	if strings.TrimSpace(opts.ClientID) == "" {
+		opts.ClientID = LoadClientID(opts.ConfigDir)
+	}
+	if strings.TrimSpace(opts.ClientID) == "" {
+		opts.ClientID = DefaultClientID
 	}
 	if strings.TrimSpace(opts.DeviceName) == "" {
 		opts.DeviceName = DefaultDeviceName
@@ -162,6 +172,19 @@ func (s *Service) Provider() *Provider {
 	return s.provider
 }
 
+// ClientID returns the Spotify Client ID the service was built with. The
+// helper and OAuth flow keep using it until the service is recreated.
+func (s *Service) ClientID() string {
+	return s.clientID
+}
+
+// ConfiguredClientID returns the Client ID stored by Settings, or "" when no
+// valid file exists. It reads the file on every call so a newly configured app
+// is visible without restarting the service.
+func (s *Service) ConfiguredClientID() string {
+	return LoadClientID(s.configDir)
+}
+
 // API returns the Spotify Web API client.
 func (s *Service) API() *WebAPI {
 	return s.api
@@ -207,12 +230,27 @@ func (s *Service) RuntimeInstalled() bool {
 // InstallRuntime downloads, verifies and installs the runtime and materializes
 // the embedded helper. It starts no process and binds no socket.
 func (s *Service) InstallRuntime(ctx context.Context) (Install, error) {
-	return s.runtime.Ensure(ctx)
+	install, err := s.runtime.Ensure(ctx)
+	if err != nil {
+		s.setLastError(err)
+	} else {
+		s.clearLastError()
+	}
+	return install, err
 }
 
 // EnsureStarted starts the helper when needed and waits for its ready event.
 // It is lazy: it is only called by Play, PlayContext and Transfer(empty).
 func (s *Service) EnsureStarted(ctx context.Context) error {
+	if err := s.ensureStarted(ctx); err != nil {
+		s.setLastError(err)
+		return err
+	}
+	s.clearLastError()
+	return nil
+}
+
+func (s *Service) ensureStarted(ctx context.Context) error {
 	s.startMu.Lock()
 	defer s.startMu.Unlock()
 	if ctx == nil {
@@ -281,10 +319,49 @@ func (s *Service) EnsureStarted(ctx context.Context) error {
 // Login starts the Spotify OAuth flow through the system browser. It never
 // starts the helper.
 func (s *Service) Login(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if err := s.ensureServer(); err != nil {
+		s.setLastError(err)
 		return err
 	}
-	return s.oauth.Login(ctx)
+	if err := s.oauth.Login(ctx); err != nil {
+		s.setLastError(err)
+		return err
+	}
+	s.clearLastError()
+	// The profile label is a convenience: a failed fetch must not invalidate a
+	// session that was just authorized.
+	s.storeAccount(ctx)
+	return nil
+}
+
+// storeAccount reads the Spotify profile and persists a display label. It is
+// best effort and never exposes token values.
+func (s *Service) storeAccount(ctx context.Context) {
+	profileCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	profile, err := s.api.Me(profileCtx)
+	if err != nil || profile == nil {
+		return
+	}
+	account := strings.TrimSpace(profile.DisplayName)
+	if account == "" {
+		account = strings.TrimSpace(profile.Email)
+	}
+	if account == "" {
+		account = strings.TrimSpace(profile.ID)
+	}
+	if account == "" {
+		return
+	}
+	tokens, err := s.store.Load()
+	if err != nil {
+		return
+	}
+	tokens.Account = account
+	_ = s.store.Save(tokens)
 }
 
 // Logout stops the helper, closes the local server and removes the stored
@@ -294,6 +371,7 @@ func (s *Service) Logout() error {
 	defer cancel()
 	stopErr := s.Stop(ctx)
 	logoutErr := s.oauth.Logout()
+	s.clearLastError()
 	return errors.Join(stopErr, logoutErr)
 }
 
@@ -344,20 +422,44 @@ func (s *Service) Stop(ctx context.Context) error {
 
 // Status returns the current status without starting or downloading anything.
 func (s *Service) Status() Status {
-	status := Status{LoggedIn: s.oauth.LoggedIn()}
+	var status Status
+	// One load feeds both fields; a corrupt or missing store means signed out.
+	// A session from another Client ID is invalid until the user reconnects.
+	if tokens, err := s.store.Load(); err == nil {
+		status.LoggedIn = tokens.RefreshToken != "" && tokens.ClientID == s.clientID
+		if status.LoggedIn {
+			status.Account = tokens.Account
+		}
+	}
 	if install, ok := s.runtime.Installed(); ok {
 		status.RuntimeInstalled = true
 		status.RuntimeVersion = install.Version
 	}
+	status.ClientID = s.clientID
+	status.ConfiguredClientID = s.ConfiguredClientID()
 	s.mu.Lock()
 	process := s.process
 	deviceID := s.deviceID
+	lastError := s.lastError
 	s.mu.Unlock()
 	if process != nil && !process.Exited() {
 		status.Running = true
 		status.DeviceID = deviceID
 	}
+	status.LastError = lastError
 	return status
+}
+
+func (s *Service) setLastError(err error) {
+	s.mu.Lock()
+	s.lastError = CodeOf(err)
+	s.mu.Unlock()
+}
+
+func (s *Service) clearLastError() {
+	s.mu.Lock()
+	s.lastError = ""
+	s.mu.Unlock()
 }
 
 func (s *Service) ensureServer() error {

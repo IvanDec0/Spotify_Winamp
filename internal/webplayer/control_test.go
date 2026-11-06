@@ -124,6 +124,12 @@ func TestControlEvents(t *testing.T) {
 	if err := wsjson.Write(ctx, conn, Message{Type: "error", Code: "widevine", Message: "missing"}); err != nil {
 		t.Fatalf("error: %v", err)
 	}
+	if err := wsjson.Write(ctx, conn, Message{Type: "webApp", ClientID: "7fe450922d8b4d31ac8bda4a1767d903"}); err != nil {
+		t.Fatalf("webApp: %v", err)
+	}
+	if err := wsjson.Write(ctx, conn, Message{Type: "soloistKey", Key: "spak_test", State: "existing"}); err != nil {
+		t.Fatalf("soloistKey: %v", err)
+	}
 
 	ready := waitForEvent(t, control)
 	if ready.Type != "ready" || ready.DeviceID != "device-1" {
@@ -132,6 +138,14 @@ func TestControlEvents(t *testing.T) {
 	failure := waitForEvent(t, control)
 	if failure.Type != "error" || failure.Code != "widevine" || failure.Message != "missing" {
 		t.Fatalf("second event = %+v", failure)
+	}
+	app := waitForEvent(t, control)
+	if app.Type != "webApp" || app.ClientID != "7fe450922d8b4d31ac8bda4a1767d903" {
+		t.Fatalf("third event = %+v", app)
+	}
+	key := waitForEvent(t, control)
+	if key.Type != "soloistKey" || key.Key != "spak_test" || key.State != "existing" {
+		t.Fatalf("fourth event = %+v", key)
 	}
 }
 

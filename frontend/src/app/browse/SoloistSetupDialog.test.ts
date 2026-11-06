@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
     startSoloist: vi.fn(),
     getState: vi.fn(),
     installSoloist: vi.fn(),
+    setPlaybackSettings: vi.fn(),
     music,
   };
 });
@@ -27,6 +28,7 @@ vi.mock("../../shared/api", () => ({
     startSoloist: mocks.startSoloist,
     getState: mocks.getState,
     installSoloist: mocks.installSoloist,
+    setPlaybackSettings: mocks.setPlaybackSettings,
   },
   toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
 }));
@@ -86,6 +88,7 @@ describe("SoloistSetupDialog", () => {
     mocks.startSoloist.mockResolvedValue({ soloist: { needsPairing: false } });
     mocks.getState.mockResolvedValue({ soloist: null });
     mocks.installSoloist.mockResolvedValue({});
+    mocks.setPlaybackSettings.mockResolvedValue({ backend: "web" });
   });
 
   it("opens the dashboard and advances to the paste step", async () => {
@@ -220,5 +223,21 @@ describe("SoloistSetupDialog", () => {
     await fireEvent.click(screen.getByRole("button", { name: "Retry download" }));
 
     await waitFor(() => expect(mocks.installSoloist).toHaveBeenCalledOnce());
+  });
+
+  it("persists the web backend and explains the web player", async () => {
+    const onclose = vi.fn();
+    renderDialog({ onclose });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Use the web player instead" }));
+
+    await waitFor(() => expect(mocks.setPlaybackSettings).toHaveBeenCalledWith({ backend: "web" }));
+    expect(screen.getByRole("dialog", { name: "Use the web player" })).not.toBeNull();
+    expect(screen.getByText(/official Web Playback SDK/)).not.toBeNull();
+    expect(screen.getByText(/Settings → Web player/)).not.toBeNull();
+
+    await fireEvent.click(screen.getAllByRole("button", { name: "Close" })[1]);
+
+    expect(onclose).toHaveBeenCalledOnce();
   });
 });

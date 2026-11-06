@@ -51,6 +51,22 @@ export function ClearSoloistAPIKey(): $CancellablePromise<$models.AudioState> {
 }
 
 /**
+ * ConfigureWebPlayerApp creates or finds the Cadence Spotify Developer app,
+ * stores its Client ID and invalidates a session bound to the previous app.
+ * The action is headless.
+ */
+export function ConfigureWebPlayerApp(): $CancellablePromise<$models.WebPlayerStatus> {
+    return $Call.ByID(628997415);
+}
+
+/**
+ * ConnectWebPlayer starts the Spotify OAuth flow through the system browser.
+ */
+export function ConnectWebPlayer(): $CancellablePromise<$models.WebPlayerStatus> {
+    return $Call.ByID(619459606);
+}
+
+/**
  * ContextTracks lists the tracks of a playlist, album, artist, show or the
  * Liked Songs collection.
  */
@@ -59,10 +75,26 @@ export function ContextTracks(uri: string): $CancellablePromise<$models.LibraryC
 }
 
 /**
+ * DisconnectWebPlayer removes the stored Spotify session and stops the helper.
+ */
+export function DisconnectWebPlayer(): $CancellablePromise<$models.WebPlayerStatus> {
+    return $Call.ByID(306550184);
+}
+
+/**
  * FollowArtist follows or unfollows an artist.
  */
 export function FollowArtist(uri: string, following: boolean): $CancellablePromise<void> {
     return $Call.ByID(2700484361, uri, following);
+}
+
+/**
+ * GenerateSoloistAPIKey creates or rotates a Soloist API key through the
+ * Spotify Developer dashboard and stores it locally. The key is never returned
+ * to the frontend or logged.
+ */
+export function GenerateSoloistAPIKey(rotate: boolean): $CancellablePromise<$models.AudioState> {
+    return $Call.ByID(3223138138, rotate);
 }
 
 /**
@@ -74,8 +106,8 @@ export function GetEngineSettings(): $CancellablePromise<$models.EngineSettings>
 }
 
 /**
- * GetPlaybackSettings returns the persisted audio backend, defaulting to
- * Soloist when the settings file has no playback section.
+ * GetPlaybackSettings returns the persisted audio backend, defaulting to the
+ * web player when the settings file has no playback section.
  */
 export function GetPlaybackSettings(): $CancellablePromise<$models.PlaybackSettings> {
     return $Call.ByID(997209145);
@@ -90,11 +122,26 @@ export function GetState(): $CancellablePromise<$models.AudioState> {
 }
 
 /**
+ * GetWebPlayerStatus returns the web player state without starting or
+ * downloading anything.
+ */
+export function GetWebPlayerStatus(): $CancellablePromise<$models.WebPlayerStatus> {
+    return $Call.ByID(2571809838);
+}
+
+/**
  * InstallSoloist downloads and installs the newest Spotify Soloist build,
  * reporting progress through the merged audio state.
  */
 export function InstallSoloist(): $CancellablePromise<$models.AudioState> {
     return $Call.ByID(1287935651);
+}
+
+/**
+ * InstallWebPlayerRuntime downloads and verifies the helper runtime.
+ */
+export function InstallWebPlayerRuntime(): $CancellablePromise<$models.WebPlayerStatus> {
+    return $Call.ByID(1325625871);
 }
 
 /**
@@ -271,10 +318,24 @@ export function StartSoloist(): $CancellablePromise<$models.AudioState> {
 }
 
 /**
+ * StartWebPlayer starts the helper when a session and runtime are available.
+ */
+export function StartWebPlayer(): $CancellablePromise<$models.WebPlayerStatus> {
+    return $Call.ByID(1546900704);
+}
+
+/**
  * StopSoloist stops the Soloist process.
  */
 export function StopSoloist(): $CancellablePromise<$models.AudioState> {
     return $Call.ByID(2997637440);
+}
+
+/**
+ * StopWebPlayer stops the helper without clearing the session.
+ */
+export function StopWebPlayer(): $CancellablePromise<$models.WebPlayerStatus> {
+    return $Call.ByID(3181007250);
 }
 
 /**

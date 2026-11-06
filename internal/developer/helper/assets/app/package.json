@@ -1,0 +1,7 @@
+{
+  "name": "cadence-developer-helper",
+  "version": "1.0.0",
+  "description": "Cadence Spotify Developer dashboard automation helper",
+  "main": "main.js",
+  "private": true
+}

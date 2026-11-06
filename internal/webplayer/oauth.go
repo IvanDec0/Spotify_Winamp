@@ -22,7 +22,7 @@ import (
 const (
 	// DefaultClientID is the public PKCE client used by Cadence. It can be
 	// overridden for development with CADENCE_SPOTIFY_CLIENT_ID.
-	DefaultClientID = "1c6adf01cc01423d99ff7e87682c057a"
+	DefaultClientID = "8914d701933445d2800395f85d115fed"
 
 	defaultAuthorizeURL = "https://accounts.spotify.com/authorize"
 	defaultTokenURL     = "https://accounts.spotify.com/api/token"
@@ -180,9 +180,9 @@ func (o *OAuth) Login(ctx context.Context) error {
 	o.mu.Unlock()
 
 	authorize := o.authorizeURLFor(state, pkceChallenge(verifier))
-	// The URL carries only public PKCE material; it is logged before opening
-	// the browser so a missing xdg-open can still be handled manually.
-	log.Printf("webplayer: open this URL to connect Spotify: %s", authorize)
+	// The authorize URL query carries the PKCE challenge and state. It is
+	// handed to the opener only and never logged.
+	log.Printf("webplayer: starting the Spotify authorization flow")
 	if err := o.openURL(authorize); err != nil {
 		if o.clearPending(attempt) {
 			return fmt.Errorf("cannot open the Spotify login page: %w", err)
@@ -262,7 +262,7 @@ func (o *OAuth) LoggedIn() bool {
 		return false
 	}
 	tokens, err := o.store.Load()
-	return err == nil && tokens.RefreshToken != ""
+	return err == nil && tokens.RefreshToken != "" && tokens.ClientID == o.clientID
 }
 
 // AccessToken returns the current access token, refreshing it when it expires
@@ -277,6 +277,9 @@ func (o *OAuth) AccessToken(ctx context.Context) (string, time.Time, error) {
 			return "", time.Time{}, ErrLoginRequired
 		}
 		return "", time.Time{}, err
+	}
+	if tokens.ClientID != o.clientID {
+		return "", time.Time{}, ErrLoginRequired
 	}
 	if tokens.AccessToken != "" && tokens.Expiry.After(o.now().Add(accessTokenMargin)) {
 		return tokens.AccessToken, tokens.Expiry, nil
@@ -296,7 +299,7 @@ func (o *OAuth) Refresh(ctx context.Context) (string, time.Time, error) {
 		}
 		return "", time.Time{}, err
 	}
-	if tokens.RefreshToken == "" {
+	if tokens.RefreshToken == "" || tokens.ClientID != o.clientID {
 		return "", time.Time{}, ErrLoginRequired
 	}
 
@@ -321,6 +324,8 @@ func (o *OAuth) Refresh(ctx context.Context) (string, time.Time, error) {
 		TokenType:    tokens.TokenType,
 		Scope:        tokens.Scope,
 		Expiry:       o.now().Add(time.Duration(response.ExpiresIn) * time.Second),
+		ClientID:     tokens.ClientID,
+		Account:      tokens.Account,
 	}
 	if response.RefreshToken != "" {
 		refreshed.RefreshToken = response.RefreshToken
@@ -360,6 +365,7 @@ func (o *OAuth) exchange(ctx context.Context, code, verifier string) error {
 		TokenType:    response.TokenType,
 		Scope:        response.Scope,
 		Expiry:       o.now().Add(time.Duration(response.ExpiresIn) * time.Second),
+		ClientID:     o.clientID,
 	}
 	if tokens.TokenType == "" {
 		tokens.TokenType = "Bearer"

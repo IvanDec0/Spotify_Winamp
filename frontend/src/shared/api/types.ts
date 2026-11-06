@@ -33,6 +33,7 @@ export type {
 export type {
   EngineSettings,
   PlaybackSettings,
+  WebPlayerStatus,
 } from "../../../bindings/cadence/internal/wailsapi/audio/models";
 
 export type {

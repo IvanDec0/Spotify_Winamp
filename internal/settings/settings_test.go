@@ -174,8 +174,8 @@ func TestDefaultPlaybackState(t *testing.T) {
 	if config.Playback == nil {
 		t.Fatal("Default().Playback = nil")
 	}
-	if config.Playback.Backend != BackendSoloist {
-		t.Fatalf("default backend = %q, want %q", config.Playback.Backend, BackendSoloist)
+	if config.Playback.Backend != BackendWeb {
+		t.Fatalf("default backend = %q, want %q", config.Playback.Backend, BackendWeb)
 	}
 }
 
@@ -185,8 +185,8 @@ func TestNormalizePlaybackBackend(t *testing.T) {
 		value string
 		want  string
 	}{
-		{name: "empty", value: "", want: BackendSoloist},
-		{name: "unknown", value: "pulse", want: BackendSoloist},
+		{name: "empty", value: "", want: BackendWeb},
+		{name: "unknown", value: "pulse", want: BackendWeb},
 		{name: "librespot", value: BackendLibrespot, want: BackendLibrespot},
 		{name: "padded and upper case librespot", value: " LIBRESPOT ", want: BackendLibrespot},
 		{name: "mixed case librespot", value: "LibreSpot", want: BackendLibrespot},
@@ -230,8 +230,8 @@ func TestStoreLegacyFileWithoutPlaybackGetsDefault(t *testing.T) {
 	if config.Playback == nil {
 		t.Fatal("legacy playback = nil")
 	}
-	if config.Playback.Backend != BackendSoloist {
-		t.Fatalf("legacy playback backend = %q, want %q", config.Playback.Backend, BackendSoloist)
+	if config.Playback.Backend != BackendWeb {
+		t.Fatalf("legacy playback backend = %q, want %q", config.Playback.Backend, BackendWeb)
 	}
 }
 
@@ -244,8 +244,8 @@ func TestStoreNormalizesStoredPlaybackBackend(t *testing.T) {
 		{name: "padded soloist", value: " SOLOIST ", want: BackendSoloist},
 		{name: "explicit librespot", value: " LIBRESPOT ", want: BackendLibrespot},
 		{name: "explicit web", value: " WEB ", want: BackendWeb},
-		{name: "unknown", value: "pulse", want: BackendSoloist},
-		{name: "empty", value: "", want: BackendSoloist},
+		{name: "unknown", value: "pulse", want: BackendWeb},
+		{name: "empty", value: "", want: BackendWeb},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -341,8 +341,8 @@ func TestStoreSaveNormalizesPlaybackBackend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if loaded.Playback == nil || loaded.Playback.Backend != BackendSoloist {
-		t.Fatalf("playback = %#v, want %q", loaded.Playback, BackendSoloist)
+	if loaded.Playback == nil || loaded.Playback.Backend != BackendWeb {
+		t.Fatalf("playback = %#v, want %q", loaded.Playback, BackendWeb)
 	}
 }
 

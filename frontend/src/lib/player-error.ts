@@ -65,6 +65,35 @@ const ERROR_COPY: Record<string, ErrorCopy> = {
   soloist_unsupported: {
     title: "errors.soloistUnsupported",
   },
+  webplayer_login_required: {
+    title: "errors.webLoginRequired",
+    hint: "errors.webLoginHint",
+  },
+  webplayer_runtime_missing: {
+    title: "errors.webRuntimeMissing",
+    hint: "errors.webRuntimeHint",
+  },
+  webplayer_rate_limited: {
+    title: "errors.webRateLimited",
+    hint: "errors.webRateLimitedHint",
+  },
+  webplayer_premium: {
+    title: "errors.webPremiumRequired",
+  },
+  webplayer_device_missing: {
+    title: "errors.webDeviceMissing",
+    hint: "errors.webDeviceHint",
+  },
+  webplayer_widevine: {
+    title: "errors.webWidevine",
+    hint: "errors.webWidevineHint",
+  },
+  webplayer_api: {
+    title: "errors.webApiError",
+  },
+  webplayer_unsupported: {
+    title: "errors.webUnsupported",
+  },
 };
 
 export interface PlayerErrorCopy {

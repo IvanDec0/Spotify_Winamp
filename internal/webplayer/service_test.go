@@ -3,6 +3,7 @@ package webplayer
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -147,6 +148,8 @@ func TestServiceStatusWithTokensAndLogout(t *testing.T) {
 		AccessToken:  "access",
 		RefreshToken: "refresh",
 		Expiry:       time.Now().Add(time.Hour),
+		ClientID:     DefaultClientID,
+		Account:      "Listener",
 	}); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
@@ -154,6 +157,9 @@ func TestServiceStatusWithTokensAndLogout(t *testing.T) {
 	status := service.Status()
 	if !status.LoggedIn {
 		t.Fatal("Status().LoggedIn = false with a valid token file")
+	}
+	if status.Account != "Listener" {
+		t.Fatalf("Status().Account = %q, want %q", status.Account, "Listener")
 	}
 	if !service.LoggedIn() {
 		t.Fatal("LoggedIn() = false with a valid token file")
@@ -170,6 +176,100 @@ func TestServiceStatusWithTokensAndLogout(t *testing.T) {
 	}
 }
 
+func TestServiceClientIDResolution(t *testing.T) {
+	valid := "7fe450922d8b4d31ac8bda4a1767d903"
+	configDir := t.TempDir()
+	if err := os.WriteFile(ClientIDPath(configDir), []byte(valid+"\n"), 0o600); err != nil {
+		t.Fatalf("write client id: %v", err)
+	}
+
+	service := newServiceForTest(t, ServiceOptions{ConfigDir: configDir})
+	if got := service.ClientID(); got != valid {
+		t.Fatalf("ClientID() = %q, want the stored value", got)
+	}
+	if got := service.ConfiguredClientID(); got != valid {
+		t.Fatalf("ConfiguredClientID() = %q", got)
+	}
+	status := service.Status()
+	if status.ClientID != valid || status.ConfiguredClientID != valid {
+		t.Fatalf("Status() client IDs = %q/%q", status.ClientID, status.ConfiguredClientID)
+	}
+
+	// An explicit override wins over the stored file.
+	override := newServiceForTest(t, ServiceOptions{ConfigDir: configDir, ClientID: DefaultClientID})
+	if got := override.ClientID(); got != DefaultClientID {
+		t.Fatalf("explicit ClientID() = %q", got)
+	}
+
+	// The configured value is re-read on each call.
+	updated := "0123456789abcdef0123456789abcdef"
+	if err := os.WriteFile(ClientIDPath(configDir), []byte(updated), 0o600); err != nil {
+		t.Fatalf("rewrite client id: %v", err)
+	}
+	if got := service.ConfiguredClientID(); got != updated {
+		t.Fatalf("ConfiguredClientID() after change = %q", got)
+	}
+	if got := service.Status().ConfiguredClientID; got != updated {
+		t.Fatalf("Status().ConfiguredClientID after change = %q", got)
+	}
+	if got := service.Status().ClientID; got != valid {
+		t.Fatalf("Status().ClientID changed without a restart: %q", got)
+	}
+}
+
+func TestServiceInvalidClientIDFallsBack(t *testing.T) {
+	configDir := t.TempDir()
+	if err := os.WriteFile(ClientIDPath(configDir), []byte("not-a-client-id"), 0o600); err != nil {
+		t.Fatalf("write client id: %v", err)
+	}
+	service := newServiceForTest(t, ServiceOptions{ConfigDir: configDir})
+	if got := service.ClientID(); got != DefaultClientID {
+		t.Fatalf("ClientID() = %q, want the default", got)
+	}
+	if got := service.ConfiguredClientID(); got != "" {
+		t.Fatalf("ConfiguredClientID() = %q, want empty", got)
+	}
+}
+
+func TestServiceStatusRejectsSessionFromAnotherClient(t *testing.T) {
+	tests := []struct {
+		name     string
+		clientID string
+	}{
+		{name: "another app", clientID: "another-client"},
+		{name: "session without a Client ID", clientID: ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			configDir := t.TempDir()
+			store := NewTokenStore(filepath.Join(configDir, "tokens.json"))
+			if err := store.Save(Tokens{
+				AccessToken:  "access",
+				RefreshToken: "refresh",
+				Expiry:       time.Now().Add(time.Hour),
+				ClientID:     test.clientID,
+				Account:      "Old Listener",
+			}); err != nil {
+				t.Fatalf("Save() error = %v", err)
+			}
+			service := newServiceForTest(t, ServiceOptions{ConfigDir: configDir})
+			if service.LoggedIn() {
+				t.Fatal("LoggedIn() = true for an invalid session")
+			}
+			status := service.Status()
+			if status.LoggedIn {
+				t.Fatal("Status().LoggedIn = true for an invalid session")
+			}
+			if status.Account != "" {
+				t.Fatal("Status().Account shows the old account for an invalid session")
+			}
+			if status.ClientID != DefaultClientID {
+				t.Fatalf("Status().ClientID = %q, want %q", status.ClientID, DefaultClientID)
+			}
+		})
+	}
+}
+
 func TestServiceStopIsIdempotent(t *testing.T) {
 	service := newServiceForTest(t, ServiceOptions{})
 	if err := service.Stop(context.Background()); err != nil {
@@ -177,5 +277,23 @@ func TestServiceStopIsIdempotent(t *testing.T) {
 	}
 	if err := service.Stop(context.Background()); err != nil {
 		t.Fatalf("second Stop() error = %v", err)
+	}
+}
+
+func TestServiceStatusTracksLastError(t *testing.T) {
+	service := newServiceForTest(t, ServiceOptions{})
+	if err := service.EnsureStarted(context.Background()); !errors.Is(err, ErrLoginRequired) {
+		t.Fatalf("EnsureStarted() error = %v, want ErrLoginRequired", err)
+	}
+	status := service.Status()
+	if status.LastError != CodeLoginRequired {
+		t.Fatalf("Status().LastError = %q, want %q", status.LastError, CodeLoginRequired)
+	}
+
+	if err := service.Logout(); err != nil {
+		t.Fatalf("Logout() error = %v", err)
+	}
+	if got := service.Status().LastError; got != "" {
+		t.Fatalf("Status().LastError after Logout() = %q", got)
 	}
 }

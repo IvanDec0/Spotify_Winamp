@@ -14,5 +14,6 @@ export type {
     LibraryContext,
     PlaybackSettings,
     PlaylistPage,
-    SearchResults
+    SearchResults,
+    WebPlayerStatus
 } from "./models.js";

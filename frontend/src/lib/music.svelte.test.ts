@@ -65,16 +65,16 @@ describe("MusicStore", () => {
     vi.clearAllMocks();
   });
 
-  it("defaults to the soloist backend without Soloist state", () => {
+  it("defaults to the web backend without Soloist state", () => {
     const store = new MusicStore();
 
-    expect(store.audio.playbackBackend).toBe("soloist");
+    expect(store.audio.playbackBackend).toBe("web");
     expect(store.audio.soloist).toBeNull();
     expect(store.soloist).toBeNull();
-    expect(store.soloistMode).toBe(true);
+    expect(store.soloistMode).toBe(false);
   });
 
-  it("normalizes a missing playback backend to soloist", async () => {
+  it("normalizes a missing playback backend to web", async () => {
     mocks.getState.mockResolvedValue(
       audioState({ playbackBackend: null as unknown as string, soloist: null }),
     );
@@ -82,8 +82,8 @@ describe("MusicStore", () => {
 
     await store.refresh();
 
-    expect(store.audio.playbackBackend).toBe("soloist");
-    expect(store.soloistMode).toBe(true);
+    expect(store.audio.playbackBackend).toBe("web");
+    expect(store.soloistMode).toBe(false);
   });
 
   it("normalizes nullable Soloist fields from the API", async () => {

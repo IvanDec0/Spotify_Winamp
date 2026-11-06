@@ -32,6 +32,12 @@ func TestRedactLog(t *testing.T) {
 			contains: "access_token=[redacted]",
 			absent:   secret,
 		},
+		{
+			name:     "soloist key",
+			line:     "key: spak_abcdef123456",
+			contains: "[redacted]",
+			absent:   "spak_abcdef123456",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

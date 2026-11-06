@@ -26,6 +26,11 @@ type Tokens struct {
 	TokenType    string    `json:"token_type"`
 	Scope        string    `json:"scope"`
 	Expiry       time.Time `json:"expiry"`
+	// ClientID binds the session to the Spotify app that issued it. A session
+	// created with another Client ID is treated as signed out.
+	ClientID string `json:"clientId,omitempty"`
+	// Account is a display label for the settings UI. It is not a credential.
+	Account string `json:"account,omitempty"`
 }
 
 // TokenStore persists one Spotify OAuth session on disk.

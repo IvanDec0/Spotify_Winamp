@@ -19,6 +19,7 @@ import (
 	"cadence/internal/artwork"
 	"cadence/internal/buildinfo"
 	"cadence/internal/catalog"
+	"cadence/internal/developer"
 	"cadence/internal/diagnostics"
 	"cadence/internal/engine"
 	"cadence/internal/platform"
@@ -145,7 +146,7 @@ func main() {
 		defaults := settings.Default()
 		engineSettings = defaults.Engine
 	}
-	playbackBackend := settings.BackendSoloist
+	playbackBackend := settings.BackendWeb
 	if savedSettings.Playback != nil {
 		playbackBackend = settings.NormalizePlaybackBackend(savedSettings.Playback.Backend)
 	}
@@ -171,6 +172,42 @@ func main() {
 		DiskDir:   filepath.Join(xdg.CacheHome, "cadence", "art"),
 		DiskLimit: 256 << 20,
 	})
+
+	// The developer automation starts a hidden helper per action against the
+	// dashboard profile; the service itself holds no process between actions.
+	// It is built first because the web player routes its OAuth authorize URL
+	// through the embedded browser instead of the system browser.
+	var developerService *developer.Service
+	if !*demoMode {
+		service, err := developer.NewService(developer.Options{
+			ConfigDir: filepath.Join(xdg.ConfigHome, "cadence"),
+			Root:      filepath.Join(xdg.CacheHome, "cadence", "developer"),
+			LogPath:   filepath.Join(xdg.CacheHome, "cadence", "logs", "developer.log"),
+		})
+		if err != nil {
+			log.Fatalf("initialise developer automation: %v", err)
+		}
+		developerService = service
+	}
+
+	// The web service exists in every non-demo mode so Settings can connect,
+	// install and inspect the runtime before the backend is selected. It binds
+	// no socket and starts no process until asked.
+	var webService *webplayer.Service
+	if !*demoMode {
+		options := webplayer.ServiceOptions{
+			ClientID: webClientID(),
+			Art:      artCache,
+		}
+		if developerService != nil {
+			options.OpenURL = developerService.OpenOAuthURL
+		}
+		service, err := webplayer.NewService(options)
+		if err != nil {
+			log.Fatalf("initialise web player: %v", err)
+		}
+		webService = service
+	}
 
 	var recorder *diagnostics.Recorder
 	var engineHTTPClient *http.Client
@@ -235,7 +272,6 @@ func main() {
 
 	var provider playback.Provider = demoProvider
 	var catalogPlayback catalog.Playback
-	var webService *webplayer.Service
 	if !*demoMode {
 		switch playbackBackend {
 		case settings.BackendSoloist:
@@ -243,14 +279,6 @@ func main() {
 			provider = soloistProvider
 			catalogPlayback = soloistProvider
 		case settings.BackendWeb:
-			service, err := webplayer.NewService(webplayer.ServiceOptions{
-				ClientID: webClientID(),
-				Art:      artCache,
-			})
-			if err != nil {
-				log.Fatalf("initialise web player: %v", err)
-			}
-			webService = service
 			webProvider := webService.Provider()
 			provider = webProvider
 			catalogPlayback = webProvider
@@ -273,12 +301,22 @@ func main() {
 	if soloistService != nil {
 		soloistBackend = soloistService
 	}
+	var webBackend audioapi.WebBackend
+	if webService != nil {
+		webBackend = webService
+	}
+	var developerBackend audioapi.DeveloperBackend
+	if developerService != nil {
+		developerBackend = developerService
+	}
 	audioService := audioapi.NewService(audioapi.Options{
 		Catalog:         catalogService,
 		Supervisor:      audioRuntime,
 		Settings:        settingsStore,
 		Enabled:         !*demoMode,
 		Soloist:         soloistBackend,
+		Web:             webBackend,
+		Developer:       developerBackend,
 		PlaybackBackend: playbackBackend,
 	})
 	visualizerService := visualizerapi.NewService()
@@ -355,6 +393,13 @@ func main() {
 	})
 
 	runErr := cadence.Run()
+	if developerService != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := developerService.Stop(stopCtx); err != nil {
+			log.Printf("stop developer automation: %v", err)
+		}
+		cancel()
+	}
 	if webService != nil {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		if err := webService.Stop(stopCtx); err != nil {
@@ -368,7 +413,21 @@ func main() {
 }
 
 func runWebCommand(login, logout, install bool) error {
-	service, err := webplayer.NewService(webplayer.ServiceOptions{ClientID: webClientID()})
+	options := webplayer.ServiceOptions{ClientID: webClientID()}
+	if login {
+		// Route the CLI login through the same headless embedded browser as the
+		// settings UI instead of opening the system browser.
+		developerService, err := developer.NewService(developer.Options{
+			ConfigDir: filepath.Join(xdg.ConfigHome, "cadence"),
+			Root:      filepath.Join(xdg.CacheHome, "cadence", "developer"),
+			LogPath:   filepath.Join(xdg.CacheHome, "cadence", "logs", "developer.log"),
+		})
+		if err != nil {
+			return err
+		}
+		options.OpenURL = developerService.OpenOAuthURL
+	}
+	service, err := webplayer.NewService(options)
 	if err != nil {
 		return err
 	}
@@ -413,7 +472,9 @@ func webClientID() string {
 	if value := strings.TrimSpace(os.Getenv("CADENCE_SPOTIFY_CLIENT_ID")); value != "" {
 		return value
 	}
-	return webplayer.DefaultClientID
+	// An empty value makes webplayer.NewService load the Client ID stored by
+	// Settings, then fall back to the built-in public app.
+	return ""
 }
 
 func startDiagnosticsServer(recorder *diagnostics.Recorder, engineVersion func() string) (*http.Server, error) {
