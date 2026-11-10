@@ -184,8 +184,20 @@
 /* Hero ------------------------------------------------------------------- */
 
 [data-name="hero"] {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  background:
+    radial-gradient(
+      62% 92% at 22% 52%,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      transparent 66%
+    ),
+    radial-gradient(
+      50% 70% at 92% 48%,
+      color-mix(in srgb, var(--accent-2) 5%, transparent),
+      transparent 70%
+    );
 }
 
 [data-name="art-deck"] {

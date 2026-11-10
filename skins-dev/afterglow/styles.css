@@ -83,8 +83,20 @@
 }
 
 [data-name="hero"] {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  background:
+    radial-gradient(
+      60% 92% at 24% 52%,
+      color-mix(in srgb, var(--accent) 9%, transparent),
+      transparent 66%
+    ),
+    radial-gradient(
+      50% 70% at 94% 50%,
+      color-mix(in srgb, var(--accent-2) 5%, transparent),
+      transparent 70%
+    );
 }
 
 .cad-cover {
@@ -187,9 +199,49 @@
 }
 
 [data-name="controls"] {
+  position: relative;
   flex: 0 0 52px;
-  border-top: 1px solid var(--line);
-  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent) 5%, transparent));
+  margin: 0 10px 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 6%), transparent 55%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface) 58%, transparent),
+      color-mix(in srgb, var(--panel) 92%, transparent)
+    );
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 6%) inset,
+    0 -12px 24px rgb(0 0 0 / 14%) inset,
+    0 10px 24px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(14px);
+}
+
+[data-name="controls"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    116deg,
+    transparent 36%,
+    color-mix(in srgb, var(--accent) 7%, transparent) 48%,
+    transparent 60%
+  );
+  transform: translateX(-120%);
+  animation: afterglow-deck-shine 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes afterglow-deck-shine {
+  0%,
+  60% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
 }
 
 .cad-control {
@@ -206,13 +258,28 @@
   height: 34px;
   border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
   border-radius: 50%;
-  background: var(--accent);
+  background:
+    radial-gradient(70% 70% at 34% 24%, rgb(255 255 255 / 38%), transparent 52%),
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--accent) 72%, white),
+      color-mix(in srgb, var(--accent) 88%, #140d08)
+    );
   color: var(--bg);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 34%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 6%, transparent),
+    0 0 18px color-mix(in srgb, var(--accent) 34%, transparent),
+    0 1px 0 rgb(255 255 255 / 24%) inset;
 }
 
 .cad-play:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 86%, white);
+  background:
+    radial-gradient(70% 70% at 34% 24%, rgb(255 255 255 / 44%), transparent 52%),
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--accent) 64%, white),
+      color-mix(in srgb, var(--accent) 92%, #140d08)
+    );
   color: var(--bg);
 }
 
