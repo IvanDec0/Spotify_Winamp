@@ -486,6 +486,10 @@
           </div>
         {/if}
       </div>
+
+      {#key preferences.theme}
+        <span class="theme-wash" aria-hidden="true"></span>
+      {/key}
     </div>
   {/if}
 
@@ -563,6 +567,34 @@
     isolation: isolate;
   }
 
+  .theme-wash {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    background:
+      radial-gradient(
+        70% 80% at 50% 0%,
+        color-mix(in srgb, var(--accent) 22%, transparent),
+        transparent 65%
+      ),
+      radial-gradient(
+        60% 60% at 80% 100%,
+        color-mix(in srgb, var(--accent-2) 16%, transparent),
+        transparent 70%
+      );
+    pointer-events: none;
+    animation: theme-wash 560ms var(--ease-out) forwards;
+  }
+
+  @keyframes theme-wash {
+    from {
+      opacity: 0.9;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
   .player-region {
     display: flex;
     flex: 1 1 auto;
@@ -573,7 +605,7 @@
     flex: 0 0 240px;
     min-height: 0;
     overflow: hidden;
-    animation: queue-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: queue-in 260ms var(--ease-out);
   }
 
   .queue-slot.is-closing {
@@ -591,10 +623,20 @@
     position: absolute;
     inset: 0;
     border: 0;
-    background: rgb(0 0 0 / 16%);
+    background: rgb(0 0 0 / 22%);
     cursor: default;
     pointer-events: auto;
-    backdrop-filter: blur(0.8px);
+    backdrop-filter: blur(2px);
+    animation: backdrop-in 200ms ease-out both;
+  }
+
+  @keyframes backdrop-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .popover-backdrop:focus-visible {
@@ -606,7 +648,7 @@
     top: 35px;
     right: 10px;
     z-index: 1;
-    animation: pop-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: pop-in 200ms var(--ease-out);
     pointer-events: auto;
   }
 
@@ -619,12 +661,17 @@
     display: flex;
     align-items: center;
     gap: 7px;
-    padding: 7px 8px 7px 10px;
+    padding: 8px 8px 8px 10px;
     border: 1px solid color-mix(in srgb, var(--danger) 34%, transparent);
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--surface) 92%, var(--danger));
-    box-shadow: 0 10px 28px rgb(0 0 0 / 48%);
-    animation: toast-in 180ms ease-out;
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 42%),
+      color-mix(in srgb, var(--surface) 92%, var(--danger));
+    box-shadow:
+      0 12px 32px rgb(0 0 0 / 52%),
+      0 0 24px color-mix(in srgb, var(--danger) 12%, transparent);
+    backdrop-filter: blur(16px);
+    animation: toast-in 240ms var(--ease-out);
   }
 
   .toast-icon {

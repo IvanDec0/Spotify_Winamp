@@ -68,15 +68,28 @@
     width: 228px;
     padding: 11px 12px 10px;
     border: 1px solid var(--line-strong);
-    border-radius: 8px;
+    border-radius: 10px;
     background:
-      linear-gradient(180deg, rgb(255 255 255 / 3%), transparent 30%),
-      color-mix(in srgb, var(--surface) 94%, transparent);
+      linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 34%),
+      color-mix(in srgb, var(--surface) 88%, transparent);
     box-shadow:
-      0 18px 44px rgb(0 0 0 / 55%),
-      0 0 0 1px rgb(0 0 0 / 22%),
-      0 1px 0 rgb(255 255 255 / 7%) inset;
-    backdrop-filter: blur(16px);
+      0 22px 54px rgb(0 0 0 / 58%),
+      0 0 0 1px rgb(0 0 0 / 24%),
+      0 1px 0 rgb(255 255 255 / 9%) inset,
+      0 0 32px color-mix(in srgb, var(--accent) 6%, transparent);
+    backdrop-filter: blur(22px) saturate(125%);
+    animation: devices-in 220ms var(--ease-out) both;
+  }
+
+  @keyframes devices-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.975);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   .devices-head {
@@ -148,16 +161,18 @@
     width: 100%;
     padding: 5px 5px;
     border: 1px solid transparent;
-    border-radius: 5px;
+    border-radius: 6px;
     text-align: left;
     transition:
-      border-color 120ms ease,
-      background-color 120ms ease;
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-out);
   }
 
   .device:hover:not(:disabled) {
     border-color: var(--line);
     background: var(--surface-2);
+    transform: translateX(2px);
   }
 
   .device:disabled {
