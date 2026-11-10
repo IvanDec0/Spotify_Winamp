@@ -37,6 +37,10 @@ uses the GTK/WebKitGTK and audio libraries provided by the system.
 ## Fonts and skin assets
 
 - Inter and JetBrains Mono are distributed under the SIL Open Font License.
+- Twemoji Mozilla is distributed under the Apache License 2.0 (code) and
+  CC BY 4.0 (Twemoji visual design), copyright Mozilla Foundation and Twitter,
+  Inc. Its license text ships at
+  [`frontend/public/fonts/Twemoji-Mozilla-LICENSE.txt`](frontend/public/fonts/Twemoji-Mozilla-LICENSE.txt).
 - Original Cadence skin assets are licensed under CC BY-SA 4.0; see
   [`LICENSE-ASSETS`](LICENSE-ASSETS).
 

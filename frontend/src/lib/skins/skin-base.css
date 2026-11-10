@@ -12,8 +12,12 @@
   --surface-2: #161b24;
   --line: rgb(255 255 255 / 8%);
   --line-strong: rgb(255 255 255 / 14%);
-  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-ui:
+    "Inter", "Segoe UI", system-ui, "Twemoji Mozilla", "Noto Color Emoji", "Segoe UI Emoji",
+    sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, "Twemoji Mozilla", "Noto Color Emoji", "Segoe UI Emoji",
+    monospace;
   --motion-fast: 140ms;
   --motion-base: 240ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);

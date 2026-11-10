@@ -1,6 +1,6 @@
 :host {
-  --font-ui: "Inter", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-ui: "Inter", "Segoe UI", system-ui, "Twemoji Mozilla", "Noto Color Emoji", "Segoe UI Emoji", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Twemoji Mozilla", "Noto Color Emoji", "Segoe UI Emoji", monospace;
   --bg: #04070d;
   --surface: #0a111c;
   --surface-2: #111b2b;

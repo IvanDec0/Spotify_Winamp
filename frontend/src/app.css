@@ -14,6 +14,12 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Twemoji Mozilla";
+  src: url("/fonts/Twemoji.Mozilla.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   font-synthesis: none;
@@ -63,6 +69,10 @@ body {
     "Segoe UI",
     system-ui,
     -apple-system,
+    "Twemoji Mozilla",
+    "Noto Color Emoji",
+    "Segoe UI Emoji",
+    "Apple Color Emoji",
     sans-serif;
   -webkit-user-select: none;
   user-select: none;
@@ -120,6 +130,10 @@ svg {
     "Segoe UI",
     system-ui,
     -apple-system,
+    "Twemoji Mozilla",
+    "Noto Color Emoji",
+    "Segoe UI Emoji",
+    "Apple Color Emoji",
     sans-serif;
   transition:
     background-color var(--motion-slow) ease,
@@ -307,7 +321,9 @@ svg {
 }
 
 .mono {
-  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  font-family:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, "Twemoji Mozilla", "Noto Color Emoji",
+    "Segoe UI Emoji", monospace;
   font-variant-numeric: tabular-nums;
 }
 
