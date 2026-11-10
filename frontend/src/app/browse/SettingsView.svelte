@@ -744,6 +744,7 @@
               step="250"
               value={form.crossfadeDurationMs}
               disabled={soloistMode}
+              style={`--range: ${(form.crossfadeDurationMs / 12000) * 100}%`}
               aria-describedby={describedBy("settings-crossfade-help")}
               oninput={(event) =>
                 browseSettings.update(
@@ -819,6 +820,7 @@
               step="0.5"
               value={form.normalisationPregain}
               disabled={soloistMode || form.normalisationDisabled}
+              style={`--range: ${((form.normalisationPregain + 20) / 40) * 100}%`}
               aria-describedby={describedBy("settings-pregain-help")}
               oninput={(event) =>
                 browseSettings.update(
@@ -1026,7 +1028,8 @@
         <label class="settings-label" for="settings-theme">
           {t("browse.appearance.theme")}
         </label>
-        <div class="settings-control">
+        <div class="settings-control is-theme">
+          <span class="theme-preview" aria-hidden="true"><i></i><i></i></span>
           <select
             id="settings-theme"
             value={activeTheme}
@@ -1234,6 +1237,39 @@
 </section>
 
 <style>
+  .settings-control.is-theme {
+    justify-content: flex-end;
+  }
+
+  .theme-preview {
+    position: relative;
+    display: inline-flex;
+    width: 27px;
+    height: 18px;
+    flex: 0 0 27px;
+    align-items: center;
+  }
+
+  .theme-preview i {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border: 1px solid rgb(255 255 255 / 16%);
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 7%, transparent),
+      0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  .theme-preview i + i {
+    margin-left: -5px;
+    background: var(--accent-2);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent-2) 7%, transparent),
+      0 0 10px color-mix(in srgb, var(--accent-2) 30%, transparent);
+  }
+
   .soloist-key {
     flex-wrap: wrap;
     justify-content: flex-end;
@@ -1242,13 +1278,24 @@
   .soloist-key input[type="password"] {
     width: 100%;
     max-width: 220px;
-    padding: 6px 8px;
+    padding: 7px 10px;
     border: 1px solid var(--line-strong);
-    border-radius: 6px;
-    background: var(--surface-2);
+    border-radius: var(--radius-sm, 7px);
+    background: linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 58%), var(--surface-2);
     color: var(--text);
     font: inherit;
     font-size: 11px;
+    transition:
+      border-color var(--motion-fast, 140ms) ease,
+      box-shadow var(--motion-fast, 140ms) ease;
+  }
+
+  .soloist-key input[type="password"]:focus-visible {
+    border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+    outline: none;
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 9%, transparent),
+      0 0 18px color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
   .soloist-progress {
@@ -1267,6 +1314,7 @@
     padding: 2px 7px;
     border: 1px solid var(--line);
     border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-2) 45%, transparent);
     color: var(--muted);
     font-size: 10px;
     line-height: 1.5;
@@ -1276,6 +1324,7 @@
     border-color: color-mix(in srgb, var(--accent) 32%, transparent);
     background: color-mix(in srgb, var(--accent) 9%, transparent);
     color: var(--text);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
   .soloist-badge.is-warn {

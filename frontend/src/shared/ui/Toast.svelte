@@ -29,12 +29,28 @@
     gap: 8px;
     min-width: 180px;
     max-width: min(360px, calc(100vw - 24px));
-    padding: 8px 8px 8px 12px;
+    padding: 9px 9px 9px 12px;
     border: 1px solid var(--line, rgb(255 255 255 / 12%));
-    border-radius: 6px;
-    background: var(--surface-2, #161b24);
-    box-shadow: 0 10px 28px rgb(0 0 0 / 48%);
+    border-radius: var(--radius-sm, 7px);
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 46%), var(--surface-2, #161b24);
+    box-shadow:
+      0 14px 34px rgb(0 0 0 / 52%),
+      0 0 24px color-mix(in srgb, var(--accent, #5ef0ff) 5%, transparent);
     color: var(--text, #e8edf4);
+    backdrop-filter: blur(14px);
+    animation: toast-in 260ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   .ui-toast--error {
