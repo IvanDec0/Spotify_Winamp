@@ -19,11 +19,11 @@ implemented architecture. The v2 plan is the roadmap and plan-time baseline;
 Phase 8 (release) is the final phase. The original design document is kept for
 visual and skin-system rationale; its Spotify Connect sections are historical.
 
-Soloist is the default playback backend; it is downloaded from Spotify at first
-launch, guides the one-time API key, and updates itself before the build expires.
-go-librespot serves the library, search, context and catalog session in both
-modes, and the explicit `librespot` backend remains the fallback. Setup is
-documented in
-[`spotify-setup.md`](spotify-setup.md#spotify-soloist-backend-default); the
-decision and its trade-offs are in
+The Spotify web player is the default playback backend; Cadence downloads its
+Chromium runtime, opens the embedded login when no session is stored and starts
+the helper automatically at startup. Soloist and go-librespot remain explicit
+fallbacks, and go-librespot serves the library, search, context and catalog
+session in every mode. Setup is documented in
+[`spotify-setup.md`](spotify-setup.md#spotify-soloist-backend-optional-fallback);
+the original decision and its trade-offs are in
 [`adr/0004-dual-audio-backend.md`](adr/0004-dual-audio-backend.md).

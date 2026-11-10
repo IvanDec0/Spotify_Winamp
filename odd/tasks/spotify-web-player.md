@@ -368,6 +368,24 @@ The dashboard automation is a first-class feature, not a manual setup step:
   `$XDG_CONFIG_HOME/cadence/developer/profile` (`0700`). It is a credential
   store; deleting it forces a visible login on the next automation.
 
+### Automatic startup provisioning (added)
+
+The web backend now provisions itself without a Settings visit:
+
+- `audioapi.ServiceStartup` starts one background provisioning goroutine only
+  when the active backend is `web` and the app is not in demo mode.
+- Order: install the Chromium runtime when missing, run the embedded Spotify
+  login when no refreshable session exists, then start the helper and wait for
+  `ready`. Installing first avoids a second download inside the login automation.
+- The flow is bounded (20 minutes) and cancelled on shutdown; the shutdown waits
+  up to 5 seconds for the staging directory cleanup. Failures stay in the
+  existing `webplayer_*` status and error codes.
+- A login already in progress from the UI is left alone. Manual Install, Start,
+  Stop and Disconnect remain available as retries and controls.
+- Trade-off: the first launch downloads about 120 MB and may show the Spotify
+  login window once; after that the profile session makes the login headless.
+- Selecting `soloist` or `librespot` skips provisioning entirely.
+
 Validation with the real account:
 
 - Headless OAuth completed with the Cadence app and stored a token whose

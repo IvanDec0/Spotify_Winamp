@@ -3,6 +3,7 @@ package audioapi
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 
@@ -29,6 +30,11 @@ type fakeWebBackend struct {
 	stopCalls       int
 	statusCalls     int
 	invalidContexts int
+	order           []string
+}
+
+func (f *fakeWebBackend) recordCall(name string) {
+	f.order = append(f.order, name)
 }
 
 func (f *fakeWebBackend) record(ctx context.Context) {
@@ -44,6 +50,10 @@ func (f *fakeWebBackend) Login(ctx context.Context) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.loginCalls++
+	f.recordCall("login")
+	if f.loginErr == nil {
+		f.status.LoggedIn = true
+	}
 	return f.loginErr
 }
 
@@ -59,6 +69,11 @@ func (f *fakeWebBackend) InstallRuntime(ctx context.Context) (webplayer.Install,
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.installCalls++
+	f.recordCall("install")
+	if f.installErr == nil {
+		f.status.RuntimeInstalled = true
+		f.status.RuntimeVersion = "1.2.3"
+	}
 	return webplayer.Install{Version: "1.2.3"}, f.installErr
 }
 
@@ -67,6 +82,10 @@ func (f *fakeWebBackend) EnsureStarted(ctx context.Context) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.startCalls++
+	f.recordCall("start")
+	if f.startErr == nil {
+		f.status.Running = true
+	}
 	return f.startErr
 }
 
@@ -75,6 +94,10 @@ func (f *fakeWebBackend) Stop(ctx context.Context) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.stopCalls++
+	f.recordCall("stop")
+	if f.stopErr == nil {
+		f.status.Running = false
+	}
 	return f.stopErr
 }
 
@@ -95,6 +118,12 @@ func (f *fakeWebBackend) calls() (login, logout, install, start, stop int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.loginCalls, f.logoutCalls, f.installCalls, f.startCalls, f.stopCalls
+}
+
+func (f *fakeWebBackend) callOrder() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.order...)
 }
 
 func newWebServiceForTest(fake WebBackend) *Service {
@@ -259,5 +288,125 @@ func TestWebPlayerWithoutBackendIsSafe(t *testing.T) {
 		if status.Available {
 			t.Fatalf("%s Available = true without a backend", name)
 		}
+	}
+}
+
+func TestProvisionWebPlayerInstallsLogsInAndStarts(t *testing.T) {
+	fake := &fakeWebBackend{}
+	service := NewService(Options{Web: fake})
+
+	if err := service.provisionWebPlayer(context.Background()); err != nil {
+		t.Fatalf("provisionWebPlayer() error = %v", err)
+	}
+	want := []string{"install", "login", "start"}
+	if got := fake.callOrder(); !slices.Equal(got, want) {
+		t.Fatalf("call order = %v, want %v", got, want)
+	}
+}
+
+func TestProvisionWebPlayerReusesRuntimeAndSession(t *testing.T) {
+	fake := &fakeWebBackend{status: webplayer.Status{
+		RuntimeInstalled: true,
+		LoggedIn:         true,
+	}}
+	service := NewService(Options{Web: fake})
+
+	if err := service.provisionWebPlayer(context.Background()); err != nil {
+		t.Fatalf("provisionWebPlayer() error = %v", err)
+	}
+	want := []string{"start"}
+	if got := fake.callOrder(); !slices.Equal(got, want) {
+		t.Fatalf("call order = %v, want %v", got, want)
+	}
+}
+
+func TestProvisionWebPlayerSkipsEverythingWhenRunning(t *testing.T) {
+	fake := &fakeWebBackend{status: webplayer.Status{
+		RuntimeInstalled: true,
+		LoggedIn:         true,
+		Running:          true,
+	}}
+	service := NewService(Options{Web: fake})
+
+	if err := service.provisionWebPlayer(context.Background()); err != nil {
+		t.Fatalf("provisionWebPlayer() error = %v", err)
+	}
+	if got := fake.callOrder(); len(got) != 0 {
+		t.Fatalf("call order = %v, want no calls", got)
+	}
+}
+
+func TestProvisionWebPlayerStopsOnInstallFailure(t *testing.T) {
+	fake := &fakeWebBackend{installErr: errors.New("download failed")}
+	service := NewService(Options{Web: fake})
+
+	if err := service.provisionWebPlayer(context.Background()); !errors.Is(err, fake.installErr) {
+		t.Fatalf("provisionWebPlayer() error = %v, want the install error", err)
+	}
+	want := []string{"install"}
+	if got := fake.callOrder(); !slices.Equal(got, want) {
+		t.Fatalf("call order = %v, want %v", got, want)
+	}
+}
+
+func TestProvisionWebPlayerStopsOnLoginFailure(t *testing.T) {
+	fake := &fakeWebBackend{
+		status:   webplayer.Status{RuntimeInstalled: true},
+		loginErr: errors.New("login denied"),
+	}
+	service := NewService(Options{Web: fake})
+
+	if err := service.provisionWebPlayer(context.Background()); !errors.Is(err, fake.loginErr) {
+		t.Fatalf("provisionWebPlayer() error = %v, want the login error", err)
+	}
+	want := []string{"login"}
+	if got := fake.callOrder(); !slices.Equal(got, want) {
+		t.Fatalf("call order = %v, want %v", got, want)
+	}
+}
+
+func TestProvisionWebPlayerLeavesAManualLoginAlone(t *testing.T) {
+	fake := &fakeWebBackend{
+		status:   webplayer.Status{RuntimeInstalled: true},
+		loginErr: webplayer.ErrLoginInProgress,
+	}
+	service := NewService(Options{Web: fake})
+
+	if err := service.provisionWebPlayer(context.Background()); err != nil {
+		t.Fatalf("provisionWebPlayer() error = %v, want nil", err)
+	}
+	want := []string{"login"}
+	if got := fake.callOrder(); !slices.Equal(got, want) {
+		t.Fatalf("call order = %v, want %v", got, want)
+	}
+}
+
+func TestProvisionWebPlayerReturnsTheStartFailure(t *testing.T) {
+	fake := &fakeWebBackend{
+		status:   webplayer.Status{RuntimeInstalled: true, LoggedIn: true},
+		startErr: errors.New("runtime failed"),
+	}
+	service := NewService(Options{Web: fake})
+
+	if err := service.provisionWebPlayer(context.Background()); !errors.Is(err, fake.startErr) {
+		t.Fatalf("provisionWebPlayer() error = %v, want the start error", err)
+	}
+	want := []string{"start"}
+	if got := fake.callOrder(); !slices.Equal(got, want) {
+		t.Fatalf("call order = %v, want %v", got, want)
+	}
+}
+
+func TestProvisionWebPlayerHonorsCancellation(t *testing.T) {
+	fake := &fakeWebBackend{}
+	service := NewService(Options{Web: fake})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := service.provisionWebPlayer(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("provisionWebPlayer() error = %v, want context.Canceled", err)
+	}
+	if got := fake.callOrder(); len(got) != 0 {
+		t.Fatalf("call order = %v, want no calls", got)
 	}
 }

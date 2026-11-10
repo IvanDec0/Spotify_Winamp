@@ -371,7 +371,7 @@ export const en = {
     "Official Spotify Web Playback SDK in a bundled Chromium runtime. No Spotify app is required; Premium is required. Library and search keep using go-librespot.",
   "browse.webTitle": "Web player",
   "browse.webIntro":
-    "Plays through Spotify's official Web Playback SDK in a bundled Chromium runtime. It does not use the Spotify desktop app; Spotify Premium is required.",
+    "Plays through Spotify's official Web Playback SDK in a bundled Chromium runtime. Cadence downloads the runtime, signs in and starts it automatically at startup. It does not use the Spotify desktop app; Spotify Premium is required.",
   "browse.webClientId": "Client ID",
   "browse.webConfigureApp": "Configure app automatically",
   "browse.webConfigureDone": "Spotify app configured.",
@@ -390,7 +390,7 @@ export const en = {
   "browse.webInstall": "Install runtime",
   "browse.webUpdate": "Update runtime",
   "browse.webInstallHelp":
-    "Downloads about 120 MB once and verifies the checksum before installing.",
+    "Downloads about 120 MB once and verifies the checksum. Cadence does this automatically at startup.",
   "browse.webRuntimeVersion": "Version {version}",
   "browse.webStatus": "Status",
   "browse.webRunning": "Running",
@@ -398,7 +398,7 @@ export const en = {
   "browse.webStart": "Start",
   "browse.webStop": "Stop",
   "browse.webControlsHelp":
-    "Starts automatically on first play. Stop it here to release the runtime.",
+    "Starts automatically when Cadence opens. Stop it here to release the runtime.",
   "browse.webBusy": "Working on the web player…",
   "browse.webBackendNotice":
     "Select the Spotify Web Player as the backend and restart Cadence to use it.",

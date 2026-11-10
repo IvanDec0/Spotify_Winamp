@@ -94,7 +94,7 @@ Event names and payload shapes are unchanged from v1:
   the same event; there is no second audio event.
 - `player:state` carries `playback.PlayerState` from the active provider only.
   In librespot mode that is `EngineProvider`; in Soloist mode it is
-  `SoloistProvider`.
+  `SoloistProvider`; in web mode it is `webplayer.Provider`.
 - `skins:changed` carries `skins.SkinCatalog`.
 
 The Wails adapters own application lifecycle and event emission; domain
@@ -103,13 +103,19 @@ services expose plain Go methods and never touch `application.App`.
 ## Audio backend selection
 
 `playback.backend` is persisted in `$XDG_CONFIG_HOME/cadence/config.json` under
-`playback`. The accepted values are `soloist` (default) and `librespot`
-(explicit fallback); an unknown or missing value normalizes to `soloist`.
+`playback`. The accepted values are `web` (default), `soloist` and `librespot`;
+an unknown or missing value normalizes to `web`.
 `main.go` reads it once at startup and constructs one provider.
 
 - **Startup selection, no hot-swap.** Changing the backend in Settings persists
   the value but does not switch the running provider. The UI marks the change as
   requiring a Cadence restart.
+- **Automatic web player provisioning.** In web mode the audio adapter installs
+  the Chromium runtime when missing, runs the embedded Spotify login when no
+  refreshable session exists and starts the helper, in one background goroutine
+  started by `ServiceStartup`. Installing first keeps the login automation from
+  downloading the runtime again. The flow is cancelled on shutdown and failures
+  stay in the `webplayer_*` status codes.
 - **Automatic Soloist maintenance.** In Soloist mode the audio adapter installs
   the build when missing, checks for a newer build at startup and every six
   hours (89-day age or 24 hours to expiry), prunes old versions and restarts the

@@ -23,13 +23,15 @@ Both artifacts are built from the repository with `task package`.
   package on Arch. Playback works without `parec`; only the real visualizer
   needs it.
 
-Spotify Soloist is the default playback backend, but it is never part of the
-AppImage, the tarball or the release checksums. Cadence downloads the right build
-for the host architecture from Spotify at first launch (~10 MB), so the release
-stays light and no manual install is required. go-librespot is still bundled
-because it serves the library, search and catalog in both backend modes, and it
-remains the explicit `librespot` fallback in Settings. Linux is the supported
-target for both playback backends in this release.
+The Spotify web player is the default playback backend, but its Chromium runtime
+is never part of the AppImage, the tarball or the release checksums. Cadence
+downloads the right build at first launch (~120 MB, SHA-256 verified), opens the
+embedded Spotify login only when no session is stored and starts the playback
+helper automatically, so no manual install step is required. go-librespot is
+still bundled because it serves the library, search and catalog in every backend
+mode, and it remains the explicit `librespot` fallback in Settings; Spotify
+Soloist is the other explicit fallback. Linux is the supported target for all
+playback backends in this release.
 
 ```bash
 sudo pacman -S --needed gtk4 webkitgtk-6.0 libsoup3 \

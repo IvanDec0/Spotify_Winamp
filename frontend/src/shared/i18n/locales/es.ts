@@ -383,7 +383,7 @@ export const es: Record<MessageKey, string> = {
     "SDK oficial de reproducción web de Spotify en un entorno Chromium incluido. No requiere la aplicación de Spotify; se requiere Premium. La biblioteca y la búsqueda siguen usando go-librespot.",
   "browse.webTitle": "Reproductor web",
   "browse.webIntro":
-    "Reproduce mediante el SDK oficial de reproducción web de Spotify en un entorno Chromium incluido. No usa la aplicación de escritorio de Spotify; se requiere Spotify Premium.",
+    "Reproduce mediante el SDK oficial de reproducción web de Spotify en un entorno Chromium incluido. Cadence descarga el entorno, inicia sesión y lo arranca automáticamente al iniciar. No usa la aplicación de escritorio de Spotify; se requiere Spotify Premium.",
   "browse.webClientId": "ID de cliente",
   "browse.webConfigureApp": "Configurar aplicación automáticamente",
   "browse.webConfigureDone": "Aplicación de Spotify configurada.",
@@ -402,7 +402,7 @@ export const es: Record<MessageKey, string> = {
   "browse.webInstall": "Instalar entorno",
   "browse.webUpdate": "Actualizar entorno",
   "browse.webInstallHelp":
-    "Descarga unos 120 MB una sola vez y verifica la suma de comprobación antes de instalar.",
+    "Descarga unos 120 MB una sola vez y verifica la suma de comprobación. Cadence lo hace automáticamente al iniciar.",
   "browse.webRuntimeVersion": "Versión {version}",
   "browse.webStatus": "Estado",
   "browse.webRunning": "En ejecución",
@@ -410,7 +410,7 @@ export const es: Record<MessageKey, string> = {
   "browse.webStart": "Iniciar",
   "browse.webStop": "Detener",
   "browse.webControlsHelp":
-    "Se inicia automáticamente en la primera reproducción. Detenlo aquí para liberar el entorno.",
+    "Se inicia automáticamente al abrir Cadence. Detenlo aquí para liberar el entorno.",
   "browse.webBusy": "Trabajando en el reproductor web…",
   "browse.webBackendNotice":
     "Selecciona el Reproductor web de Spotify como motor y reinicia Cadence para usarlo.",

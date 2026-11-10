@@ -1,34 +1,45 @@
 # Spotify audio engine setup
 
 Cadence is a real Spotify player for a private, local setup. Audio playback is
-handled by **Spotify Soloist** by default, and the catalog is served by
+handled by the **Spotify web player** by default: Spotify's official Web
+Playback SDK running with Widevine in a Chromium runtime. **Spotify Soloist**
+and **go-librespot** remain explicit fallbacks. The catalog is served by
 **go-librespot**, a GPL-3.0 open-source Spotify Connect client. Cadence does not
-use the official Web Playback SDK, does not use DRM, and does not require
-Spotify Desktop to be running.
+require Spotify Desktop to be running.
 
 | Backend | Plays audio | Library, search, context, catalog session |
 |---|---|---|
-| `soloist` (default) | Spotify Soloist | go-librespot |
+| `web` (default) | Spotify Web Playback SDK in the Chromium runtime | go-librespot |
+| `soloist` (fallback) | Spotify Soloist | go-librespot |
 | `librespot` (fallback) | go-librespot | go-librespot |
 
 The backend is persisted in `config.json` and applied at startup. Changing it in
 Settings requires a Cadence restart.
 
-This is not an official Spotify client. It uses reverse-engineered Spotify
-protocols, so it may stop working after Spotify changes or be considered
-outside Spotify's terms. Use it only with your own Premium account and at your
-own risk.
+With the web backend Cadence needs no manual setup step: at startup it downloads
+the Chromium runtime (~120 MB, SHA-256 verified), opens the embedded Spotify
+login only when no session is stored, and starts the playback helper
+automatically. The runtime lives under
+`$XDG_CACHE_HOME/cadence/webplayer`; OAuth tokens live in
+`$XDG_CONFIG_HOME/cadence/webplayer/tokens.json` (`0600`) and never reach the
+frontend or the logs.
+
+This is not an official Spotify client. The fallback engines use
+reverse-engineered Spotify protocols, so they may stop working after Spotify
+changes or be considered outside Spotify's terms. Use them only with your own
+Premium account and at your own risk.
 
 ## Requirements
 
 - Spotify **Premium** account.
-- `go-librespot` built for Linux x86_64. It serves the catalog in both backend
-  modes.
+- `go-librespot` built for Linux x86_64. It serves the catalog in every backend
+  mode.
 - PulseAudio or PipeWire (`pipewire-pulse`) for audio output.
 - CGO build libraries if you build the engine yourself:
   `libogg`, `libvorbis`, `flac`, `mpg123`, `alsa-lib` and `libpulse`.
-- HTTPS access to Spotify on first launch. Cadence downloads the Soloist build
-  (~10 MB) automatically; no manual install step is needed.
+- HTTPS access to GitHub for the Chromium runtime and to Spotify for the first
+  OAuth login. The runtime (~120 MB) is downloaded automatically; no manual
+  install step is needed.
 
 ## Build the engine
 
@@ -147,12 +158,12 @@ The engine log is written to:
 $XDG_CACHE_HOME/cadence/logs/go-librespot.log
 ```
 
-## Spotify Soloist backend (default)
+## Spotify Soloist backend (optional fallback)
 
-Spotify Soloist is the default playback backend. It plays audio; go-librespot
+Spotify Soloist is an explicit playback fallback. It plays audio; go-librespot
 keeps the library, search, context resolution, queue metadata and the catalog
-session. `librespot` remains an explicit fallback in Settings for accounts that
-work with it.
+session. `librespot` remains another explicit fallback in Settings for accounts
+that work with it.
 
 Soloist is never bundled with Cadence. The app downloads the newest build for the
 host architecture from Spotify at startup (~10 MB), so the AppImage and tarball

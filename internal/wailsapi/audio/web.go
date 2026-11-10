@@ -3,18 +3,20 @@ package audioapi
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"cadence/internal/webplayer"
 )
 
 const (
-	webLoginTimeout    = 10 * time.Minute
-	webLogoutTimeout   = 30 * time.Second
-	webInstallTimeout  = 15 * time.Minute
-	webStartTimeout    = 3 * time.Minute
-	webStopTimeout     = 30 * time.Second
-	webUnavailableText = "the web player is not configured"
+	webLoginTimeout     = 10 * time.Minute
+	webLogoutTimeout    = 30 * time.Second
+	webInstallTimeout   = 15 * time.Minute
+	webStartTimeout     = 3 * time.Minute
+	webStopTimeout      = 30 * time.Second
+	webProvisionTimeout = 20 * time.Minute
+	webUnavailableText  = "the web player is not configured"
 )
 
 // WebBackend is the subset of *webplayer.Service the audio adapter uses.
@@ -72,6 +74,63 @@ func (s *Service) StopWebPlayer() (WebPlayerStatus, error) {
 	return s.runWebAction(webStopTimeout, func(ctx context.Context) error {
 		return s.web.Stop(ctx)
 	})
+}
+
+// provisionWeb prepares the web backend in the background at startup: it
+// installs the Chromium runtime when missing, signs in when no session is
+// stored and starts the helper. Failures stay in the web player status; this
+// path never blocks the application start.
+func (s *Service) provisionWeb(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, webProvisionTimeout)
+	defer cancel()
+	log.Printf("web player automatic setup: preparing the runtime, session and helper")
+	if err := s.provisionWebPlayer(ctx); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			log.Printf("web player automatic setup: %v", err)
+		}
+		return
+	}
+	log.Printf("web player automatic setup: finished")
+}
+
+// provisionWebPlayer runs the provisioning steps in order. Installing first
+// means the automatic login, which uses the same Chromium runtime, does not
+// download it a second time.
+func (s *Service) provisionWebPlayer(ctx context.Context) error {
+	if s.web == nil {
+		return errors.New(webUnavailableText)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	status := s.web.Status()
+	if !status.RuntimeInstalled {
+		if _, err := s.web.InstallRuntime(ctx); err != nil {
+			return err
+		}
+		status = s.web.Status()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !status.LoggedIn {
+		if err := s.web.Login(ctx); err != nil {
+			if errors.Is(err, webplayer.ErrLoginInProgress) {
+				// A manual login already owns the flow; starting now would fail
+				// with login required, so let that flow finish on its own.
+				return nil
+			}
+			return err
+		}
+		status = s.web.Status()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if status.Running {
+		return nil
+	}
+	return s.web.EnsureStarted(ctx)
 }
 
 // webPlayerStatus maps the domain status to the generated frontend model. The

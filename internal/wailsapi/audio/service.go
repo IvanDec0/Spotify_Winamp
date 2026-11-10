@@ -77,9 +77,11 @@ type Service struct {
 	backend    string
 	progress   installProgress
 
-	mu                sync.Mutex
-	app               *application.App
-	maintenanceCancel context.CancelFunc
+	mu                 sync.Mutex
+	app                *application.App
+	maintenanceCancel  context.CancelFunc
+	webProvisionCancel context.CancelFunc
+	webProvisionDone   chan struct{}
 }
 
 func NewService(options Options) *Service {
@@ -121,6 +123,20 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 			defer cancel()
 			_ = s.supervisor.Start(ctx)
 		}()
+		if s.web != nil && s.backend == settings.BackendWeb {
+			// The web backend downloads its runtime, signs in and starts the
+			// helper once at startup so a first run needs no Settings visit.
+			ctx, cancel := context.WithCancel(context.Background())
+			done := make(chan struct{})
+			s.mu.Lock()
+			s.webProvisionCancel = cancel
+			s.webProvisionDone = done
+			s.mu.Unlock()
+			go func() {
+				defer close(done)
+				s.provisionWeb(ctx)
+			}()
+		}
 	}
 	return nil
 }
@@ -129,9 +145,26 @@ func (s *Service) ServiceShutdown() error {
 	s.mu.Lock()
 	cancel := s.maintenanceCancel
 	s.maintenanceCancel = nil
+	webCancel := s.webProvisionCancel
+	s.webProvisionCancel = nil
+	webDone := s.webProvisionDone
+	s.webProvisionDone = nil
 	s.mu.Unlock()
 	if cancel != nil {
 		cancel()
+	}
+	if webCancel != nil {
+		webCancel()
+	}
+	if webDone != nil {
+		// Give the background setup a bounded chance to release the runtime
+		// staging directory before the process exits.
+		waitCtx, waitCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		select {
+		case <-webDone:
+		case <-waitCtx.Done():
+		}
+		waitCancel()
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
