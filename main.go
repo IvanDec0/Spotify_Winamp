@@ -22,6 +22,7 @@ import (
 	"cadence/internal/developer"
 	"cadence/internal/diagnostics"
 	"cadence/internal/engine"
+	"cadence/internal/lyrics"
 	"cadence/internal/platform"
 	"cadence/internal/playback"
 	"cadence/internal/settings"
@@ -29,6 +30,7 @@ import (
 	"cadence/internal/soloist"
 	"cadence/internal/visualizer"
 	audioapi "cadence/internal/wailsapi/audio"
+	lyricsapi "cadence/internal/wailsapi/lyrics"
 	playerapi "cadence/internal/wailsapi/player"
 	skinsapi "cadence/internal/wailsapi/skins"
 	visualizerapi "cadence/internal/wailsapi/visualizer"
@@ -320,6 +322,10 @@ func main() {
 		PlaybackBackend: playbackBackend,
 	})
 	visualizerService := visualizerapi.NewService()
+	lyricsClient := lyrics.NewClient(lyrics.Options{
+		CacheDir: filepath.Join(xdg.CacheHome, "cadence", "lyrics"),
+	})
+	lyricsService := lyricsapi.NewService(lyricsClient)
 
 	if recorder != nil {
 		server, err := startDiagnosticsServer(recorder, audioRuntime.Version)
@@ -355,6 +361,7 @@ func main() {
 			application.NewService(skinService),
 			application.NewService(audioService),
 			application.NewService(visualizerService),
+			application.NewService(lyricsService),
 		},
 		Linux: application.LinuxOptions{
 			ProgramName:   "cadence",

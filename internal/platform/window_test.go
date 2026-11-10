@@ -49,6 +49,7 @@ func TestBrowseSection(t *testing.T) {
 		{input: "search", want: "search", ok: true},
 		{input: "podcasts", want: "podcasts", ok: true},
 		{input: "settings", want: "settings", ok: true},
+		{input: "nowplaying", want: "nowplaying", ok: true},
 		{input: "../settings", ok: false},
 		{input: "Library", ok: false},
 	}
