@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Status, type PlayerState } from "../../shared/api/types";
   import { t } from "../../shared/i18n";
+  import { coverURL } from "../artwork";
   import { playerErrorCopy } from "../player-error";
   import type { VisualizerMode } from "../preferences.svelte";
   import CoverArt from "./CoverArt.svelte";
@@ -62,9 +63,41 @@
   let displayTitle = $derived(
     state.track.title || (errorCopy.titleKey ? t(errorCopy.titleKey) : t("browse.nothingPlaying")),
   );
+
+  const ART_AMBIENCE: Record<string, string> = {
+    meridian:
+      "radial-gradient(70% 80% at 24% 18%, rgb(94 240 255 / 52%), transparent 64%), linear-gradient(150deg, #07171a, #0a343b 52%, #041013)",
+    tides:
+      "radial-gradient(70% 80% at 72% 18%, rgb(120 210 255 / 46%), transparent 64%), linear-gradient(150deg, #07101d, #12334f 52%, #07121d)",
+    orbit:
+      "radial-gradient(70% 80% at 28% 16%, rgb(220 140 255 / 48%), transparent 64%), linear-gradient(150deg, #120a24, #2b1747 52%, #0a0614)",
+    afterimage:
+      "radial-gradient(70% 80% at 72% 20%, rgb(255 170 110 / 52%), transparent 62%), linear-gradient(150deg, #260a14, #68243a 52%, #17080d)",
+    bloom:
+      "radial-gradient(60% 70% at 50% 42%, rgb(220 255 160 / 46%), transparent 60%), radial-gradient(70% 80% at 20% 12%, rgb(94 255 200 / 34%), transparent 62%), linear-gradient(150deg, #07130a, #184626 52%, #061008)",
+    nightbus:
+      "radial-gradient(70% 80% at 76% 18%, rgb(255 196 100 / 50%), transparent 62%), linear-gradient(150deg, #170d06, #4a2c12 52%, #0c0704)",
+  };
+
+  let ambienceStyle = $derived.by(() => {
+    const cover = state.track.cover;
+    if (cover.startsWith("/art/")) {
+      return `background-image: url("${coverURL(cover, 128)}"); background-size: cover; background-position: center;`;
+    }
+    const gradient = ART_AMBIENCE[cover] ?? ART_AMBIENCE.meridian;
+    return `background: ${gradient};`;
+  });
 </script>
 
 <section class="player" class:is-playing={playing} aria-label={t("player.label")}>
+  <div
+    class="player-ambience"
+    class:is-playing={playing}
+    style={ambienceStyle}
+    aria-hidden="true"
+  ></div>
+  <div class="player-scrim" aria-hidden="true"></div>
+
   <Visualizer
     mode={visualizerMode}
     trackId={state.track.id}
@@ -78,7 +111,14 @@
     <div class="track-row">
       <div class="cover-stage" class:is-playing={playing}>
         <span class="cover-halo" aria-hidden="true"></span>
-        <CoverArt cover={state.track.cover} title={state.track.title} size={88} />
+        <span class="cover-orbit" aria-hidden="true"></span>
+        <div class="cover-tilt">
+          <CoverArt cover={state.track.cover} title={state.track.title} size={88} />
+          {#if playing}
+            <span class="cover-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+          {/if}
+        </div>
+        <span class="cover-floor" aria-hidden="true"></span>
       </div>
 
       {#key state.track.id}
@@ -120,6 +160,7 @@
         {playing}
         canSeek={state.canSeek}
         {onSeek}
+        trackId={state.track.id}
       />
 
       <div class="control-row">
@@ -171,6 +212,65 @@
         transparent 55%
       ),
       linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 32%, transparent));
+  }
+
+  .player-ambience {
+    position: absolute;
+    z-index: 0;
+    inset: -24%;
+    filter: blur(30px) saturate(1.45) brightness(0.92);
+    opacity: 0.52;
+    pointer-events: none;
+    transform: scale(1.18);
+    will-change: transform;
+    transition: opacity var(--motion-slow) ease;
+  }
+
+  .player-ambience.is-playing {
+    animation: ambience-drift 16s var(--ease-in-out) infinite alternate;
+  }
+
+  @keyframes ambience-drift {
+    0% {
+      transform: scale(1.16) translate3d(-1.5%, -1%, 0) rotate(-1deg);
+    }
+    100% {
+      transform: scale(1.24) translate3d(1.5%, 1.5%, 0) rotate(1.5deg);
+    }
+  }
+
+  .player-scrim {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--bg) 48%, transparent),
+        color-mix(in srgb, var(--bg) 14%, transparent) 38%,
+        color-mix(in srgb, var(--bg) 64%, transparent) 100%
+      ),
+      radial-gradient(
+        120% 100% at 50% 0%,
+        transparent 40%,
+        color-mix(in srgb, var(--bg) 45%, transparent)
+      );
+    pointer-events: none;
+  }
+
+  .player::after {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background: linear-gradient(
+      118deg,
+      rgb(255 255 255 / 7%),
+      transparent 26% 66%,
+      rgb(255 255 255 / 3%)
+    );
+    mix-blend-mode: screen;
+    pointer-events: none;
   }
 
   .player::before {
@@ -242,17 +342,60 @@
     animation: cover-float 6.5s ease-in-out infinite;
   }
 
+  .cover-tilt {
+    position: relative;
+    z-index: 1;
+    width: 88px;
+    height: 88px;
+    transform-style: preserve-3d;
+    transition: transform var(--motion-slow) var(--ease-out);
+  }
+
+  .cover-stage:hover .cover-tilt {
+    transform: perspective(420px) rotateX(5deg) rotateY(-6deg) scale(1.02);
+  }
+
+  .cover-stage::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset: -4px;
+    border-radius: 10px;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      color-mix(in srgb, var(--accent) 55%, transparent) 55deg,
+      transparent 120deg,
+      transparent 240deg,
+      color-mix(in srgb, var(--accent-2) 42%, transparent) 295deg,
+      transparent 360deg
+    );
+    opacity: 0.62;
+    filter: blur(3px);
+    pointer-events: none;
+    animation: cover-orbit 7s linear infinite;
+  }
+
+  @keyframes cover-orbit {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .cover-halo {
     position: absolute;
     z-index: -1;
-    inset: -14%;
-    border-radius: 24%;
+    inset: -16%;
+    border-radius: 26%;
     background: radial-gradient(
       closest-side,
-      color-mix(in srgb, var(--accent) 28%, transparent),
+      color-mix(in srgb, var(--accent) 30%, transparent),
       transparent 74%
     );
-    filter: blur(13px);
+    filter: blur(14px);
     opacity: 0.55;
     pointer-events: none;
     transition: opacity var(--motion-slow) ease;
@@ -260,6 +403,103 @@
 
   .cover-stage.is-playing .cover-halo {
     animation: cover-glow 4.8s ease-in-out infinite;
+  }
+
+  .cover-orbit {
+    position: absolute;
+    z-index: 0;
+    inset: -7px;
+    border: 1px dashed color-mix(in srgb, var(--accent) 26%, transparent);
+    border-radius: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--motion-base) ease;
+  }
+
+  .cover-stage.is-playing .cover-orbit {
+    opacity: 0.55;
+    animation: cover-orbit 12s linear infinite reverse;
+  }
+
+  .cover-eq {
+    position: absolute;
+    z-index: 2;
+    right: 5px;
+    bottom: 5px;
+    display: flex;
+    height: 11px;
+    align-items: flex-end;
+    gap: 1.5px;
+    padding: 2px 3px;
+    border-radius: 4px;
+    background: rgb(0 0 0 / 48%);
+    backdrop-filter: blur(4px);
+  }
+
+  .cover-eq i {
+    display: block;
+    width: 1.5px;
+    height: 5px;
+    border-radius: 1px;
+    background: var(--accent);
+    box-shadow: 0 0 4px var(--accent-glow);
+    animation: cover-eq-bounce 900ms ease-in-out infinite;
+  }
+
+  .cover-eq i:nth-child(2) {
+    height: 9px;
+    animation-delay: -0.3s;
+  }
+
+  .cover-eq i:nth-child(3) {
+    height: 7px;
+    animation-delay: -0.6s;
+  }
+
+  @keyframes cover-eq-bounce {
+    0%,
+    100% {
+      transform: scaleY(0.4);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+
+  .cover-floor {
+    position: absolute;
+    z-index: -1;
+    right: 8%;
+    bottom: -13px;
+    left: 8%;
+    height: 12px;
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--accent) 42%, transparent),
+      transparent 72%
+    );
+    filter: blur(7px);
+    opacity: 0.42;
+    pointer-events: none;
+    transition: opacity var(--motion-slow) ease;
+  }
+
+  .cover-stage.is-playing .cover-floor {
+    opacity: 0.6;
+    animation: cover-floor 4.8s ease-in-out infinite;
+  }
+
+  @keyframes cover-floor {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scaleX(0.92);
+    }
+    50% {
+      opacity: 0.62;
+      transform: scaleX(1.04);
+    }
   }
 
   @keyframes cover-float {
@@ -473,15 +713,25 @@
     flex-direction: column;
     gap: 4px;
     margin-top: auto;
-    padding-top: 7px;
+    padding-top: 6px;
   }
 
   .control-row {
     display: grid;
+    min-height: 37px;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     gap: 6px;
-    min-height: 36px;
+    padding: 1px 7px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 54%),
+      color-mix(in srgb, var(--surface) 38%, transparent);
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 5%) inset,
+      0 10px 24px rgb(0 0 0 / 22%);
+    backdrop-filter: blur(10px);
   }
 
   .mode-chip {
