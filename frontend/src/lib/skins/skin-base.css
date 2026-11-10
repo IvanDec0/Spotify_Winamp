@@ -308,6 +308,21 @@ input[type="range"]:hover::-webkit-slider-thumb {
     0 0 18px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
+.cad-cover-open {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  cursor: pointer;
+}
+
+.cad-cover-open:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .cad-cover.is-reflected::before {
   position: absolute;
   top: calc(100% + 10px);
@@ -503,6 +518,28 @@ input[type="range"]:hover::-webkit-slider-thumb {
   line-height: 1.14;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cad-track-title-button {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--motion-fast, 140ms) ease;
+}
+
+.cad-track-title-button:hover {
+  color: color-mix(in srgb, var(--text) 88%, var(--accent));
 }
 
 .cad-track-artists {

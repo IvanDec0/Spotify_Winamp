@@ -386,6 +386,7 @@
       openDevices,
       openSettings,
       openMusic: openBrowse,
+      openNowPlaying: () => openBrowseSection("nowplaying"),
     });
     void player.start();
     void skins.start();
