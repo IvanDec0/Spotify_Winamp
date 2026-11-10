@@ -97,7 +97,7 @@
   }
 </script>
 
-<footer class="now-playing" aria-label={t("browse.nowPlaying")}>
+<footer class="now-playing" class:is-playing={playing} aria-label={t("browse.nowPlaying")}>
   <div class="visualizer-strip" aria-hidden="true">
     <BrowseVisualizer />
   </div>
@@ -108,6 +108,9 @@
           <img src={coverSrc} alt="" width="48" height="48" loading="eager" decoding="async" />
         {:else}
           <Icon name="note" size={18} />
+        {/if}
+        {#if playing}
+          <span class="cover-eq" aria-hidden="true"><i></i><i></i><i></i></span>
         {/if}
       </div>
       <div class="track-copy">
@@ -235,10 +238,46 @@
 
 <style>
   .now-playing {
+    position: relative;
     display: flex;
     flex-direction: column;
     border-top: 1px solid var(--line);
-    background: color-mix(in srgb, var(--panel) 88%, var(--bg));
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 3%), transparent 26%),
+      color-mix(in srgb, var(--panel) 90%, var(--bg));
+    backdrop-filter: blur(22px) saturate(118%);
+  }
+
+  .now-playing::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    right: 0;
+    left: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--accent) 42%, transparent),
+      color-mix(in srgb, var(--accent-2) 32%, transparent),
+      transparent
+    );
+    background-size: 220% 100%;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .now-playing.is-playing::before {
+    animation: bar-flow 6s linear infinite;
+  }
+
+  @keyframes bar-flow {
+    from {
+      background-position: 0% 0;
+    }
+    to {
+      background-position: 220% 0;
+    }
   }
 
   .visualizer-strip {
@@ -265,6 +304,7 @@
   }
 
   .cover {
+    position: relative;
     display: grid;
     width: 48px;
     height: 48px;
@@ -272,7 +312,7 @@
     place-items: center;
     overflow: hidden;
     border: 1px solid var(--line);
-    border-radius: 7px;
+    border-radius: 8px;
     background:
       radial-gradient(
         80% 70% at 70% 20%,
@@ -281,12 +321,70 @@
       ),
       var(--surface-2);
     color: var(--muted);
+    box-shadow: 0 6px 16px rgb(0 0 0 / 26%);
+    transition:
+      box-shadow var(--motion-base) ease,
+      transform var(--motion-base) var(--ease-spring);
+  }
+
+  .now-playing.is-playing .cover {
+    box-shadow:
+      0 8px 20px rgb(0 0 0 / 32%),
+      0 0 18px color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+
+  .cover:hover {
+    transform: translateY(-1px) scale(1.03);
   }
 
   .cover img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  .cover-eq {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    display: flex;
+    height: 11px;
+    align-items: flex-end;
+    gap: 1.5px;
+    padding: 2px 3px;
+    border-radius: 4px;
+    background: rgb(0 0 0 / 46%);
+    backdrop-filter: blur(4px);
+  }
+
+  .cover-eq i {
+    display: block;
+    width: 1.5px;
+    height: 5px;
+    border-radius: 1px;
+    background: var(--accent);
+    box-shadow: 0 0 4px var(--accent-glow);
+    animation: cover-eq-bounce 900ms ease-in-out infinite;
+  }
+
+  .cover-eq i:nth-child(2) {
+    height: 9px;
+    animation-delay: -0.3s;
+  }
+
+  .cover-eq i:nth-child(3) {
+    height: 7px;
+    animation-delay: -0.6s;
+  }
+
+  @keyframes cover-eq-bounce {
+    0%,
+    100% {
+      transform: scaleY(0.4);
+    }
+    50% {
+      transform: scaleY(1);
+    }
   }
 
   .track-copy {
@@ -345,6 +443,22 @@
     border-color: color-mix(in srgb, var(--accent) 28%, transparent);
     background: color-mix(in srgb, var(--accent) 9%, transparent);
     color: var(--accent);
+  }
+
+  .heart-button.is-liked {
+    animation: heart-pop 340ms var(--ease-spring);
+  }
+
+  @keyframes heart-pop {
+    0% {
+      transform: scale(0.85);
+    }
+    55% {
+      transform: scale(1.14);
+    }
+    100% {
+      transform: scale(1);
+    }
   }
 
   .heart-button:disabled,
