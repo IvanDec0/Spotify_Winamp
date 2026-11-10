@@ -33,7 +33,12 @@
   );
 </script>
 
-<div class="cad-track-info" class:is-centered={align === "center"} data-component="track-info">
+<div
+  class="cad-track-info"
+  class:is-centered={align === "center"}
+  class:is-playing={playing}
+  data-component="track-info"
+>
   {#if showStatus}
     <div class="cad-track-status">
       <span
@@ -49,9 +54,13 @@
     </div>
   {/if}
 
-  <h1 class="cad-track-title" title={displayTitle}>{displayTitle}</h1>
-  <p class="cad-track-artists" title={artists}>{artists}</p>
-  {#if showAlbum && player.state.track.album}
-    <p class="cad-track-album" title={player.state.track.album}>{player.state.track.album}</p>
-  {/if}
+  {#key player.state.track.id}
+    <div class="cad-track-copy">
+      <h1 class="cad-track-title" title={displayTitle}>{displayTitle}</h1>
+      <p class="cad-track-artists" title={artists}>{artists}</p>
+      {#if showAlbum && player.state.track.album}
+        <p class="cad-track-album" title={player.state.track.album}>{player.state.track.album}</p>
+      {/if}
+    </div>
+  {/key}
 </div>

@@ -292,6 +292,34 @@ input[type="range"]:hover::-webkit-slider-thumb {
   border-radius: 8px;
   background: #0d1117;
   box-shadow: 0 10px 24px rgb(0 0 0 / 42%);
+  transition:
+    filter var(--motion-base, 240ms) ease,
+    box-shadow var(--motion-base, 240ms) ease;
+}
+
+.cad-cover:hover {
+  filter: brightness(1.07) saturate(1.05);
+  box-shadow:
+    0 14px 30px rgb(0 0 0 / 48%),
+    0 0 18px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.cad-cover.is-reflected::before {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 6%;
+  left: 6%;
+  height: 15px;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--accent) 34%, transparent),
+    transparent 72%
+  );
+  content: "";
+  filter: blur(6px);
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .cad-cover-inner {
@@ -311,6 +339,26 @@ input[type="range"]:hover::-webkit-slider-thumb {
       color-mix(in srgb, var(--surface) 82%, var(--accent)) 52%,
       #04080c
     );
+}
+
+.cad-cover-inner img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: cad-art-in 520ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+@keyframes cad-art-in {
+  from {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .cad-cover-inner img {
@@ -471,18 +519,184 @@ input[type="range"]:hover::-webkit-slider-thumb {
   white-space: nowrap;
 }
 
-/* Progress ---------------------------------------------------------------- */
-
-.cad-progress {
+.cad-track-copy {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 2px;
+  animation: cad-track-in 380ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
 }
 
-.cad-progress input[type="range"] {
+.cad-track-info.is-playing .cad-track-title {
+  text-shadow: 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.cad-status-dot.is-playing {
+  animation: cad-status-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes cad-track-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+    filter: blur(1.5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes cad-status-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Progress ---------------------------------------------------------------- */
+
+.cad-progress {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  --progress: 0%;
+}
+
+.cad-progress::after {
+  display: none !important;
+}
+
+.cad-progress-track {
+  position: relative;
+  display: flex;
   width: 100%;
-  height: 11px;
+  height: 20px;
+  align-items: center;
+  isolation: isolate;
+}
+
+.cad-progress-track::before {
+  position: absolute;
+  inset: 1px 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 55%),
+    color-mix(in srgb, var(--surface) 24%, transparent);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 5%) inset;
+  content: "";
+  opacity: 0.7;
+  pointer-events: none;
+  transition:
+    border-color var(--motion-fast, 140ms) ease,
+    opacity var(--motion-fast, 140ms) ease;
+}
+
+.cad-progress:hover .cad-progress-track::before,
+.cad-progress:focus-within .cad-progress-track::before,
+.cad-progress.is-dragging .cad-progress-track::before {
+  border-color: color-mix(in srgb, var(--accent) 26%, transparent);
+  opacity: 1;
+}
+
+.cad-progress:focus-within .cad-progress-track {
+  border-radius: 8px;
+  outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 3px;
+}
+
+.cad-progress-wave {
+  position: absolute;
+  inset: 1px 6px;
+  display: block;
+  opacity: 0.9;
+}
+
+.cad-progress-playhead {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: clamp(5px, var(--progress), calc(100% - 5px));
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid color-mix(in srgb, white 55%, var(--accent));
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent),
+    0 0 14px color-mix(in srgb, var(--accent) 45%, transparent);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition:
+    width var(--motion-fast, 140ms) var(--ease-spring, ease),
+    height var(--motion-fast, 140ms) var(--ease-spring, ease);
+}
+
+.cad-progress.is-playing .cad-progress-playhead::after {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 50%;
+  content: "";
+  animation: cad-progress-pulse 1.9s ease-in-out infinite;
+}
+
+.cad-progress:hover .cad-progress-playhead,
+.cad-progress:focus-within .cad-progress-playhead,
+.cad-progress.is-dragging .cad-progress-playhead {
+  width: 12px;
+  height: 12px;
+}
+
+.cad-progress-bubble {
+  position: absolute;
+  z-index: 4;
+  bottom: calc(100% + 3px);
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 7%), transparent 58%),
+    color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow:
+    0 6px 16px rgb(0 0 0 / 42%),
+    0 0 14px color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  transform: translateX(-50%);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: cad-progress-bubble-in 130ms var(--ease-out, ease) both;
+}
+
+.cad-progress input[type="range"],
+.cad-progress .cad-progress-input {
+  position: absolute !important;
+  z-index: 3;
+  inset: -5px 0 !important;
+  width: 100% !important;
+  height: calc(100% + 10px) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  appearance: none !important;
+  border: 0 !important;
+  background: transparent !important;
+  cursor: pointer;
+  opacity: 0 !important;
+}
+
+.cad-progress input[type="range"]:disabled,
+.cad-progress .cad-progress-input:disabled {
+  cursor: default;
 }
 
 .cad-progress-time {
@@ -490,8 +704,124 @@ input[type="range"]:hover::-webkit-slider-thumb {
   justify-content: space-between;
   color: var(--faint);
   font-family: var(--font-mono);
-  font-size: 6.5px;
+  font-size: 7px;
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
+}
+
+.cad-progress.is-playing .cad-progress-time span:first-child {
+  color: color-mix(in srgb, var(--accent) 72%, var(--text));
+}
+
+@keyframes cad-progress-pulse {
+  0% {
+    opacity: 0.75;
+    transform: scale(0.8);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+@keyframes cad-progress-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(3px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* Waveform: used by the shared progress inside skin shadow roots. */
+.waveform {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.waveform-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1px;
+}
+
+.waveform-layer span {
+  display: block;
+  width: 2px;
+  max-width: 3px;
+  height: var(--bar-height);
+  flex: 1 1 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 17%, transparent);
+  transition: background-color var(--motion-fast, 140ms) ease;
+}
+
+.waveform-layer.fill {
+  clip-path: inset(0 calc(100% - var(--progress, 0%)) 0 0);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 42%, transparent));
+}
+
+.waveform-layer.fill span {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, white 42%, var(--accent)),
+    var(--accent) 62%,
+    color-mix(in srgb, var(--accent) 70%, var(--accent-2))
+  );
+}
+
+.waveform-shimmer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -35%;
+  width: 35%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, white 55%, transparent),
+    transparent
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+
+.waveform.is-playing .waveform-layer.fill {
+  animation: waveform-breathe 1.9s var(--ease-in-out, ease-in-out) infinite;
+  transform-origin: center;
+}
+
+.waveform.is-playing .waveform-shimmer {
+  opacity: 0.75;
+  animation: waveform-shimmer 2.4s var(--ease-in-out, ease-in-out) infinite;
+}
+
+@keyframes waveform-breathe {
+  0%,
+  100% {
+    transform: scaleY(0.94);
+  }
+  50% {
+    transform: scaleY(1.05);
+  }
+}
+
+@keyframes waveform-shimmer {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(390%);
+  }
 }
 
 /* Transport --------------------------------------------------------------- */
@@ -513,8 +843,10 @@ input[type="range"]:hover::-webkit-slider-thumb {
   border-radius: 50%;
   color: var(--muted);
   transition:
-    color 130ms ease,
-    background-color 130ms ease;
+    color var(--motion-fast, 140ms) ease,
+    background-color var(--motion-fast, 140ms) ease,
+    border-color var(--motion-fast, 140ms) ease,
+    transform var(--motion-fast, 140ms) var(--ease-spring, ease);
 }
 
 .cad-control:hover:not(:disabled),
@@ -522,28 +854,79 @@ input[type="range"]:hover::-webkit-slider-thumb {
   color: var(--accent);
 }
 
+.cad-control:hover:not(:disabled) {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  transform: translateY(-1px) scale(1.05);
+}
+
+.cad-control:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
 .cad-control.is-active {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .cad-play {
+  position: relative;
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   margin: 0 3px;
   place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line-strong));
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--bg);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 30%, transparent);
+  background:
+    radial-gradient(
+      70% 70% at 32% 22%,
+      color-mix(in srgb, white 24%, transparent),
+      transparent 58%
+    ),
+    color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+  color: color-mix(in srgb, var(--text) 88%, var(--accent));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 5%, transparent),
+    0 0 16px color-mix(in srgb, var(--accent) 18%, transparent),
+    0 1px 0 rgb(255 255 255 / 14%) inset;
   transition:
-    transform 130ms ease,
-    background-color 130ms ease;
+    transform var(--motion-base, 240ms) var(--ease-spring, ease),
+    border-color var(--motion-fast, 140ms) ease,
+    background-color var(--motion-fast, 140ms) ease,
+    box-shadow var(--motion-base, 240ms) ease;
 }
 
 .cad-play:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 86%, white);
-  transform: scale(1.04);
+  border-color: color-mix(in srgb, var(--accent) 64%, var(--line-strong));
+  transform: scale(1.07);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 7%, transparent),
+    0 0 24px color-mix(in srgb, var(--accent) 28%, transparent),
+    0 1px 0 rgb(255 255 255 / 18%) inset;
+}
+
+.cad-play:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.cad-play.is-playing::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 34%, transparent);
+  border-radius: 50%;
+  opacity: 0.6;
+  pointer-events: none;
+  animation: cad-play-orbit 11s linear infinite;
+}
+
+@keyframes cad-play-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .cad-play svg {
@@ -577,8 +960,13 @@ input[type="range"]:hover::-webkit-slider-thumb {
   gap: 3px;
   padding: 0 4px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--muted);
+  transition:
+    color var(--motion-fast, 140ms) ease,
+    background-color var(--motion-fast, 140ms) ease,
+    border-color var(--motion-fast, 140ms) ease,
+    transform var(--motion-fast, 140ms) var(--ease-spring, ease);
 }
 
 .cad-shuffle-button:hover:not(:disabled),
@@ -586,7 +974,16 @@ input[type="range"]:hover::-webkit-slider-thumb {
 .cad-shuffle-button.is-active,
 .cad-repeat-button.is-active {
   border-color: var(--line);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
   color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.cad-shuffle-button.is-active,
+.cad-repeat-button.is-active {
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .cad-shuffle-button span,
@@ -613,12 +1010,18 @@ input[type="range"]:hover::-webkit-slider-thumb {
   height: 20px;
   flex: 0 0 20px;
   place-items: center;
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--muted);
+  transition:
+    color var(--motion-fast, 140ms) ease,
+    background-color var(--motion-fast, 140ms) ease,
+    transform var(--motion-fast, 140ms) var(--ease-spring, ease);
 }
 
 .cad-volume-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
   color: var(--text);
+  transform: translateY(-1px);
 }
 
 .cad-volume input[type="range"] {
@@ -646,15 +1049,21 @@ input[type="range"]:hover::-webkit-slider-thumb {
   gap: 4px;
   padding: 0 5px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 5px;
   color: var(--muted);
+  transition:
+    color var(--motion-fast, 140ms) ease,
+    background-color var(--motion-fast, 140ms) ease,
+    border-color var(--motion-fast, 140ms) ease,
+    transform var(--motion-fast, 140ms) var(--ease-spring, ease);
 }
 
 .cad-device-picker:hover,
 .cad-settings-button:hover {
   border-color: var(--line);
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--surface-2) 65%, transparent);
   color: var(--text);
+  transform: translateY(-1px);
 }
 
 .cad-device-picker .cad-device-name,
@@ -746,10 +1155,69 @@ input[type="range"]:hover::-webkit-slider-thumb {
   align-items: center;
   gap: 8px;
   padding: 4px 14px;
+  border-radius: 5px;
+  animation: cad-queue-in 340ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+  transition:
+    background-color var(--motion-fast, 140ms) ease,
+    transform var(--motion-fast, 140ms) var(--ease-out, ease);
+}
+
+.cad-queue-row:nth-child(2) {
+  animation-delay: 28ms;
+}
+
+.cad-queue-row:nth-child(3) {
+  animation-delay: 56ms;
+}
+
+.cad-queue-row:nth-child(4) {
+  animation-delay: 84ms;
+}
+
+.cad-queue-row:nth-child(5) {
+  animation-delay: 112ms;
+}
+
+.cad-queue-row:nth-child(n + 6) {
+  animation-delay: 140ms;
+}
+
+@keyframes cad-queue-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.cad-queue-row:hover {
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+  transform: translateX(2px);
 }
 
 .cad-queue-row.is-current {
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 78%),
+    color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.cad-queue-row.is-current .cad-queue-index {
+  color: var(--accent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 55%, transparent);
+  animation: cad-queue-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes cad-queue-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .cad-queue-index {
