@@ -76,36 +76,41 @@
 
   <div class="player-content">
     <div class="track-row">
-      <CoverArt cover={state.track.cover} title={state.track.title} size={88} />
-
-      <div class="track-copy">
-        <div class="status-line">
-          <span class="status-group">
-            <span
-              class="status-dot"
-              class:is-playing={playing}
-              class:is-error={Boolean(state.error)}
-              aria-hidden="true"
-            ></span>
-            <span class="eyebrow" class:is-error={Boolean(state.error)} title={statusDetail}>
-              {statusText}
-            </span>
-            {#if state.shuffle}
-              <span class="mode-tag">{t("player.shuffleShort")}</span>
-            {/if}
-          </span>
-
-          <span class="level" class:is-playing={playing} aria-hidden="true">
-            <span></span><span></span><span></span><span></span>
-          </span>
-        </div>
-
-        <h1 class="track-title" title={displayTitle}>{displayTitle}</h1>
-        <p class="track-artists" title={artists}>{artists}</p>
-        {#if state.track.album}
-          <p class="track-album" title={state.track.album}>{state.track.album}</p>
-        {/if}
+      <div class="cover-stage" class:is-playing={playing}>
+        <span class="cover-halo" aria-hidden="true"></span>
+        <CoverArt cover={state.track.cover} title={state.track.title} size={88} />
       </div>
+
+      {#key state.track.id}
+        <div class="track-copy">
+          <div class="status-line">
+            <span class="status-group">
+              <span
+                class="status-dot"
+                class:is-playing={playing}
+                class:is-error={Boolean(state.error)}
+                aria-hidden="true"
+              ></span>
+              <span class="eyebrow" class:is-error={Boolean(state.error)} title={statusDetail}>
+                {statusText}
+              </span>
+              {#if state.shuffle}
+                <span class="mode-tag">{t("player.shuffleShort")}</span>
+              {/if}
+            </span>
+
+            <span class="level" class:is-playing={playing} aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </span>
+          </div>
+
+          <h1 class="track-title" title={displayTitle}>{displayTitle}</h1>
+          <p class="track-artists" title={artists}>{artists}</p>
+          {#if state.track.album}
+            <p class="track-album" title={state.track.album}>{state.track.album}</p>
+          {/if}
+        </div>
+      {/key}
     </div>
 
     <div class="lower">
@@ -162,10 +167,41 @@
     background:
       radial-gradient(
         80% 90% at 84% 8%,
-        color-mix(in srgb, var(--accent) 7%, transparent),
+        color-mix(in srgb, var(--accent) 8%, transparent),
         transparent 55%
       ),
       linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 32%, transparent));
+  }
+
+  .player::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: -34%;
+    left: 32%;
+    width: 58%;
+    height: 90%;
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--accent) 12%, transparent),
+      transparent 72%
+    );
+    filter: blur(18px);
+    opacity: 0.7;
+    pointer-events: none;
+    animation: player-bloom 12s var(--ease-in-out) infinite alternate;
+  }
+
+  @keyframes player-bloom {
+    from {
+      transform: translate3d(-2%, 0, 0) scale(0.98);
+      opacity: 0.5;
+    }
+    to {
+      transform: translate3d(3%, 4%, 0) scale(1.06);
+      opacity: 0.82;
+    }
   }
 
   .player-content {
@@ -196,11 +232,77 @@
     align-items: start;
   }
 
+  .cover-stage {
+    position: relative;
+    width: 88px;
+    height: 88px;
+  }
+
+  .cover-stage.is-playing {
+    animation: cover-float 6.5s ease-in-out infinite;
+  }
+
+  .cover-halo {
+    position: absolute;
+    z-index: -1;
+    inset: -14%;
+    border-radius: 24%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in srgb, var(--accent) 28%, transparent),
+      transparent 74%
+    );
+    filter: blur(13px);
+    opacity: 0.55;
+    pointer-events: none;
+    transition: opacity var(--motion-slow) ease;
+  }
+
+  .cover-stage.is-playing .cover-halo {
+    animation: cover-glow 4.8s ease-in-out infinite;
+  }
+
+  @keyframes cover-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-2px);
+    }
+  }
+
+  @keyframes cover-glow {
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(0.98);
+    }
+    50% {
+      opacity: 0.72;
+      transform: scale(1.05);
+    }
+  }
+
   .track-copy {
     display: flex;
     min-width: 0;
     flex-direction: column;
     padding-top: 2px;
+    animation: track-in 380ms var(--ease-out) both;
+  }
+
+  @keyframes track-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+      filter: blur(1.5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
   }
 
   .status-line {

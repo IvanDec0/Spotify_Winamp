@@ -150,6 +150,19 @@
     border-radius: 50%;
     background: currentColor;
     box-shadow: 0 0 4px currentColor;
+    animation: control-dot 2.2s ease-in-out infinite;
+  }
+
+  @keyframes control-dot {
+    0%,
+    100% {
+      opacity: 0.45;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
   }
 
   .control:disabled,
@@ -204,6 +217,26 @@
     border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
     border-radius: 50%;
     animation: breathe 2.8s ease-in-out infinite;
+  }
+
+  .play.is-playing::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border: 1px dashed color-mix(in srgb, var(--accent) 30%, transparent);
+    border-radius: 50%;
+    opacity: 0.55;
+    pointer-events: none;
+    animation: ring-spin 12s linear infinite;
+  }
+
+  @keyframes ring-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .repeat-one {

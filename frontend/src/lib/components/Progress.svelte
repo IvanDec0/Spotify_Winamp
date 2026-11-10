@@ -162,6 +162,16 @@
     border-radius: 999px;
     transform: translateY(-50%);
     pointer-events: none;
+    transition: height var(--motion-fast) var(--ease-out);
+  }
+
+  .progress:hover .progress-rail,
+  .progress:hover .progress-fill,
+  .progress:hover .progress-shine,
+  .progress:focus-within .progress-rail,
+  .progress:focus-within .progress-fill,
+  .progress:focus-within .progress-shine {
+    height: 3px;
   }
 
   .progress-rail {
@@ -177,10 +187,10 @@
   .progress-fill {
     background: linear-gradient(
       90deg,
-      color-mix(in srgb, var(--accent) 58%, transparent),
+      color-mix(in srgb, var(--accent) 52%, transparent),
       var(--accent)
     );
-    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 26%, transparent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 32%, transparent);
   }
 
   .progress-shine {
@@ -254,7 +264,7 @@
     box-shadow:
       0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent),
       0 0 10px var(--accent-glow);
-    opacity: 0.55;
+    opacity: 0.7;
     transition:
       opacity var(--motion-fast) ease,
       transform var(--motion-fast) var(--ease-spring);
@@ -267,7 +277,7 @@
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 10px var(--accent-glow);
-    opacity: 0.55;
+    opacity: 0.7;
     transition:
       opacity var(--motion-fast) ease,
       transform var(--motion-fast) var(--ease-spring);
