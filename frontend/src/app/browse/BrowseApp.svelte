@@ -14,6 +14,7 @@
   import type { BrowseIcon } from "./icons";
   import LibraryView from "./LibraryView.svelte";
   import NowPlayingBar from "./NowPlayingBar.svelte";
+  import NowPlayingView from "./NowPlayingView.svelte";
   import PodcastsView from "./PodcastsView.svelte";
   import QueueView from "./QueueView.svelte";
   import SearchView from "./SearchView.svelte";
@@ -28,6 +29,7 @@
     label: Parameters<typeof t>[0];
     glyph: BrowseIcon;
   }> = [
+    { id: "nowplaying", label: "browse.nowPlaying", glyph: "note" },
     { id: "search", label: "browse.search", glyph: "search" },
     { id: "library", label: "browse.library", glyph: "library" },
     { id: "podcasts", label: "browse.podcasts", glyph: "podcasts" },
@@ -292,7 +294,12 @@
   }
 </script>
 
-<div class="cadence-browse" class:reduce-motion={preferences.reducedMotion} bind:this={root}>
+<div
+  class="cadence-browse"
+  class:reduce-motion={preferences.reducedMotion}
+  class:is-stage={browse.section === "nowplaying"}
+  bind:this={root}
+>
   <aside class="sidebar">
     <div class="sidebar-head">
       <span class="sidebar-mark"><BrandMark size={20} /></span>
@@ -430,8 +437,10 @@
       </div>
     {/if}
 
-    {#if browse.section !== "settings" && !music.authenticated}
+    {#if browse.section !== "settings" && browse.section !== "nowplaying" && !music.authenticated}
       <EngineGate />
+    {:else if browse.section === "nowplaying"}
+      <NowPlayingView />
     {:else if browse.route.name === "entity"}
       <EntityView />
     {:else if browse.section === "search"}
@@ -447,7 +456,9 @@
     {/if}
   </main>
 
-  <NowPlayingBar />
+  {#if browse.section !== "nowplaying"}
+    <NowPlayingBar />
+  {/if}
 
   <div
     class="resize-grip no-drag"
@@ -501,6 +512,28 @@
       linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 18%),
       color-mix(in srgb, var(--surface) 72%, transparent);
     backdrop-filter: blur(22px) saturate(118%);
+  }
+
+  .cadence-browse.is-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cadence-browse.is-stage .sidebar {
+    display: none;
+  }
+
+  .cadence-browse.is-stage .search-field,
+  .cadence-browse.is-stage .theme-chip {
+    display: none;
+  }
+
+  .cadence-browse.is-stage .topbar {
+    justify-content: space-between;
+    padding-inline: 20px;
+  }
+
+  .cadence-browse.is-stage .content {
+    grid-row: 2;
   }
 
   .sidebar-head {

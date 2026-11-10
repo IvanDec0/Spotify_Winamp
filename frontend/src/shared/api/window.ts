@@ -2,7 +2,7 @@ import { Screens, System, Window } from "@wailsio/runtime";
 import { WindowService } from "../../../bindings/cadence/internal/platform";
 import { call } from "./client";
 
-export type BrowseSection = "search" | "library" | "podcasts" | "settings";
+export type BrowseSection = "nowplaying" | "search" | "library" | "podcasts" | "settings";
 
 /**
  * Native window facade. `setSize` uses the platform service because Wails'

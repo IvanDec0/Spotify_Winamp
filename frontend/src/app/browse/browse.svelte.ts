@@ -13,7 +13,14 @@ import type {
 import { t, type MessageKey, type MessageParams } from "../../shared/i18n";
 import { player } from "../../lib/player.svelte";
 
-export const BROWSE_SECTIONS = ["search", "library", "podcasts", "queue", "settings"] as const;
+export const BROWSE_SECTIONS = [
+  "nowplaying",
+  "search",
+  "library",
+  "podcasts",
+  "queue",
+  "settings",
+] as const;
 export type Section = (typeof BROWSE_SECTIONS)[number];
 
 /** Accepts a URL or event value only when it is a known Browse section. */

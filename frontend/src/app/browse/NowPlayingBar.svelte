@@ -131,20 +131,28 @@
   </div>
   <div class="bar-row">
     <div class="track">
-      <div class="cover" aria-hidden="true">
-        {#if coverSrc}
-          <img src={coverSrc} alt="" width="48" height="48" loading="eager" decoding="async" />
-        {:else}
-          <Icon name="note" size={18} />
-        {/if}
-        {#if playing}
-          <span class="cover-eq" aria-hidden="true"><i></i><i></i><i></i></span>
-        {/if}
-      </div>
-      <div class="track-copy">
-        <span class="track-title">{track.title || t("browse.nothingPlaying")}</span>
-        <span class="track-meta">{artistLabel}</span>
-      </div>
+      <button
+        class="track-open"
+        type="button"
+        title={t("player.openNowPlaying")}
+        aria-label={t("player.openNowPlaying")}
+        onclick={() => browse.setSection("nowplaying")}
+      >
+        <div class="cover" aria-hidden="true">
+          {#if coverSrc}
+            <img src={coverSrc} alt="" width="48" height="48" loading="eager" decoding="async" />
+          {:else}
+            <Icon name="note" size={18} />
+          {/if}
+          {#if playing}
+            <span class="cover-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+          {/if}
+        </div>
+        <div class="track-copy">
+          <span class="track-title">{track.title || t("browse.nothingPlaying")}</span>
+          <span class="track-meta">{artistLabel}</span>
+        </div>
+      </button>
       <button
         class="heart-button"
         class:is-liked={browse.currentLiked}
@@ -372,6 +380,30 @@
     min-width: 0;
     align-items: center;
     gap: 11px;
+  }
+
+  .track-open {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 11px;
+    padding: 0;
+    border: 0;
+    border-radius: 9px;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    transition: transform var(--motion-fast, 140ms) var(--ease-spring, ease);
+  }
+
+  .track-open:hover {
+    transform: translateY(-1px);
+  }
+
+  .track-open:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 3px;
   }
 
   .cover {

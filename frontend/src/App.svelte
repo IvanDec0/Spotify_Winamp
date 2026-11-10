@@ -155,7 +155,7 @@
     }
   }
 
-  function openBrowseSection(section: "library" | "settings"): void {
+  function openBrowseSection(section: "library" | "settings" | "nowplaying"): void {
     closePopovers();
     browseOpenError = null;
     void appWindow.openBrowse(section).catch((error: unknown) => {
@@ -451,6 +451,7 @@
             onShuffle={() => void player.toggleShuffle()}
             onRepeat={() => void player.cycleRepeat()}
             onCycleVisualizer={() => preferences.cycleVisualizer()}
+            onOpenNowPlaying={() => openBrowseSection("nowplaying")}
           />
         </main>
 

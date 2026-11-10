@@ -26,6 +26,7 @@
     onShuffle: () => void;
     onRepeat: () => void;
     onCycleVisualizer: () => void;
+    onOpenNowPlaying?: () => void;
   }
 
   let {
@@ -43,6 +44,7 @@
     onShuffle,
     onRepeat,
     onCycleVisualizer,
+    onOpenNowPlaying = () => {},
   }: Props = $props();
 
   let playing = $derived(state.status === Status.StatusPlaying);
@@ -113,10 +115,18 @@
         <span class="cover-halo" aria-hidden="true"></span>
         <span class="cover-orbit" aria-hidden="true"></span>
         <div class="cover-tilt">
-          <CoverArt cover={state.track.cover} title={state.track.title} size={88} />
-          {#if playing}
-            <span class="cover-eq" aria-hidden="true"><i></i><i></i><i></i></span>
-          {/if}
+          <button
+            class="cover-open"
+            type="button"
+            aria-label={t("player.openNowPlaying")}
+            title={t("player.openNowPlaying")}
+            onclick={onOpenNowPlaying}
+          >
+            <CoverArt cover={state.track.cover} title={state.track.title} size={88} />
+            {#if playing}
+              <span class="cover-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+            {/if}
+          </button>
         </div>
         <span class="cover-floor" aria-hidden="true"></span>
       </div>
@@ -144,7 +154,11 @@
             </span>
           </div>
 
-          <h1 class="track-title" title={displayTitle}>{displayTitle}</h1>
+          <h1 class="track-title" title={displayTitle}>
+            <button class="track-title-button" type="button" onclick={onOpenNowPlaying}>
+              {displayTitle}
+            </button>
+          </h1>
           <p class="track-artists" title={artists}>{artists}</p>
           {#if state.track.album}
             <p class="track-album" title={state.track.album}>{state.track.album}</p>
@@ -349,6 +363,22 @@
     height: 88px;
     transform-style: preserve-3d;
     transition: transform var(--motion-slow) var(--ease-out);
+  }
+
+  .cover-open {
+    display: block;
+    width: 88px;
+    height: 88px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: none;
+    cursor: pointer;
+  }
+
+  .cover-open:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 3px;
   }
 
   .cover-stage:hover .cover-tilt {
@@ -678,6 +708,28 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     transition: text-shadow var(--motion-slow) ease;
+  }
+
+  .track-title-button {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    line-height: inherit;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color var(--motion-fast) ease;
+  }
+
+  .track-title-button:hover {
+    color: color-mix(in srgb, var(--text) 88%, var(--accent));
   }
 
   .player.is-playing .track-title {
