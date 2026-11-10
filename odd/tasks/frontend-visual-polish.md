@@ -41,6 +41,18 @@ Test runner: `npm test` (Vitest 5) from `frontend/`.
   packaging stay unchanged.
 - **S9.** `npm run format`, `npm run lint`, `npm run check`, `npm run i18n:check`
   and `npm test` pass from `frontend/`.
+- **S10.** The compact player gains real depth: a blurred copy of the current
+  artwork (or its generated palette) sits behind the content, the cover gets a
+  conic orbit, a floor glow, a live equalizer and a hover tilt, and the controls
+  sit in a glass dock.
+- **S11.** Both seek bars become waveforms: varied rounded bars, an accent fill
+  clipped to the played portion, a shimmer while playing, a glowing playhead
+  and a hover time bubble. The native range input stays as the accessible
+  control and keeps every existing test contract.
+- **S12.** The Browse Now Playing bar shares the artwork ambience and the
+  waveform seek bar, so the two windows read as one player.
+- **S13.** New motion respects the existing reduced-motion rules and adds no
+  runtime dependency.
 
 ## Tasks
 
@@ -50,6 +62,7 @@ Test runner: `npm test` (Vitest 5) from `frontend/`.
 | T2 | S2, S3 | inline | done | commits `f905997`, `72b9a0b`, `6aa3517` |
 | T3 | S4, S5, S6 | inline | done | commits `b8329f0`, `35cc3c4`, `7b0d92d` |
 | T4 | S7, S8, S9 | inline | done | verification in L3; recorded in this commit |
+| T5 | S10-S13 | inline | done | commits in L6; verification in L7 |
 
 ## Log
 
@@ -87,4 +100,49 @@ Test runner: `npm test` (Vitest 5) from `frontend/`.
   class, not only the system media query.
 - Delivery strategy: work-unit commits on `feat/cadence-v2`. No pull request
   was requested; push and PR creation remain the user's decision.
+
+### L4 — user feedback (verbatim)
+
+> Bien, pero parece un reproductor plano, la barra de tiempo es plana, sin anims, y es recta, quiero mas cosas, mejores cosas, busca componentes e ideas en internet
+
+### L5 — research and implementation
+
+- References reviewed: the CodeFronts liquid-glass audio player (blurred album
+  art behind a frosted card, capsule seek, glowing thumb), FreeFrontend's CSS
+  music player collection (waveform bars, view-transition morphs, liquid glass),
+  Empire UI's waveform seek/audio-player guide, and the We.Inc glass podcast
+  player bar. Common ideas adopted: artwork-derived ambience, a waveform
+  scrubber, a luminous playhead, and a frosted control dock.
+- Implemented `Waveform.svelte`: deterministic seeded bars, a muted base layer,
+  an accent layer clipped to the progress percentage, a playing shimmer and a
+  breathing fill. Both the compact `Progress` and the Browse `NowPlayingBar`
+  use it above the native range input.
+- `Progress.svelte` now renders a glass capsule, the waveform, a glowing
+  playhead with a playing pulse and a hover/drag time bubble. The range input
+  remains the accessible slider, so the redraw is purely visual.
+- `Player.svelte` now renders the current artwork (or the generated cover
+  palette) as a blurred ambience layer, adds a scrim for contrast, a conic
+  cover orbit, a floor glow, a cover equalizer, a hover tilt and a glass
+  control dock.
+- `NowPlayingBar.svelte` mirrors the artwork ambience and waveform seek bar.
+- Checked with headless Chromium screenshots of the built app at 420x220 and
+  1100x700; the waveform, cover glow and glass dock are visible and the layout
+  fits the 220px compact height.
+
+### L6 — commits
+
+- `abdd001` — `feat(player): turn the seek bar into an animated waveform`
+- `3a9cb19` — `feat(player): add artwork ambience and depth to the compact player`
+- `a0b2588` — `feat(browse): mirror the waveform and artwork ambience in now playing`
+- The feature doc update is recorded in the next commit.
+
+### L7 — verification after the waveform pass
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm run lint`: clean.
+- `npm test`: 46 files, 301 tests passed.
+- `npm run build`: production build succeeded.
+- Headless screenshots: `/tmp/opencode/compact.png`, `/tmp/opencode/browse.png`
+  (local validation only, not committed).
+
 
