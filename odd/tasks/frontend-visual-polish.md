@@ -53,6 +53,17 @@ Test runner: `npm test` (Vitest 5) from `frontend/`.
   waveform seek bar, so the two windows read as one player.
 - **S13.** New motion respects the existing reduced-motion rules and adds no
   runtime dependency.
+- **S14.** The declarative skins (Nightstar, Vanta, Lumina, Afterglow) share
+  the same polished progress language as Clarity: waveform, shimmer, glowing
+  playhead and hover time bubble. Their existing palettes are not changed.
+- **S15.** Shared skin components gain depth without overriding each skin's
+  identity: cover hover/reflection and image fade, track-change motion, a
+  playing ring around the play button, queue stagger and control hover/press.
+- **S16.** Lumina and Afterglow use the freed space for a larger cover, a
+  softer hero glow and a glass control dock; Afterglow keeps its warm palette
+  but gains a dimensional play button.
+- **S17.** The new styles live in `skin-base.css`, because Svelte scoped styles
+  do not cross the declarative skin shadow boundary.
 
 ## Tasks
 
@@ -63,6 +74,7 @@ Test runner: `npm test` (Vitest 5) from `frontend/`.
 | T3 | S4, S5, S6 | inline | done | commits `b8329f0`, `35cc3c4`, `7b0d92d` |
 | T4 | S7, S8, S9 | inline | done | verification in L3; recorded in this commit |
 | T5 | S10-S13 | inline | done | commits in L6; verification in L7 |
+| T6 | S14-S17 | inline | done | commits in L10; verification in L11 |
 
 ## Log
 
@@ -144,5 +156,46 @@ Test runner: `npm test` (Vitest 5) from `frontend/`.
 - `npm run build`: production build succeeded.
 - Headless screenshots: `/tmp/opencode/compact.png`, `/tmp/opencode/browse.png`
   (local validation only, not committed).
+
+### L8 — user clarification (verbatim)
+
+> Pero no los colores, los temas enteros, el de clarity, todos los colores estan bien
+
+### L9 — declarative skins pass
+
+- Re-read: the default Clarity skin is the reference; the other skins were the
+  flat surface. No palette was changed.
+- Rendered Nightstar, Vanta, Lumina and Afterglow in a temporary preview with
+  the real `SkinHost`, layouts and theme stylesheets. The preview exposed a
+  structural bug: Svelte scoped styles are injected into the document, not the
+  skin shadow root, so new component styles never reached the skins.
+- Moved the new progress/track/cover/transport/queue styling into
+  `skin-base.css`, which `SkinHost` loads inside the shadow root. The shared
+  skin `Progress` now renders the same waveform, shimmer, playhead and hover
+  time bubble as Clarity; the native range stays accessible and hidden.
+- Shared skin components gained cover hover/reflection/image fade, track-change
+  motion, a playing play-button ring, control hover/press and queue stagger.
+- Lumina: cover 96 → 104 and a soft hero glow. Afterglow: cover 92 → 100, a
+  glass control dock, a gradient play button and a hero glow. The skins keep
+  their own colors and identities.
+- Headless preview confirmed the waveform is visible in Lumina and Afterglow
+  and that Nightstar/Vanta keep their own chassis; their boot animations are
+  paused in headless captures but run in the app.
+
+### L10 — commits
+
+- `feat(skins): polish the shared compact player across declarative themes`
+  (skin base, shared skin components, Lumina and Afterglow layout/styles, and
+  this document update).
+
+### L11 — verification after the skins pass
+
+- `npm run check`: 0 errors, 0 warnings.
+- `npm run lint`: clean.
+- `npm run format`: clean.
+- `npm run i18n:check`: clean.
+- `npm test`: 46 files, 301 tests passed.
+- `npm run build`: production build succeeded.
+
 
 
