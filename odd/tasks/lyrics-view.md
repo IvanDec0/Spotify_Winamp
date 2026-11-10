@@ -89,6 +89,9 @@ glyphs instead of the current replacement character. Branch:
 - `Player.svelte`, `App.svelte`, `NowPlayingBar.svelte`, `BrowseApp.svelte`,
   `browse.svelte.ts`, `window.ts`: click wiring, section, stage layout and
   visible nav entry.
+- Shared skin `AlbumArt.svelte` and `TrackInfo.svelte`: an accessible cover
+  overlay and title button open the same stage through
+  `skins.openNowPlaying()`; configured in `App.svelte`.
 - i18n: English and Spanish copy for the stage, states, retry and seek label.
 - Emoji: `Twemoji.Mozilla.ttf` + license, `@font-face`, font stacks in
   `app.css`, `browse.css`, `skin-base.css` and the four development skins.
@@ -106,3 +109,12 @@ glyphs instead of the current replacement character. Branch:
 - `npm run i18n:check`: clean.
 - `npm test`: 47 files, 304 tests passed.
 - `npm run build`: production build succeeded.
+
+### L5 — commits
+
+- `d30549c` — LRCLIB client, parser, cache, service and bindings.
+- `53e1719` — Now Playing lyrics stage and compact/Browse entry points.
+- `67f624d` — bundled Twemoji Mozilla font and font stacks.
+- `afa1bce` — declarative skin cover/title entry points.
+- `docs(odd)` — this document.
+
