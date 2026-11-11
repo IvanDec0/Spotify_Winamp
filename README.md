@@ -152,6 +152,8 @@ Clarity is the built-in native skin and the fallback when a declarative skin can
 
 ![Lumina Carbon](docs/screenshots/lumina-carbon.png)
 
+![Lumina Ember](docs/screenshots/lumina-ember.png)
+
 An original design inspired by the Windows Media Player era: chrome surfaces, animated ambient light, a rotating album-art halo, LED status accents and four themes (Azure, Carbon, Ember, Violet).
 </details>
 
