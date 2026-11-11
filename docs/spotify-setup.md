@@ -1,8 +1,8 @@
 # Spotify audio engine setup
 
-Cadence is a real Spotify player for a private, local setup. Audio playback is
-handled by the **Spotify web player** by default: Spotify's official Web
-Playback SDK running with Widevine in a Chromium runtime. **Spotify Soloist**
+Cadence is a real Spotify player that runs locally on your machine. Audio
+playback is handled by the **Spotify web player** by default: Spotify's official
+Web Playback SDK running with Widevine in a Chromium runtime. **Spotify Soloist**
 and **go-librespot** remain explicit fallbacks. The catalog is served by
 **go-librespot**, a GPL-3.0 open-source Spotify Connect client. Cadence does not
 require Spotify Desktop to be running.
@@ -20,14 +20,16 @@ With the web backend Cadence needs no manual setup step: at startup it downloads
 the Chromium runtime (~120 MB, SHA-256 verified), opens the embedded Spotify
 login only when no session is stored, and starts the playback helper
 automatically. The runtime lives under
-`$XDG_CACHE_HOME/cadence/webplayer`; OAuth tokens live in
-`$XDG_CONFIG_HOME/cadence/webplayer/tokens.json` (`0600`) and never reach the
-frontend or the logs.
+`$XDG_CACHE_HOME/cadence/webplayer`; the OAuth session lives in
+`$XDG_CONFIG_HOME/cadence/webplayer/tokens.json` (`0600`). Its refresh token
+never reaches the app frontend or the logs, and the isolated helper page receives
+only a short-lived access token.
 
-This is not an official Spotify client. The fallback engines use
-reverse-engineered Spotify protocols, so they may stop working after Spotify
-changes or be considered outside Spotify's terms. Use them only with your own
-Premium account and at your own risk.
+This is not an official Spotify client. The go-librespot engine uses
+reverse-engineered Spotify protocols; Soloist is Spotify's own player, but
+Cadence's integration with it is unofficial. Either path may stop working after
+Spotify changes and may be considered outside Spotify's terms. Use them only
+with your own Premium account and at your own risk.
 
 ## Requirements
 
@@ -57,21 +59,24 @@ task audio:build
 ```
 
 The engine is a separate process. It is not linked into Cadence. It is used in
-both backend modes: in Soloist mode it serves the library, search, context and
-catalog session but does not play audio.
+every backend mode: in web and Soloist modes it serves the library, search,
+context and catalog session but does not play audio.
 
 ## Pair the device
 
-`Cadence` is the playback device. In the default Soloist backend it belongs to
-Soloist; in the `librespot` fallback it belongs to go-librespot. The catalog
-engine appears separately as `Cadence Library` in Soloist mode.
+The active playback backend advertises the playback device: **Cadence Web** in
+the default web mode, and **Cadence** in the Soloist and `librespot` fallbacks.
+The catalog engine appears separately as **Cadence Library** in web and Soloist
+modes; in `librespot` mode the same go-librespot process owns both roles.
 
 1. Start Cadence without `--demo`.
 2. Click **Browse** in the compact titlebar.
 3. If the catalog engine is not paired, Browse shows a pairing code.
 4. Choose **Open pairing page**, sign in to Spotify, and approve the device.
 5. Cadence updates automatically. The catalog device appears as **Cadence
-   Library** while Soloist is the backend.
+   Library** in web and Soloist modes.
+6. In the default web mode, complete the embedded Spotify login if prompted and
+   choose **Cadence Web** in another Spotify app to start playback there.
 
 With Soloist, playback pairing is a separate one-time step: open Spotify on a
 phone, tablet or another computer on the same Wi-Fi network and choose
@@ -83,7 +88,7 @@ The go-librespot credentials are stored by the engine under:
 $XDG_CONFIG_HOME/cadence/audio/state.json
 ```
 
-The directory is owner-only. Cadence does not receive Spotify playback
+The directory is owner-only. The app UI does not receive Spotify playback
 credentials. **Reset pairing** removes the engine state and starts a new pairing
 flow.
 
@@ -95,7 +100,8 @@ The Browse window is the Spotify account/library surface:
 - open an entity page and play any track;
 - play an entire playlist, album, artist or Liked Songs;
 - search the Spotify catalog for tracks, albums, artists, playlists, shows and episodes;
-- start a Spotify radio station from a track, album, artist or playlist;
+- start a Spotify radio station from a track, album, artist or playlist when the
+  `librespot` playback backend is active;
 - add tracks to the play queue;
 - use the Queue section and the now-playing bar for playback state.
 
@@ -126,7 +132,7 @@ engine restart.
 | `mpris_enabled` | `false`; expose MPRIS media controls on Linux. |
 | `device_is_group` | `false` by default. When enabled, Spotify can show a group icon for Cadence; it does not enable Spotify Jam. Jam participation uses the engine's Connect/Jam mode independently, and live Jam behavior is unverified. |
 | `accesspoint_ports` | Engine option not exposed by Cadence yet. It is not written to the generated file; `prefer_firewall_friendly_ports: true` is active instead. |
-| `server.image_size` | Cover-art source variant: `default`, `small`, `large` or `xlarge`. Cadence writes `default` unless changed; Phase 4 selects the variant after local resizing exists. |
+| `server.image_size` | Cover-art source variant: `default`, `small`, `large` or `xlarge`. Cadence writes `default` unless changed in Settings. |
 
 The engine writes its running version as its first log line
 (`running go-librespot <version>`). Cadence parses it after startup and exposes it
@@ -188,7 +194,7 @@ for audio.
 
 ### What stays and what changes
 
-| Area | `librespot` fallback | Soloist default |
+| Area | `librespot` fallback | Soloist fallback |
 |---|---|---|
 | Audio playback | go-librespot | Soloist |
 | Library, search, context, catalog session | go-librespot | go-librespot, unchanged |
@@ -204,11 +210,12 @@ playback state and its own queue.
 
 ### First run: automatic install and guided key
 
-1. Soloist is already the selected backend. At startup Cadence discovers the
-   build for the host architecture, downloads it, verifies it with
-   `soloist --version`, and installs it under a build-numbered directory. Only
-   Spotify hosts are accepted, and the archive is never redistributed. Progress
-   appears in the audio state, the setup dialog and the Settings card.
+1. Select **Spotify Soloist** in **Audio backend**, apply the change and restart
+   Cadence. At startup Cadence discovers the build for the host architecture,
+   downloads it, verifies it with `soloist --version`, and installs it under a
+   build-numbered directory. Only Spotify hosts are accepted, and the archive is
+   never redistributed. Progress appears in the audio state, the setup dialog and
+   the Settings card.
 2. When the build is installed and no key is stored, a setup modal opens in the
    compact player and in Browse. It is shown once per install and does not block
    startup; **Later** dismisses it immediately. If the first download failed, the
@@ -256,9 +263,9 @@ the dialog without finishing.
 
 ### Settings
 
-- **Audio backend**: `soloist` is selected by default; choosing `librespot` and
-  selecting **Apply backend** is the explicit fallback. The saved value applies
-  after a Cadence restart.
+- **Audio backend**: `web` is the default; `soloist` and `librespot` are explicit
+  fallbacks. Select **Apply backend**. The saved value applies after a Cadence
+  restart.
 - **Spotify Soloist**: install state, version, remaining days, **Install
   Soloist**/**Update Soloist**, the API key field, and links to **Spotify
   dashboard** ([`https://developer.spotify.com/dashboard/soloist`](https://developer.spotify.com/dashboard/soloist))
@@ -266,9 +273,9 @@ the dialog without finishing.
 - **Start**, **Stop** and **Restart** appear only while Soloist is the selected
   backend.
 
-The install, update and key controls are available in both backend modes, so you
-can prepare Soloist before switching. Automatic install, update and pruning run
-only while `soloist` is the selected backend.
+The install, update and key controls are available in every backend mode, so
+you can prepare Soloist before switching. Automatic install, update and pruning
+run only while `soloist` is the selected backend.
 
 The installer maps Spotify's Linux x86_64, arm64 and arm32 archives plus Apple
 Silicon macOS and Windows x86_64 archives. Process supervision is Linux-only in
@@ -286,8 +293,8 @@ this release, so treat Linux as the supported target.
 - **Artist and Liked Songs contexts are not confirmed yet.** Track, album,
   playlist and episode URIs are documented by Spotify. Artist and
   `spotify:user:<user>:collection` playback is sent as a URI but remains pending
-  the Phase 0 hardware check; if Spotify rejects it, the action reports a
-  Soloist protocol error.
+  manual verification on real hardware; if Spotify rejects it, the action reports
+  a Soloist protocol error.
 - **go-librespot-only options are disabled.** Bitrate, FLAC, normalisation,
   crossfade, audio cache, MPRIS and speaker-group advertising do not apply.
   Soloist uses its own defaults, and the Settings controls are disabled with a

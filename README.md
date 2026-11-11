@@ -1,268 +1,162 @@
 # Cadence
 
-> **Working title.** A compact Arch Linux Spotify player with a dedicated Browse window and installable, declarative, Winamp-inspired skins.
+A compact, skinnable desktop Spotify player for Arch Linux, with a dedicated Browse window and declarative, Winamp-inspired skins.
 
-## Status
+[![CI](https://github.com/IvanDec0/Spotify_Winamp/actions/workflows/ci.yml/badge.svg)](https://github.com/IvanDec0/Spotify_Winamp/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/IvanDec0/Spotify_Winamp?display_name=tag&sort=semver)](https://github.com/IvanDec0/Spotify_Winamp/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform: Arch Linux](https://img.shields.io/badge/platform-Arch%20Linux-1793d1.svg)](docs/installation.md)
 
-**0.2.0: two-window playback.** Cadence is a real Spotify player. A compact,
-skinnable player and a dedicated **Browse** window cover playback, search, the
-user's library, podcasts, the queue and settings. Audio is played by the
-**Spotify web player** — Spotify's official Web Playback SDK inside a bundled
-Chromium runtime — by default; the runtime is downloaded automatically at
-startup, and Spotify Soloist and the managed **go-librespot** engine remain
-explicit fallbacks. Both fallbacks play through PulseAudio/PipeWire, and the
-official Spotify client is not required. Pairing uses Spotify's device flow,
-and the frontend never receives playback credentials.
+![Cadence compact player running the Lumina Azure skin](docs/screenshots/lumina-azure.png)
 
-- Installation: [`docs/installation.md`](docs/installation.md)
-- Release history: [`CHANGELOG.md`](CHANGELOG.md)
-- Implementation plan: [`plan/nombre_plan.md`](plan/nombre_plan.md)
-- Development workflow: [`docs/development.md`](docs/development.md)
-- Package architecture: [`docs/architecture.md`](docs/architecture.md)
-- Skin format reference: [`docs/skin-format.md`](docs/skin-format.md)
-- Skin authoring guide: [`docs/skin-authoring.md`](docs/skin-authoring.md)
-- Spotify engine setup: [`docs/spotify-setup.md`](docs/spotify-setup.md)
-- Original design baseline: [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md)
+## Overview
 
-## What it is
+Cadence pairs a small, skinnable player with a dedicated Browse window for search, library, podcasts, queue and settings. It talks to Spotify through your own Premium account and keeps playback local: the default backend is Spotify's official Web Playback SDK inside a Chromium runtime that Cadence downloads and verifies at startup. The app UI never receives playback credentials; the isolated playback page gets only a short-lived access token. Only one window is visible at a time: opening Browse hides the compact player, and closing Browse restores it without interrupting playback.
 
-Cadence is a desktop **Spotify player** with two surfaces: a compact, skinnable
-player and a larger Browse window for the catalog.
+## Features
 
-- **Audio is local.** The web player runtime, Spotify Soloist and the managed `go-librespot` engine run as separate local processes and output through PulseAudio or PipeWire.
-- **The Spotify web player is the default playback backend.** Cadence downloads the Chromium runtime at startup, opens the Spotify login only when no session is stored, and starts the helper automatically; no Browse Settings step is needed. The runtime is never bundled, so the base app stays light.
-- **go-librespot owns the catalog.** Library, search, context resolution, queue metadata and the catalog session stay on go-librespot in every backend mode. It appears as **Cadence Library**; the web player is **Cadence Web** and Soloist is **Cadence**.
-- **Soloist and `librespot` are explicit fallbacks.** Both remain selectable in Browse Settings and apply after a restart. Automatic runtime download and login apply only while the web player is the active backend.
-- **Web player trade-offs are explicit.** Radio is unavailable in web and Soloist modes, and the go-librespot bitrate, FLAC, normalisation, crossfade, cache, MPRIS and speaker-group options are disabled; each engine uses its own defaults.
-- **No Spotify Desktop dependency.** Cadence appears to Spotify as the playback device **Cadence Web** (web player) or **Cadence** (Soloist), plus the catalog device **Cadence Library** (go-librespot). Pick the Cadence device that matches the active backend when you start playback from another Spotify app.
-- **Browse is the library.** Playlists, saved albums, followed artists, Liked Songs and Your Episodes live in Browse. Search the catalog, open entity pages, queue tracks and manage saves and follows there.
-- **Search and podcasts.** Search results are grouped into tracks, albums, artists, playlists, shows and episodes. Podcast episodes play through the local engine, and show pages support saving.
-- **Spotify radio, locally.** Start a radio station from a track, album, artist or playlist and keep it playing through the local engine.
-- **Player parity.** Browse has shuffle, repeat (off, queue, one track), seek, mute, volume and queue controls, matching the compact player.
-- **One window at a time.** Opening Browse hides the compact player; closing Browse restores it without interrupting playback.
-- **English and Spanish, switchable at runtime.** Choose the language in Browse Settings; the compact player and Browse window update together and the choice persists.
-- **Skins are declarative.** The built-in Clarity skin is native; third-party skins are JSON layouts, CSS and local assets with no JavaScript. Skins can also create shaped, transparent windows and use declarative boxes, text, local images and custom action buttons.
-- **The visualizer is real.** On Linux it captures the system-wide default PulseAudio or PipeWire monitor through `parec`; if `parec` or the monitor is unavailable it falls back to the simulated animation.
-- **The demo player remains available.** Run `cadence --demo` to use the app without Spotify or network access.
+- **Two surfaces, one player.** A compact skinnable player and a frameless Browse window with custom chrome, search, library, podcasts, queue and settings.
+- **Web player by default.** Spotify's official Web Playback SDK runs with Widevine in a Chromium runtime downloaded at startup (~120 MB, checksum-verified). No manual engine install is required.
+- **go-librespot catalog.** A pinned, patched go-librespot process serves library, search, context resolution, queue metadata and the catalog session in every backend mode. It appears in Spotify as **Cadence Library** while another backend plays audio.
+- **Local audio and fallbacks.** Playback runs through separate local processes on PulseAudio or PipeWire (`pipewire-pulse`). Spotify Soloist (audio only, downloaded at runtime, one-time API key) and the `librespot` backend remain selectable in Browse Settings and apply after a restart.
+- **Browse covers the account.** Playlists, saved albums, followed artists, Liked Songs, Your Episodes, entity pages, save/follow actions, playlist editing and player parity (shuffle, repeat, seek, mute, volume, queue).
+- **Search and podcasts.** Tracks, albums, artists, playlists, shows and episodes, with podcast browsing and episode playback.
+- **Language and demo mode.** Switch between English and Spanish at runtime; run `cadence --demo` to explore the interface without Spotify or network access.
+- **Declarative skins.** JSON layouts, CSS and local assets; no skin JavaScript. Built-in Clarity skin plus the bundled Lumina, Vanta, Nightstar and Afterglow skins.
+- **Real system visualizer.** Captures the default PulseAudio/PipeWire monitor through `parec`, with a simulated animation when capture is unavailable.
 
-Spotify playback requires a **Premium** account. The app uses the user's own
-account with an unofficial client engine; see the disclaimer below. The frontend
-never receives playback credentials.
+## Project status
 
-The compact player remains the skinnable surface. The default skins use a
-420×220 logical design space; declarative skins may declare a taller canvas up
-to 420×460. The UI automatically rescales between 125% and 300% as the window is
-resized (200% by default), so text stays legible without losing the compact skin
-layout. The default skin, **Clarity**, is an original design inspired by the
-minimal, elegant, animated cPro Pure lineage from the 2010–2015 Winamp
-modern-skin era. It contains no copied skin assets. The bundled **Nightstar**
-skin uses a 420×420 square canvas and a transparent shaped window.
+Cadence 0.2.0 is an early public release.
 
-Browse is a separate frameless window with custom chrome. It starts at 960×640,
-has a 720×480 minimum, and provides a draggable topbar, minimize/close buttons
-and a bottom-right resize grip.
+| | |
+|---|---|
+| Version | 0.2.0 |
+| Platform | Arch Linux x86_64 only |
+| Account | Spotify Premium required |
+| Stage | Early public release |
 
-## What it is not
+The catalog engine and the playback fallbacks use unofficial Spotify integrations. Read the [disclaimer](#disclaimer) before using them. Release history is in [`CHANGELOG.md`](CHANGELOG.md).
 
-- Not the official Spotify client and not affiliated with Spotify.
-- Not a Spotify Connect controller; it does not need the official desktop client to play audio.
-- Not a WebKitGTK or Wails Web Playback SDK integration. The default web backend runs Spotify's official SDK with Widevine in a separate Chromium runtime; the compact Wails window never runs DRM playback.
-- Not an audio extractor. The visualizer samples the system-wide default Linux monitor, not the Spotify stream in isolation.
-- Not a native Winamp skin loader in 0.2.0.
-- Not a marketplace, visual skin editor or level 3 executable-skin runtime in 0.2.0.
+## Installation
+
+Cadence is distributed as an AppImage and a tarball. Both include the patched go-librespot engine and the bundled skins.
+
+```bash
+# AppImage
+chmod +x cadence-0.2.0-linux-x86_64.AppImage
+./cadence-0.2.0-linux-x86_64.AppImage
+
+# Tarball
+tar -xzf cadence-0.2.0-linux-x86_64.tar.gz
+./cadence-0.2.0/cadence
+```
+
+At first launch Cadence downloads the Chromium web player runtime, opens the embedded Spotify login when no session is stored, and starts the playback helper automatically. If the catalog engine is not paired, approve **Cadence Library** once at [spotify.com/pair](https://spotify.com/pair) from Browse.
+
+System requirements:
+
+- Arch Linux x86_64.
+- A Spotify **Premium** account.
+- PipeWire with `pipewire-pulse`, or PulseAudio.
+- `gtk4`, `webkitgtk-6.0` and `libsoup3` for the tarball; the AppImage bundles them.
+- `libogg`, `libvorbis`, `flac`, `mpg123`, `alsa-lib` and `libpulse` for the engine.
+- `parec` for the real visualizer; playback works without it.
+
+Full instructions, file paths, updating and uninstall steps: [`docs/installation.md`](docs/installation.md).
+
+## Build from source
+
+```bash
+git clone https://github.com/IvanDec0/Spotify_Winamp.git
+cd Spotify_Winamp
+
+sudo pacman -S --needed go nodejs npm gtk4 webkitgtk-6.0 libsoup3 base-devel git pkgconf \
+  libogg libvorbis flac mpg123 alsa-lib libpulse
+
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34
+go install github.com/go-task/task/v3/cmd/task@v3.54.0
+export PATH="$PATH:$(go env GOPATH)/bin"
+```
+
+Build the engine and start the development loop:
+
+```bash
+task audio:build   # pinned go-librespot with the local GPL-3.0 patches
+task dev           # Wails and Vite with HMR
+task check         # go vet, svelte-check, ESLint and Prettier
+task test          # Go tests and Vitest
+task package       # AppImage, tar.gz and SHA-256 checksums in bin/
+```
+
+The frontend dependencies are installed by the Taskfile. Direct npm work happens in `frontend/` with `npm ci`. The toolchain is Go 1.26+, Wails `v3.0.0-beta.34`, Svelte 5, Vite 8 and TypeScript 6; see [`docs/development.md`](docs/development.md) for the full workflow and troubleshooting.
+
+### Repository layout
+
+```text
+.
+├── main.go                  # Wails composition root and service wiring
+├── Taskfile.yml             # Developer and packaging commands
+├── build/                   # Wails metadata, Linux packaging and go-librespot patches
+├── frontend/                # Svelte 5 + TypeScript UI
+├── internal/                # Go domain services and Wails adapters
+├── skins-dev/               # Bundled and development skins
+├── docs/                    # Public documentation and screenshots
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+├── LICENSE
+├── LICENSE-ASSETS
+├── THIRD-PARTY-NOTICES.md
+└── LICENSES/                # GPL-3.0 text for the separate go-librespot engine
+```
 
 ## Architecture
 
 ```text
-┌──────────────────────────── Cadence ────────────────────────────┐
-│  Svelte 5 UI  ── Wails service calls/events ──  Go services     │
-│                                                  │              │
-│                                      playerapi.Service           │
-│                                                  │              │
-│                                    playback.EngineProvider      │
-│                                                  │              │
-│                                    engine.Supervisor            │
-└──────────────────────────────────────────────────┼──────────────┘
-                                                   │ loopback HTTP
-                                                   ▼
-                                     ┌───────────────────────────┐
-                                     │ go-librespot sidecar      │
-                                     │ Spotify session + audio   │
-                                     └─────────────┬─────────────┘
-                                                   │ PulseAudio
-                                                   ▼
-                                            Speakers / headphones
+┌────────────────────────────── Cadence ──────────────────────────────┐
+│  Svelte 5 UI  ◀── Wails services and events ──▶  Go domain services │
+│                                                         │           │
+│                                             playback.Provider       │
+│                                                         │           │
+│              ┌──────────────────┬───────────────────────┴────────┐  │
+│              │ web (default)    │ soloist / librespot (fallback) │  │
+│              └────────┬─────────┴───────────────┬────────────────┘  │
+└───────────────────────┼─────────────────────────┼───────────────────┘
+                        ▼                         ▼
+        Chromium + Spotify Web Playback SDK   Spotify Soloist or
+        (downloaded at startup)               go-librespot process
+                        └─────────────┬───────────┘
+                                      ▼
+                             PulseAudio / PipeWire
+
+go-librespot also serves the catalog in every mode:
+library, search, context resolution and queue metadata.
 ```
 
-- `internal/engine/supervisor.go` owns the sidecar process, its config and pairing state.
-- `internal/engine/rest.go` is the loopback REST client.
-- `internal/playback/engine_provider.go` maps engine state to the provider-independent player model.
-- `internal/playback/soloist_provider.go` maps the default Soloist state to the same model; `internal/soloist` owns the Soloist protocol client, installer, updater, pruning, credentials and process supervisor.
-- `internal/wailsapi/audio/service.go` also runs the Soloist maintenance loop: auto-install, 89-day/24-hour update checks, pruning and restart.
-- `internal/catalog/service.go` implements library, search, context, save/follow and playback selection; `internal/wailsapi/audio/service.go` exposes it to the frontend.
-- `internal/catalog` consumes a small `Playback` interface, so `PlayContext`, `PlayTrack`, `AddToQueue` and `StartRadio` reach the active backend without changing `playback.Provider`.
-- `internal/artwork/cache.go` proxies and bounds album art.
-- `internal/visualizer` captures the system-wide default PulseAudio/PipeWire monitor through `parec` on Linux and turns it into band, RMS and waveform frames; the frontend falls back to a simulated animation when capture is unavailable.
-- `internal/buildinfo` carries the version and short commit stamped into release builds.
-- `internal/platform` is the native window exception and hosts the dedicated Browse window on top of GTK4 sizing helpers.
-- `internal/wailsapi/{audio,player,skins,visualizer}` are the only Wails service adapters.
-- `frontend/src/app/browse/` implements the dedicated Browse window (search,
-  library, podcasts, entities, queue and settings);
-  `frontend/src/lib/music.svelte.ts` only tracks the local engine and pairing
-  state.
-- Package graph, dependency rule and event flow: [`docs/architecture.md`](docs/architecture.md).
+- `internal/engine` supervises the go-librespot sidecar; `internal/catalog` owns library, search and context orchestration.
+- `internal/webplayer` provisions the Chromium runtime and SDK helper; `internal/soloist` owns the Soloist fallback (protocol client, installer, updater, credentials and process supervisor).
+- `internal/playback` exposes the provider seam; `internal/wailsapi/*` are the only Wails service adapters.
+- `internal/skins` validates and loads declarative packages; `internal/platform` hosts the native Browse window on GTK4; the composition root is `main.go`.
 
-The engine binds only to `127.0.0.1` on a random port and stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json`. The frontend receives token-free state. The Spotify web player plays audio by default; Soloist and `librespot` are explicit fallbacks. go-librespot keeps the catalog session as `Cadence Library` in every backend mode.
-
-## Stack
-
-- Go 1.26+ (development environment: 1.27.3)
-- Wails `v3.0.0-beta.34` (pinned)
-- Svelte 5.57.2
-- Vite 8.3.5
-- TypeScript 6.0.3
-- Vitest 5.0.5, ESLint 10.13.0, Prettier 3.9.10
-- Node.js 26.12.1 / npm 12.2.1
-- go-librespot pinned to `v0.10.6-0.20261104085532-16b65bb4cd2b` (GPL-3.0 binary, separate process)
-- Spotify web player (default): castlabs Chromium runtime with Widevine and AAC, downloaded at startup, never bundled
-- Spotify Soloist (optional fallback): downloaded from Spotify at runtime, never bundled; updated automatically before the 90-day build expiry
-
-TypeScript 7 is intentionally not used because `svelte-check` 4.7.7 and `typescript-eslint` 8.72.0 are not compatible with it.
-
-## Platform
-
-Arch Linux x86_64 only.
-
-## Documentation
-
-| Document | Purpose |
-|---|---|
-| [`CHANGELOG.md`](CHANGELOG.md) | Release history |
-| [`plan/nombre_plan.md`](plan/nombre_plan.md) | Actionable implementation plan and test gates |
-| [`docs/development.md`](docs/development.md) | Local setup, commands and tooling notes |
-| [`docs/architecture.md`](docs/architecture.md) | Package layout, dependency rule, event flow and the audio backend seam |
-| [`docs/adr/0004-dual-audio-backend.md`](docs/adr/0004-dual-audio-backend.md) | ADR: Soloist as the default audio backend, go-librespot as the catalog engine and fallback |
-| [`docs/installation.md`](docs/installation.md) | Release installation, pairing and uninstall |
-| [`docs/skin-format.md`](docs/skin-format.md) | Skin package, layout, theme and security reference |
-| [`docs/skin-authoring.md`](docs/skin-authoring.md) | Step-by-step guide to creating and installing a skin |
-| [`docs/spotify-setup.md`](docs/spotify-setup.md) | Default Soloist setup, one-time API key, pairing, auto-updates and troubleshooting |
-| [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md) | Original design baseline (historical architecture sections) |
-| [`docs/archive/documentacion-cliente-musical-skins.es.md`](docs/archive/documentacion-cliente-musical-skins.es.md) | Original Spanish design document (archived) |
-
-## Prerequisites
-
-Install the Arch Linux development and audio dependencies:
-
-```bash
-sudo pacman -S --needed go nodejs npm gtk4 webkitgtk-6.0 libsoup3 base-devel git pkgconf \
-  libogg libvorbis flac mpg123 alsa-lib libpulse
-```
-
-PulseAudio or PipeWire with `pipewire-pulse` must be running for playback.
-
-Install the pinned Wails CLI and Task:
-
-```bash
-go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.34
-go install github.com/go-task/task/v3/cmd/task@v3.54.0
-```
-
-Add the Go binary directory to `PATH`:
-
-```bash
-export PATH="$PATH:$(go env GOPATH)/bin"
-```
-
-Verify the toolchain:
-
-```bash
-wails3 doctor
-wails3 version
-task --version
-```
-
-## Development
-
-Build the local audio engine and run the application:
-
-```bash
-task audio:build   # builds the pinned go-librespot into bin/go-librespot
-task dev
-```
-
-Run all checks and tests:
-
-```bash
-task check
-task test
-```
-
-Build the native binary or the release artifacts:
-
-```bash
-task build     # bin/cadence
-task package   # AppImage, tar.gz and SHA-256 checksums in bin/
-```
-
-`task package` builds the pinned `go-librespot` engine if it is missing and bundles it in both release artifacts. The build applies the four local patches in [`build/patches/`](build/patches/): search/radio, search groups (shows/episodes), library collection writes and HTTP proxy support. Both artifacts include the Lumina, Vanta, Nightstar and Afterglow skins, README, CHANGELOG, notices, licenses and `docs/`. They are named `cadence-0.2.0-linux-x86_64.AppImage`, `cadence-0.2.0-linux-x86_64.tar.gz` and `cadence-0.2.0-SHA256SUMS`. See [`docs/installation.md`](docs/installation.md) and the [`CHANGELOG`](CHANGELOG.md).
-
-The engine binary is not committed. `task audio:build` downloads the pinned source, applies the four patches and builds it with the local CGO libraries. Cadence also discovers `go-librespot` from `CADENCE_GO_LIBRESPOT`, `PATH` or next to the Cadence binary.
-
-## Spotify setup
-
-1. Build the engine with `task audio:build`. It serves the catalog in every backend mode.
-2. Start Cadence without `--demo`. The Spotify web player is already the selected backend: Cadence downloads its Chromium runtime (~120 MB, verified), opens the embedded Spotify login when no session is stored and starts the playback helper automatically.
-3. Click **Browse** in the compact titlebar.
-4. If the catalog engine is not paired, copy the pairing code or choose **Open pairing page**, then approve **Cadence Library** at `spotify.com/pair`.
-5. Play a track from Browse, search, or another Spotify app after choosing **Cadence Web**. Closing Browse returns to the compact player without stopping playback.
-
-Playback requires Spotify Premium and an audio sink. The web player, Soloist and go-librespot run as separate processes; the go-librespot log is written to `$XDG_CACHE_HOME/cadence/logs/go-librespot.log` and the Soloist log to `$XDG_CACHE_HOME/cadence/logs/soloist.log`.
-
-See [`docs/spotify-setup.md`](docs/spotify-setup.md) for prerequisites, binary discovery, reset pairing and troubleshooting.
-
-### Spotify Soloist (optional fallback)
-
-Spotify Soloist plays audio when selected in Browse Settings. Cadence downloads the right build for the
-host architecture from Spotify at first launch and refreshes it in the
-background at 89 days or within 24 hours of expiry, pruning old builds and
-restarting Soloist after the update.
-
-The only manual step is the one-time API key. Spotify requires a signed-in
-dashboard session, accepting the terms and clicking **Generate API key**, so the
-first-run modal opens
-[`developer.spotify.com/dashboard/soloist`](https://developer.spotify.com/dashboard/soloist) in
-your browser and asks for one paste. Cadence validates the key, stores it in
-`$XDG_CONFIG_HOME/cadence/soloist/api-key` (`0600`) and starts Soloist. **Later**
-dismisses the prompt; a Browse banner and the Settings card remain the way back.
-
-Soloist is never part of the Cadence artifact, and no headless browser or stored
-Spotify password is involved. Radio and the go-librespot bitrate, FLAC,
-normalisation, crossfade, cache, MPRIS and speaker-group options are unavailable
-in Soloist mode. Accounts that work with go-librespot can select the `librespot`
-backend in Settings; automatic Soloist download and updates stop in that mode.
-
-See
-[`docs/spotify-setup.md`](docs/spotify-setup.md)
-for devices, paths, expiry and troubleshooting, and
-[ADR 0004](docs/adr/0004-dual-audio-backend.md) for the original backend decision.
-
-## Search and radio
-
-Browse Search queries the Spotify catalog directly through the local engine. Results are split into **Tracks**, **Albums**, **Artists**, **Playlists**, **Shows** and **Episodes**. Tracks and episodes play immediately, the other result types open entity pages, and tracks plus album, artist and playlist pages have a **Radio** action. Library Liked Songs and Your Episodes also open their own views.
-
-Radio stations are resolved by the engine and play through the same local output as normal tracks. This requires Spotify Premium, like playback. Radio is only available with the go-librespot backend; the action is hidden in Soloist mode.
+The engine binds only to `127.0.0.1` on a random port. go-librespot credentials stay in `$XDG_CONFIG_HOME/cadence/audio/state.json`; web player OAuth tokens stay in `$XDG_CONFIG_HOME/cadence/webplayer/tokens.json` (`0600`). The frontend receives token-free state. Package graph, dependency rule and event flow: [`docs/architecture.md`](docs/architecture.md).
 
 ## Skins
 
-Clarity is the built-in native skin and is always available. Declarative skins are installed from a directory or ZIP in the skin library. They contain JSON layouts, CSS and local assets; no skin JavaScript is executed.
+Clarity is the built-in native skin and the fallback when a declarative skin cannot load. The bundled skins are **Lumina**, **Vanta**, **Nightstar** and **Afterglow**; they live in [`skins-dev/`](skins-dev/), which is also the development skin folder. A skin is a JSON layout plus CSS and local assets. No skin JavaScript is executed.
 
-The included **Lumina** development skin is an original, glossy media-player design inspired by the Windows Media Player era. It adds chrome surfaces, animated ambient light, a rotating album-art halo, LED status accents, glowing transport controls and four themes: Azure, Carbon, Ember and Violet. No WMP or The Skins Factory artwork is copied.
+<details>
+<summary><strong>Lumina</strong> — glossy media-player chrome with ambient light and four themes</summary>
 
 ![Lumina Azure](docs/screenshots/lumina-azure.png)
 
-![Lumina Carbon and Ember](docs/screenshots/lumina-carbon.png)
+![Lumina Carbon](docs/screenshots/lumina-carbon.png)
 
-**Vanta** is a full cockpit redesign rather than a palette swap. The album art becomes a reactor core on the left, the transport is mounted in a blade-shaped pod, the track readout lives in an angular telemetry display with a rotating scan scope, and the queue opens as a slide-out data bay. The themes change the geometry too: **Darkstar** uses chamfered carbon panels and an octagonal core, **Bionic** uses a glossy circular core and rounded glass panels, and **Reactor** uses a hexagonal core and a slanted blade pod. It is also original CSS artwork.
+An original design inspired by the Windows Media Player era: chrome surfaces, animated ambient light, a rotating album-art halo, LED status accents and four themes (Azure, Carbon, Ember, Violet).
+</details>
+
+<details>
+<summary><strong>Vanta</strong> — cockpit layout with a reactor-core album art, telemetry display and slide-out queue</summary>
 
 ![Vanta Darkstar](docs/screenshots/vanta-darkstar.png)
 
@@ -270,9 +164,11 @@ The included **Lumina** development skin is an original, glossy media-player des
 
 ![Vanta Reactor](docs/screenshots/vanta-reactor.png)
 
-**Nightstar** is a separate skin built around a four-blade star chassis, the shape language of mid-2000s sci-fi Windows Media Player skins. The native window is transparent, so only the chrome star is visible over the desktop. A compact chrome-framed console holds the album art and sigil, track readout, LED progress, transport and vertical side rails; the four arms end in circular metal pads. It has three themes: **Crimson**, **Ion** and **Toxin**.
+Vanta changes geometry per theme: **Darkstar** uses chamfered carbon panels and an octagonal core, **Bionic** a glossy circular core and rounded glass panels, and **Reactor** a hexagonal core and slanted blade pod.
+</details>
 
-The original Alienware Darkstar was a black, red and chrome four-point shuriken with a central emblem and tactile arm controls. Nightstar is an original interpretation of that silhouette, not a copy: the star, sigil, chrome panels and emblems are original CSS and PNG artwork. The screenshots use a space backdrop to show the transparent window; in the app, the desktop shows through around the star.
+<details>
+<summary><strong>Nightstar</strong> — four-blade star chassis in a transparent shaped window</summary>
 
 ![Nightstar Crimson](docs/screenshots/nightstar-crimson.png)
 
@@ -280,84 +176,42 @@ The original Alienware Darkstar was a black, red and chrome four-point shuriken 
 
 ![Nightstar Toxin](docs/screenshots/nightstar-toxin.png)
 
-Nightstar also exercises the new skin primitives (`box`, `text`, `image`, `button`) and the shaped-window support documented in [`docs/skin-format.md`](docs/skin-format.md).
+An original interpretation of the mid-2000s sci-fi media-player silhouette. The native window is transparent, so only the chrome star is visible over the desktop. Themes: **Crimson**, **Ion** and **Toxin**.
+</details>
 
-Development skins live in [`skins-dev/`](skins-dev/) and are discovered automatically when Cadence runs from the repository root. The included **Afterglow** skin demonstrates a different layout, theme files and the Shadow DOM runtime.
+**Afterglow** demonstrates a different layout, theme files and the Shadow DOM runtime. Cadence discovers development skins automatically when it runs from the repository root:
 
 ```bash
-./bin/cadence --skins-dev ./skins-dev   # load development skins
-./bin/cadence --safe-mode               # built-in skin only, session-only
-./bin/cadence --demo                    # simulated player, no Spotify engine
+./bin/cadence --skins-dev ./skins-dev
 ```
 
-See [`docs/skin-format.md`](docs/skin-format.md) and [`docs/skin-authoring.md`](docs/skin-authoring.md) before creating a skin.
+Read [`docs/skin-format.md`](docs/skin-format.md) for the package and security reference, or [`docs/skin-authoring.md`](docs/skin-authoring.md) for a step-by-step authoring guide.
 
-### Wayland and tiling compositors
+## Documentation
 
-Cadence requests the active skin's logical size at the current UI scale; tiling compositors such as Sway and i3 decide the final geometry. Add a floating window rule for the app:
+| Document | Purpose |
+|---|---|
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history |
+| [`docs/architecture.md`](docs/architecture.md) | Package layout, dependency rule, event flow and backend seam |
+| [`docs/development.md`](docs/development.md) | Local setup, commands and tooling notes |
+| [`docs/installation.md`](docs/installation.md) | Release installation, first run, pairing and uninstall |
+| [`docs/spotify-setup.md`](docs/spotify-setup.md) | Backend setup, pairing and troubleshooting |
+| [`docs/skin-format.md`](docs/skin-format.md) | Skin package, layout, theme and security reference |
+| [`docs/skin-authoring.md`](docs/skin-authoring.md) | Step-by-step skin authoring guide |
 
-```text
-for_window [app_id="io.github.ivandec0.cadence"] floating enable
-```
+## Contributing
 
-Most skins use an 840×440 physical window (420×220 logical at 200%). Nightstar uses 840×840 (420×420 logical). The compact queue expands the same window vertically to 920 px tall at 200%, and the height follows the current UI scale. Browse is a separate 960×640 window (720×480 minimum) with its own draggable topbar and bottom-right resize grip. The compact titlebar provides its drag region; window controls are marked as non-draggable.
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request. Run `task verify` to execute the Go checks, tests and the engine patch check in one pass.
 
-Shaped windows need a compositing environment with an alpha channel. Sway and the common Wayland compositors support it. If a compositor forces an opaque window background, the star's silhouette will be surrounded by that background instead of the desktop.
+## Security
 
-## Repository layout
-
-```text
-.
-├── main.go                          # Wails entry point, window options and service wiring
-├── Taskfile.yml                     # Developer commands
-├── build/                           # Wails metadata and Linux build tasks
-├── frontend/                        # Svelte 5 + TypeScript UI
-├── internal/
-│   ├── engine/                      # Sidecar supervisor, REST client and wire DTOs
-│   ├── catalog/                     # Library, search and context orchestration
-│   ├── playback/                    # Provider, player state, demo and engine providers
-│   ├── soloist/                     # Default Soloist protocol, installer, updater, pruning and process supervisor
-│   ├── artwork/                     # Album-art proxying and caching
-│   ├── visualizer/                  # Monitor capture and spectrum/RMS/waveform analysis
-│   ├── buildinfo/                   # Release version and commit stamping
-│   ├── diagnostics/                 # Counters and engine transport instrumentation
-│   ├── skins/                       # Skin validation, installation and runtime support
-│   ├── settings/                    # Persisted configuration
-│   ├── platform/                    # GTK4 window sizing, transparency and Browse host
-│   └── wailsapi/
-│       ├── audio/                   # Wails audio adapter (audioapi)
-│       ├── player/                  # Wails player adapter (playerapi)
-│       ├── skins/                   # Wails skins adapter (skinsapi)
-│       └── visualizer/              # Wails visualizer adapter (visualizerapi)
-├── skins-dev/                       # Development skins: Afterglow, Lumina, Vanta and Nightstar
-├── documentacion-cliente-musical-skins.md
-├── plan/
-│   └── nombre_plan.md
-├── docs/
-│   ├── adr/
-│   │   └── 0004-dual-audio-backend.md
-│   ├── architecture.md
-│   ├── development.md
-│   ├── installation.md
-│   ├── i18n.md
-│   ├── skin-format.md
-│   ├── skin-authoring.md
-│   ├── spotify-setup.md
-│   └── archive/
-├── CHANGELOG.md                     # Release history
-├── .github/workflows/ci.yml         # Arch Linux CI skeleton
-├── LICENSE                          # MIT (code)
-├── LICENSE-ASSETS                   # CC BY-SA 4.0 (original skin assets)
-├── THIRD-PARTY-NOTICES.md           # Engine and runtime attributions
-└── LICENSES/
-    └── go-librespot-GPL-3.0.txt     # GPL-3.0 text for the separate engine
-```
+Report vulnerabilities privately through GitHub Security Advisories. See [`SECURITY.md`](SECURITY.md) for scope and supported versions.
 
 ## License
 
 - **Cadence code:** MIT. See [`LICENSE`](LICENSE).
-- **Original skin assets and visual documentation:** CC BY-SA 4.0. See [`LICENSE-ASSETS`](LICENSE-ASSETS).
-- **go-librespot:** GPL-3.0. It is a separate process and is not linked into Cadence. See [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) and [`LICENSES/go-librespot-GPL-3.0.txt`](LICENSES/go-librespot-GPL-3.0.txt). This project is intended for private personal use, not distribution.
+- **Original skin assets and documentation illustrations:** CC BY-SA 4.0. See [`LICENSE-ASSETS`](LICENSE-ASSETS).
+- **go-librespot:** GPL-3.0. It is a separate process and is not linked into Cadence. See [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) and [`LICENSES/go-librespot-GPL-3.0.txt`](LICENSES/go-librespot-GPL-3.0.txt).
 
 Third-party trademarks, fonts and assets remain the property of their respective owners.
 
@@ -365,4 +219,6 @@ Third-party trademarks, fonts and assets remain the property of their respective
 
 Spotify, Winamp and cPro are trademarks of their respective owners. Cadence is not affiliated with Spotify, Nullsoft, Winamp or the cPro authors.
 
-Cadence uses `go-librespot`, an unofficial open-source Spotify client. It relies on reverse-engineered Spotify protocols, may stop working at any time, and may be considered outside Spotify's terms. Use it only with your own Premium account and at your own risk. The default Clarity skin is an original design; downloaded Winamp skins and copyrighted recreations are not part of this repository.
+Cadence is not an official Spotify client. It combines Spotify's Web Playback SDK and Soloist with the unofficial go-librespot engine; those integrations depend on Spotify behavior that can change, may stop working at any time, and may be considered outside Spotify's terms. Use Cadence only with your own Premium account and at your own risk.
+
+Screenshots may show third-party album artwork for demonstration only. All artwork remains the property of its respective owners.

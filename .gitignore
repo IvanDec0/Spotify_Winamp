@@ -1,26 +1,30 @@
-# Go
+# Build outputs
 /bin/
-/build/bin/
 /dist/
 *.test
 *.out
 *.prof
 
-# Wails / Task
+# Wails, Task and frontend build output
 /.task/
 /frontend/node_modules/
 /frontend/dist/
 /frontend/.svelte-kit/
 /frontend/.vite/
 /frontend/build/
+/frontend/coverage/
+.eslintcache
+.prettiercache
 
-# Generated Linux packaging files
+# Generated Linux packaging
 /build/linux/cadence.desktop
 /build/linux/appimage/build/
 /build/linux/appimage/out/
 /build/audio/
 /build/linux/appimage/cadence
 /build/linux/appimage/cadence.png
+*.AppImage
+cadence-*-SHA256SUMS
 
 # Node
 node_modules/
@@ -36,10 +40,17 @@ skins-local/
 !.env.example
 *.local
 
+# Internal project artifacts kept local, never published
+/.atl/
+/odd/
+
 # Editors and OS
 .DS_Store
 Thumbs.db
+desktop.ini
 .idea/
 .vscode/
+*.iml
 *.swp
 *.swo
+*~

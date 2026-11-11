@@ -7,7 +7,7 @@ Cadence includes or distributes the following third-party components.
 - **Project:** [go-librespot](https://github.com/devgianlu/go-librespot)
 - **Pinned revision:** `v0.10.6-0.20261104085532-16b65bb4cd2b`
 - **License:** GNU General Public License v3.0
-- **Role:** separate local Spotify audio engine managed by Cadence
+- **Role:** separate local Spotify catalog engine in every backend mode, and the `librespot` audio fallback, managed by Cadence
 
 Cadence does not link go-librespot into its own binary. The engine is shipped as
 an adjacent executable in the tarball and inside the AppImage. Its complete
@@ -25,8 +25,8 @@ pinned revision. Cadence applies four local patches, all GPL-3.0:
 - [`build/patches/go-librespot-http-proxy.patch`](build/patches/go-librespot-http-proxy.patch)
   routes proxy-aware access-point dialing.
 
-This project is intended for private personal use; if you redistribute the
-engine, comply with the GPL-3.0, including source availability.
+Cadence is an independent project. If you redistribute the engine, comply with
+the GPL-3.0, including source availability.
 
 ## GTK, WebKitGTK and runtime libraries
 

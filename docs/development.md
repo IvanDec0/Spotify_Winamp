@@ -125,7 +125,12 @@ See [`skin-format.md`](skin-format.md) and [`skin-authoring.md`](skin-authoring.
 
 ## Spotify development
 
-Cadence plays Spotify through **go-librespot**, a separate local audio engine. The app never embeds audio decoding and never asks the official Spotify client to play.
+Cadence plays Spotify through one of three local backends. The default is the
+**Spotify web player**: Spotify's official Web Playback SDK inside a Chromium
+runtime downloaded at startup. **go-librespot** is the pinned separate engine
+used for the catalog in every mode and as the `librespot` audio fallback;
+**Spotify Soloist** is the other audio fallback. The Wails webview never runs DRM
+playback, and Cadence never embeds audio decoding.
 
 Build the pinned engine into `bin/go-librespot`:
 
@@ -139,11 +144,19 @@ task audio:build
 Run the app:
 
 ```bash
-./bin/cadence            # local engine + compact player
+./bin/cadence            # default web backend + go-librespot catalog
 ./bin/cadence --demo     # simulated player, no engine
 ```
 
-Click **Browse** in the titlebar to open the dedicated window. The search field queries Spotify's internal catalog and groups results into Tracks, Albums, Artists, Playlists, Shows and Episodes; the Library, Podcasts, Queue and Settings sections cover the rest of the catalog and player surface. On first run the engine prints a pairing code; approve it at `spotify.com/pair`. The engine stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json` with owner-only permissions. Cadence receives only token-free state.
+With the default web backend, startup also downloads the Chromium runtime and
+opens the embedded Spotify login when no session is stored. Click **Browse** in
+the titlebar to open the dedicated window. The search field queries Spotify's
+internal catalog and groups results into Tracks, Albums, Artists, Playlists,
+Shows and Episodes; the Library, Podcasts, Queue and Settings sections cover the
+rest of the catalog and player surface. If the catalog engine is not paired,
+approve it at `spotify.com/pair`. The engine stores its credentials in
+`$XDG_CONFIG_HOME/cadence/audio/state.json` with owner-only permissions. Cadence
+receives only token-free state.
 
 The engine writes its log to `$XDG_CACHE_HOME/cadence/logs/go-librespot.log`. Its loopback API binds to a random port on `127.0.0.1`, and the port is written into `$XDG_CONFIG_HOME/cadence/audio/config.yml`.
 
@@ -182,8 +195,8 @@ installer, credentials, supervisor and facade) and
 - Never commit a Soloist archive, an installed Soloist binary or an API key.
   Soloist is downloaded at runtime from Spotify, and the key is a local `0600`
   file outside `config.json`.
-- Fake WS tests do not prove the real protocol. A manual Phase 0 capture on the
-  failing account is still required: install an official build, confirm
+- Fake WS tests do not prove the real protocol. A manual capture on the
+  affected account is still required: install an official build, confirm
   `auth_state` and audible playback, capture `soloist --version`, record the URI
   matrix and the event payloads, and confirm the exact start-failure strings.
 
@@ -208,10 +221,12 @@ falls back to the simulated animation. Playback never requires `parec`.
 
 ## Architecture rules
 
-- The frontend never receives Spotify playback credentials.
+- The app frontend never receives Spotify playback credentials; only the isolated web player helper page gets a short-lived access token.
 - go-librespot credentials stay in the engine's `state.json`; the frontend only sees token-free engine state.
 - The demo provider remains available through `--demo`.
-- Audio playback is owned by a local audio process (go-librespot or Soloist), not the webview and not the official Spotify client.
+- Audio playback is owned by a local process (the Chromium web player runtime,
+  Soloist or go-librespot), not the Wails webview and not the official Spotify
+  client.
 - Album art is proxied/cached through Go; skins and CSS cannot load arbitrary remote URLs.
 - Skins are declarative JSON + CSS + local assets. No JavaScript in level 1–2 skins.
 - The built-in Clarity skin must always be available as a fallback.
@@ -231,9 +246,8 @@ Run `npm run i18n:check` from `frontend` before committing. It walks the Svelte
 compiler AST and reports untranslated literals with `file:line`. The command has
 no `--fix` mode; edit the catalogs and components by hand. Locale changes are
 persisted in `localStorage["cadence.locale"]` and mirrored across the compact
-and Browse windows by the `storage` listener installed in `initI18n()`. See
-[`i18n.md`](i18n.md) for the key groups, ICU rules, allowlist and backend error
-policy.
+and Browse windows by the `storage` listener installed in `initI18n()`. The
+typed key list lives in `frontend/src/shared/i18n/locales/en.ts`.
 
 ## Release flow
 

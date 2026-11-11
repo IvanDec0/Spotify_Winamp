@@ -1,9 +1,8 @@
 # Architecture
 
-This document describes the Go package layout introduced in Phase 3 of the v2
-plan. It is the implementation-level companion to
-[ADR-0001](adr/0001-module-boundaries.md) and
-[ADR-0004](adr/0004-dual-audio-backend.md).
+This document describes the Go package layout, dependency rule, event flow and
+runtime seams of the current implementation. It is the implementation-level
+reference for contributors.
 
 ## Dependency rule
 
@@ -12,9 +11,10 @@ domain  <-  adapters  <-  app
 ```
 
 - **Domain** packages own behavior and data: `engine`, `catalog`, `playback`,
-  `soloist`, `artwork`, `skins`, `settings`, `diagnostics`.
+  `webplayer`, `soloist`, `artwork`, `skins`, `settings`, `diagnostics`.
 - **Adapters** translate domain services to a delivery mechanism:
-  `wailsapi/audio`, `wailsapi/player`, `wailsapi/skins`.
+  `wailsapi/audio`, `wailsapi/player`, `wailsapi/skins`, `wailsapi/visualizer`
+  and `wailsapi/lyrics`.
 - **App** is the composition root in `main.go`.
 
 Domain packages never import Wails. Only `internal/wailsapi/**`, the native
@@ -28,6 +28,7 @@ main.go
   ├── engine        supervisor, REST transport, raw engine DTOs
   ├── catalog       library/search/context orchestration, frontend context models
   ├── playback      Provider, PlayerState, DemoProvider, EngineProvider, SoloistProvider
+  ├── webplayer     Chromium runtime, embedded login, Web Playback SDK helper, Web API client
   ├── soloist       Soloist protocol client, installer, credentials, supervisor, facade
   ├── artwork       bounded album-art proxy with variants, single-flight and a disk LRU
   ├── skins         skin manager, types, validation, CSS, layout, ZIP, assets
@@ -35,13 +36,16 @@ main.go
   ├── diagnostics   counters and round tripper
   ├── platform      native window/GTK (Wails exception)
   └── wailsapi
-        ├── audio   package audioapi  -> catalog + engine
-        ├── player  package playerapi -> playback
-        └── skins   package skinsapi  -> skins
+        ├── audio      package audioapi      -> catalog + engine
+        ├── player     package playerapi     -> playback
+        ├── skins      package skinsapi      -> skins
+        ├── visualizer package visualizerapi -> visualizer
+        └── lyrics     package lyricsapi     -> lyrics
 
 engine     <- catalog, playback, wailsapi/audio
 artwork    <- catalog, playback, main
 playback   <- wailsapi/player
+webplayer  <- artwork, catalog, playback, main
 soloist    <- playback, wailsapi/audio, main
 catalog    <- wailsapi/audio
 skins      <- wailsapi/skins
@@ -63,12 +67,13 @@ package cycle.
 | `internal/engine` | `supervisor.go` (process, config, version, pairing state), `rest.go` (typed REST client, `APIError`), `dtos.go` (raw engine JSON) |
 | `internal/catalog` | `service.go` (GetState, ResetSession, Restart, Playlists, Albums, Artists, ContextTracks, YourEpisodes, Search with tracks/albums/artists/playlists/shows/episodes, PlayContext, PlayTrack, AddToQueue, StartRadio, SetLiked/IsLiked, SaveAlbum/IsAlbumSaved, SaveShow/IsShowSaved, FollowArtist/IsArtistFollowed, AddToPlaylist/RemoveFromPlaylist, artwork URL mapping, and the consumer-side `Playback` seam) |
 | `internal/playback` | `provider.go` (`Provider` and `Streamer` interfaces), `state.go` (`PlayerState`, `Track`, `Device`, `QueueItem`, `PlayerError`), `demo.go` (`DemoProvider`), `engine_provider.go` (`EngineProvider`), `soloist_provider.go` (`SoloistProvider`) |
+| `internal/webplayer` | `runtime.go` (Chromium runtime download and verification), `service.go` (embedded login and helper lifecycle), `provider.go` (`Provider` and `Streamer` over the Web API), `webapi.go`, `tokens.go`, `helper/` (embedded SDK page) |
 | `internal/soloist` | `protocol.go` (commands, events, entities, coded errors), `client.go` (loopback WebSocket client), `binary.go` (discovery, `--version`, 90-day expiry), `credentials.go` (`0600` key file), `install.go` (Spotify download, extraction, versioned install), `supervisor.go` (process, port, auth, exit code 10, redacted log), `service.go` (facade), `state.go` |
 | `internal/artwork` | `cache.go` (memory 256 entries / 64 MiB, disk LRU of resized variants, single-flight per `key@size`, diagnostics counters, `GET /art/{key}?size=64\|128\|240\|640`) |
 | `internal/skins` | domain only: `manager.go`, `types.go`, `validate.go`, `css.go`, `layout.go`, `zip.go`, `asset.go` |
 | `internal/settings` | `settings.go` (schema version, skins, engine and playback sections, atomic store) |
 | `internal/wailsapi/audio` | `service.go` (startup/shutdown, merged `audio:state` emitter, browser, delegated catalog methods, backend settings and Soloist actions), `types.go` aliases |
-| `internal/wailsapi/player` | `service.go` (500 ms ticker, mutations, emit), `types.go` aliases |
+| `internal/wailsapi/player` | `service.go` (state stream, reconnect backoff, fallback ticker for non-streaming providers, mutations, emit), `types.go` aliases |
 | `internal/wailsapi/skins` | `service.go` (dialogs/events/manager calls), `types.go` aliases |
 | `internal/platform` | native window/GTK code, main-window resize and the dedicated Browse window host; the only non-adapter Wails boundary |
 
@@ -80,14 +85,14 @@ engine.Supervisor emitter ──┐
 soloist.Supervisor emitter ─┘
 
 playback.Provider ──▶ playerapi.Service ──▶ Wails "player:state"
-      (500 ms ticker + mutations)
+      (state stream + mutations; fallback ticker for non-streaming providers)
 
 skins.Manager emitter ──▶ skinsapi.Service ──▶ Wails "skins:changed"
 
 All three feed frontend/src/shared/api/events.ts
 ```
 
-Event names and payload shapes are unchanged from v1:
+Event names and payload shapes remain stable:
 
 - `audio:state` carries `engine.AudioState`, now with additive
   `playbackBackend` and an optional `soloist` DTO. Both engines publish through
@@ -122,48 +127,51 @@ an unknown or missing value normalizes to `web`.
   process after an update. The work runs in a background goroutine and never
   blocks app construction; progress and failures reach the UI through the
   existing `audio:state` payload.
-- **One Soloist service in both modes.** `soloist.Service` is constructed in both
+- **One Soloist service in all modes.** `soloist.Service` is constructed in all
   modes so Settings can install, update and configure the key before the user
   switches. Only Soloist mode starts the process and runs maintenance.
 - **Two seams.** `playback.Provider` and `playback.Streamer` are unchanged.
   `catalog` declares the four methods it consumes in `catalog.Playback`;
   `PlayContext`, `PlayTrack`, `AddToQueue` and `StartRadio` route through the
-  injected implementation. The default is an internal go-librespot wrapper that
-  preserves the previous behavior exactly. In Soloist mode the same
-  `SoloistProvider` is injected into both the player service and catalog.
+  injected implementation. The default is `webplayer.Provider`; the `librespot`
+  fallback is an internal go-librespot wrapper that preserves the previous
+  behavior exactly. In Soloist mode the same `SoloistProvider` is injected into
+  both the player service and catalog.
 - **Library engine stays authoritative.** go-librespot keeps the catalog
-  session, library, search and context resolution. In Soloist mode its device is
-  named `Cadence Library`, MPRIS is forced off and its audio cache is forced
-  off. Soloist advertises the `Cadence` playback device.
+  session, library, search and context resolution. In web and Soloist modes its
+  device is named `Cadence Library`, MPRIS is forced off and its audio cache is
+  forced off. The web player advertises `Cadence Web`; Soloist advertises
+  `Cadence`.
 - **One merged state.** The audio adapter merges both engines into
   `engine.AudioState`: `PlaybackBackend` plus `Soloist *SoloistState`. The
   Soloist key is never part of the DTO; only `APIKeySet` is exposed.
 
 ### Capability matrix
 
-| Capability | librespot | Soloist |
-|---|---|---|
-| Library, search, context, metadata | go-librespot | go-librespot (unchanged) |
-| Audio playback | go-librespot | Soloist |
-| Play context | yes | yes (URI; no offset) |
-| Play track | yes | yes |
-| Add to queue | yes | yes (track URIs only) |
-| Radio | yes | no (UI gated) |
-| Seek | yes | yes (retry while loading) |
-| Volume / shuffle / repeat | yes | yes |
-| Bitrate / FLAC / normalisation / crossfade | yes | Soloist defaults; controls disabled |
-| Cache | yes | Soloist-managed; control disabled |
-| MPRIS | optional | no |
-| Visualizer | system capture | system capture (unchanged) |
-| Connect device | `Cadence` | `Cadence` + `Cadence Library` |
+| Capability | web (default) | librespot | Soloist |
+|---|---|---|---|
+| Library, search, context, metadata | go-librespot | go-librespot | go-librespot (unchanged) |
+| Audio playback | Web Playback SDK | go-librespot | Soloist |
+| Play context | yes | yes | yes (URI; no offset) |
+| Play track | yes | yes | yes |
+| Add to queue | yes | yes | yes (track URIs only) |
+| Radio | no (UI gated) | yes | no (UI gated) |
+| Seek | yes | yes | yes (retry while loading) |
+| Volume / shuffle / repeat | yes | yes | yes |
+| Bitrate / FLAC / normalisation / crossfade | not used | yes | Soloist defaults; controls disabled |
+| Cache | web runtime-managed | yes | Soloist-managed; control disabled |
+| MPRIS | no | optional | no |
+| Visualizer | system capture | system capture | system capture (unchanged) |
+| Connect device | `Cadence Web` + `Cadence Library` | `Cadence` | `Cadence` + `Cadence Library` |
 
 Soloist has no context offset: `skipToURI` plays the clicked track standalone
 and loses the parent context. Its local queue API only appends track URIs, so
-queue reorder/remove is not available. Radio is hidden because go-librespot
-resolves it through a private session it does not expose.
+queue reorder/remove is not available. Radio is hidden in Soloist because
+go-librespot resolves it through a private session it does not expose; the web
+player has no public radio endpoint.
 
-See [ADR-0004](adr/0004-dual-audio-backend.md) for the decision and
-[`spotify-setup.md`](spotify-setup.md) for the user-facing setup.
+See [`spotify-setup.md`](spotify-setup.md) for the user-facing setup and the
+fallback trade-offs.
 
 ## Browse window
 
@@ -188,7 +196,7 @@ The catalog has its own native window, separate from the compact player.
   open; closing Browse restores it, and closing the main window quits normally.
 - The compact settings button and the skin `open-settings` handlers call
   `openBrowse("settings")`; the old `SettingsPopover` and `SkinManager` were
-  removed in Phase 7. Browse `SettingsView` is the single settings surface:
+  removed. Browse `SettingsView` is the single settings surface:
   engine playback/cache/features (with the explicit restart confirmation),
   appearance (language, theme, visualizer, motion) and skins
   (activate/install/uninstall/reset, third-party toggle).
@@ -250,7 +258,9 @@ backend. The frontend maps known codes through `errors.*`; unknown codes
 fall back to a generic headline and keep the raw message in a diagnostic detail.
 Skin validation warnings remain raw English details.
 
-See [`i18n.md`](i18n.md) for the catalog workflow and the full error policy.
+The catalogs live in `frontend/src/shared/i18n/locales/{en,es}.ts`; `en.ts` is
+the typed source and `es.ts` must match its keys. The contributor workflow is in
+[`development.md`](development.md#localization-workflow).
 
 ## Adding a catalog surface
 
@@ -282,7 +292,8 @@ user-scoped collection URI from `/status`. The patched engine serves
 the `collection`, `artist` and `show` sets; the original `/library/liked`
 and playlist routes keep their behavior. Saved shows use the `show` set, while
 liked tracks and saved albums use `collection` and followed artists use
-`artist`. The saved-shows listing UI is Phase 6.
+`artist`. Saved shows are not listed in a dedicated view yet; use search to find
+a show.
 
 ## Engine settings
 
