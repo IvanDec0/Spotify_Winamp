@@ -28,12 +28,20 @@ const mocks = vi.hoisted(() => ({
     addToPlaylist: vi.fn(),
     removeFromPlaylist: vi.fn(),
   },
+  music: {
+    audio: { playbackBackend: "librespot" },
+    get soloistMode(): boolean {
+      return this.audio.playbackBackend === "soloist";
+    },
+  },
 }));
 
 vi.mock("../../shared/api", () => ({
   audio: mocks.audio,
   toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
 }));
+
+vi.mock("../../lib/music.svelte", () => ({ music: mocks.music }));
 
 vi.mock("../../lib/player.svelte", async () => {
   const { playerMock } = await import("../../lib/testing/player-mock.svelte");
@@ -100,6 +108,7 @@ describe("SearchView", () => {
       items: [],
     });
     mocks.audio.isLiked.mockResolvedValue(false);
+    mocks.music.audio.playbackBackend = "librespot";
   });
 
   it("renders Discover when the query is empty", async () => {
@@ -177,5 +186,29 @@ describe("SearchView", () => {
 
     expect(mocks.audio.addToQueue).toHaveBeenCalledWith("spotify:track:1");
     expect(mocks.audio.startRadio).toHaveBeenCalledWith("spotify:track:1");
+  });
+
+  it("hides the track radio action in Soloist mode", () => {
+    browse.query = "daft";
+    browse.results = emptyView({
+      tracks: [hit("spotify:track:1", "One More Time")],
+    });
+    mocks.music.audio.playbackBackend = "soloist";
+
+    render(SearchView);
+
+    expect(screen.queryByRole("button", { name: "Start radio from One More Time" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Add One More Time to the queue" })).not.toBeNull();
+  });
+
+  it("offers the track radio action with the go-librespot backend", () => {
+    browse.query = "daft";
+    browse.results = emptyView({
+      tracks: [hit("spotify:track:1", "One More Time")],
+    });
+
+    render(SearchView);
+
+    expect(screen.getByRole("button", { name: "Start radio from One More Time" })).not.toBeNull();
   });
 });

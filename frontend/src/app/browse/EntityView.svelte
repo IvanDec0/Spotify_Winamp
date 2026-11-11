@@ -2,6 +2,7 @@
   import { tick } from "svelte";
   import { coverURL } from "../../lib/artwork";
   import { formatTime } from "../../lib/format";
+  import { music } from "../../lib/music.svelte";
   import { player } from "../../lib/player.svelte";
   import { t } from "../../shared/i18n";
   import Button from "../../shared/ui/Button.svelte";
@@ -18,11 +19,14 @@
   let context = $derived(browse.context);
   let items = $derived(context?.items ?? []);
   let coverSrc = $derived(entity?.image ? coverURL(entity.image, 120) : "");
+  let webMode = $derived(music.audio.playbackBackend === "web");
   let canToggle = $derived(
     entity?.kind === "album" || entity?.kind === "show" || entity?.kind === "artist",
   );
   let canRadio = $derived(
-    entity?.kind === "album" || entity?.kind === "artist" || entity?.kind === "playlist",
+    !music.soloistMode &&
+      !webMode &&
+      (entity?.kind === "album" || entity?.kind === "artist" || entity?.kind === "playlist"),
   );
   let editable = $derived(entity?.kind === "playlist" && Boolean(entity.canEdit));
   let kindLabel = $derived.by(() => {

@@ -1,5 +1,5 @@
 import { audio as audioApi, onAudioState, toApiError } from "../shared/api";
-import type { AudioState } from "../shared/api/types";
+import type { AudioState, SoloistState } from "../shared/api/types";
 import type { MessageKey, MessageParams } from "../shared/i18n";
 
 export interface MusicNotice {
@@ -7,7 +7,41 @@ export interface MusicNotice {
   params?: MessageParams;
 }
 
-function normalizeAudio(state: AudioState): AudioState {
+/** Soloist state with every nullable generated field narrowed for the UI. */
+export type SoloistSnapshot = Omit<SoloistState, "accounts"> & { accounts: string[] };
+
+/** Audio state after normalization, with a fully populated Soloist snapshot. */
+export type MusicAudioState = Omit<AudioState, "soloist"> & {
+  soloist: SoloistSnapshot | null;
+};
+
+function normalizeSoloist(state: SoloistState | null | undefined): SoloistSnapshot | null {
+  if (!state) return null;
+  return {
+    installed: state.installed ?? false,
+    binaryPath: state.binaryPath ?? "",
+    version: state.version ?? "",
+    builtAt: state.builtAt ?? "",
+    expiresAt: state.expiresAt ?? "",
+    expired: state.expired ?? false,
+    daysLeft: state.daysLeft ?? 0,
+    running: state.running ?? false,
+    loggedIn: state.loggedIn ?? false,
+    needsPairing: state.needsPairing ?? false,
+    active: state.active ?? false,
+    deviceName: state.deviceName ?? "",
+    accounts: state.accounts ?? [],
+    installing: state.installing ?? false,
+    installStage: state.installStage ?? "",
+    downloaded: state.downloaded ?? 0,
+    total: state.total ?? 0,
+    apiKeySet: state.apiKeySet ?? false,
+    error: state.error ?? "",
+    errorCode: state.errorCode ?? "",
+  };
+}
+
+function normalizeAudio(state: AudioState): MusicAudioState {
   return {
     available: state.available ?? false,
     running: state.running ?? false,
@@ -22,10 +56,12 @@ function normalizeAudio(state: AudioState): AudioState {
     binaryPath: state.binaryPath ?? "",
     configDirectory: state.configDirectory ?? "",
     audioBackend: state.audioBackend ?? "",
+    playbackBackend: state.playbackBackend ?? "web",
+    soloist: normalizeSoloist(state.soloist),
   };
 }
 
-const initialState: AudioState = {
+const initialState: MusicAudioState = {
   available: false,
   running: false,
   authenticated: false,
@@ -39,6 +75,8 @@ const initialState: AudioState = {
   binaryPath: "",
   configDirectory: "",
   audioBackend: "",
+  playbackBackend: "web",
+  soloist: null,
 };
 
 // The audio engine pushes state changes; polling is only needed while the
@@ -50,8 +88,8 @@ const pairingPollInterval = 5000;
  * and context data live in the Browse store; this store only tracks whether
  * the local engine is available, running and authenticated.
  */
-class MusicStore {
-  audio = $state<AudioState>(initialState);
+export class MusicStore {
+  audio = $state<MusicAudioState>(initialState);
   loading = $state(true);
   busy = $state(false);
   error = $state<string | null>(null);
@@ -67,6 +105,14 @@ class MusicStore {
 
   get pairing() {
     return this.audio.pairing;
+  }
+
+  get soloistMode(): boolean {
+    return this.audio.playbackBackend === "soloist";
+  }
+
+  get soloist(): SoloistSnapshot | null {
+    return this.audio.soloist;
   }
 
   async start(): Promise<void> {

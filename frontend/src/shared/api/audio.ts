@@ -1,5 +1,5 @@
 import { Service } from "../../../bindings/cadence/internal/wailsapi/audio";
-import type { EngineSettings } from "./types";
+import type { EngineSettings, PlaybackSettings } from "./types";
 import { call } from "./client";
 
 /**
@@ -10,9 +10,28 @@ export const audio = {
   getState: () => call(() => Service.GetState()),
   getEngineSettings: () => call(() => Service.GetEngineSettings()),
   setEngineSettings: (settings: EngineSettings) => call(() => Service.SetEngineSettings(settings)),
+  getPlaybackSettings: () => call(() => Service.GetPlaybackSettings()),
+  setPlaybackSettings: (settings: PlaybackSettings) =>
+    call(() => Service.SetPlaybackSettings(settings)),
+  installSoloist: () => call(() => Service.InstallSoloist()),
+  saveSoloistAPIKey: (key: string) => call(() => Service.SaveSoloistAPIKey(key)),
+  clearSoloistAPIKey: () => call(() => Service.ClearSoloistAPIKey()),
+  startSoloist: () => call(() => Service.StartSoloist()),
+  stopSoloist: () => call(() => Service.StopSoloist()),
+  restartSoloist: () => call(() => Service.RestartSoloist()),
+  openSoloistDashboard: () => call(() => Service.OpenSoloistDashboard()),
+  openSoloistDownloads: () => call(() => Service.OpenSoloistDownloads()),
   openPairing: () => call(() => Service.OpenPairing()),
   resetSession: () => call(() => Service.ResetSession()),
   restart: () => call(() => Service.Restart()),
+  getWebPlayerStatus: () => call(() => Service.GetWebPlayerStatus()),
+  connectWebPlayer: () => call(() => Service.ConnectWebPlayer()),
+  disconnectWebPlayer: () => call(() => Service.DisconnectWebPlayer()),
+  installWebPlayerRuntime: () => call(() => Service.InstallWebPlayerRuntime()),
+  startWebPlayer: () => call(() => Service.StartWebPlayer()),
+  stopWebPlayer: () => call(() => Service.StopWebPlayer()),
+  configureWebPlayerApp: () => call(() => Service.ConfigureWebPlayerApp()),
+  generateSoloistAPIKey: (rotate: boolean) => call(() => Service.GenerateSoloistAPIKey(rotate)),
   playlists: (offset: number, limit: number) => call(() => Service.Playlists(offset, limit)),
   albums: (offset: number, limit: number) => call(() => Service.Albums(offset, limit)),
   artists: (offset: number, limit: number) => call(() => Service.Artists(offset, limit)),

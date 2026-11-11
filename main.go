@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -18,17 +19,22 @@ import (
 	"cadence/internal/artwork"
 	"cadence/internal/buildinfo"
 	"cadence/internal/catalog"
+	"cadence/internal/developer"
 	"cadence/internal/diagnostics"
 	"cadence/internal/engine"
+	"cadence/internal/lyrics"
 	"cadence/internal/platform"
 	"cadence/internal/playback"
 	"cadence/internal/settings"
 	"cadence/internal/skins"
+	"cadence/internal/soloist"
 	"cadence/internal/visualizer"
 	audioapi "cadence/internal/wailsapi/audio"
+	lyricsapi "cadence/internal/wailsapi/lyrics"
 	playerapi "cadence/internal/wailsapi/player"
 	skinsapi "cadence/internal/wailsapi/skins"
 	visualizerapi "cadence/internal/wailsapi/visualizer"
+	"cadence/internal/webplayer"
 
 	"github.com/adrg/xdg"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -81,10 +87,19 @@ func main() {
 	devSkins := flag.String("skins-dev", "", "directory containing development skins")
 	diagnosticsEnabled := flag.Bool("diagnostics", false, "expose local diagnostics and pprof on a loopback port")
 	printVersion := flag.Bool("version", false, "print the version and exit")
+	webLogin := flag.Bool("web-login", false, "connect the Spotify web player account and exit")
+	webLogout := flag.Bool("web-logout", false, "disconnect the Spotify web player account and exit")
+	webInstall := flag.Bool("web-install", false, "install the web player runtime and exit")
 	flag.Parse()
 
 	if *printVersion {
 		fmt.Printf("Cadence %s\n", buildinfo.String())
+		return
+	}
+	if *webLogin || *webLogout || *webInstall {
+		if err := runWebCommand(*webLogin, *webLogout, *webInstall); err != nil {
+			log.Fatalf("web player: %v", err)
+		}
 		return
 	}
 
@@ -133,6 +148,13 @@ func main() {
 		defaults := settings.Default()
 		engineSettings = defaults.Engine
 	}
+	playbackBackend := settings.BackendWeb
+	if savedSettings.Playback != nil {
+		playbackBackend = settings.NormalizePlaybackBackend(savedSettings.Playback.Backend)
+	}
+	soloistMode := playbackBackend == settings.BackendSoloist
+	webMode := playbackBackend == settings.BackendWeb
+	libraryOnly := soloistMode || webMode
 	audioCacheDir := engineSettings.CacheDir
 	if audioCacheDir == "" {
 		audioCacheDir = filepath.Join(xdg.CacheHome, "cadence", "audio-cache")
@@ -153,6 +175,42 @@ func main() {
 		DiskLimit: 256 << 20,
 	})
 
+	// The developer automation starts a hidden helper per action against the
+	// dashboard profile; the service itself holds no process between actions.
+	// It is built first because the web player routes its OAuth authorize URL
+	// through the embedded browser instead of the system browser.
+	var developerService *developer.Service
+	if !*demoMode {
+		service, err := developer.NewService(developer.Options{
+			ConfigDir: filepath.Join(xdg.ConfigHome, "cadence"),
+			Root:      filepath.Join(xdg.CacheHome, "cadence", "developer"),
+			LogPath:   filepath.Join(xdg.CacheHome, "cadence", "logs", "developer.log"),
+		})
+		if err != nil {
+			log.Fatalf("initialise developer automation: %v", err)
+		}
+		developerService = service
+	}
+
+	// The web service exists in every non-demo mode so Settings can connect,
+	// install and inspect the runtime before the backend is selected. It binds
+	// no socket and starts no process until asked.
+	var webService *webplayer.Service
+	if !*demoMode {
+		options := webplayer.ServiceOptions{
+			ClientID: webClientID(),
+			Art:      artCache,
+		}
+		if developerService != nil {
+			options.OpenURL = developerService.OpenOAuthURL
+		}
+		service, err := webplayer.NewService(options)
+		if err != nil {
+			log.Fatalf("initialise web player: %v", err)
+		}
+		webService = service
+	}
+
 	var recorder *diagnostics.Recorder
 	var engineHTTPClient *http.Client
 	if *diagnosticsEnabled {
@@ -164,10 +222,17 @@ func main() {
 		log.Println("diagnostics enabled: counters and pprof are exposed on a loopback port")
 	}
 
-	audioRuntime := engine.NewSupervisor(engine.Options{
+	libraryDeviceName := "Cadence"
+	if libraryOnly {
+		// The go-librespot sidecar only keeps the catalog session in Soloist
+		// and web modes; its device name makes that role explicit in Spotify
+		// Connect.
+		libraryDeviceName = "Cadence Library"
+	}
+	engineOptions := engine.Options{
 		ConfigDir:                 filepath.Join(xdg.ConfigHome, "cadence", "audio"),
 		LogPath:                   filepath.Join(xdg.CacheHome, "cadence", "logs", "go-librespot.log"),
-		DeviceName:                "Cadence",
+		DeviceName:                libraryDeviceName,
 		AudioBackend:              "pulseaudio",
 		AudioDevice:               "default",
 		Bitrate:                   engineSettings.Bitrate,
@@ -185,10 +250,43 @@ func main() {
 		DeviceIsGroup: engineSettings.DeviceIsGroup,
 		ImageSize:     engineSettings.ImageSize,
 		HTTPClient:    engineHTTPClient,
+	}
+	if libraryOnly {
+		// Soloist and the web player own audio in these modes: go-librespot
+		// must not expose MPRIS or keep a second audio cache.
+		engineOptions.CacheEnabled = false
+		engineOptions.MPRISEnabled = false
+	}
+	audioRuntime := engine.NewSupervisor(engineOptions)
+
+	var soloistService *soloist.Service
+	// The service exists in both modes so Settings can install Soloist and
+	// store its API key before the user switches backends. Only the Soloist
+	// backend starts the process.
+	soloistService = soloist.NewService(soloist.Options{
+		ProgramsDir: filepath.Join(xdg.DataHome, "cadence", "soloist", "programs"),
+		DataDir:     filepath.Join(xdg.DataHome, "cadence", "soloist", "data"),
+		CacheDir:    filepath.Join(xdg.CacheHome, "cadence", "soloist", "cache"),
+		LogPath:     filepath.Join(xdg.CacheHome, "cadence", "logs", "soloist.log"),
+		APIKeyPath:  filepath.Join(xdg.ConfigHome, "cadence", "soloist", "api-key"),
+		DeviceName:  "Cadence",
 	})
+
 	var provider playback.Provider = demoProvider
+	var catalogPlayback catalog.Playback
 	if !*demoMode {
-		provider = playback.NewEngineProvider(audioRuntime, artCache)
+		switch playbackBackend {
+		case settings.BackendSoloist:
+			soloistProvider := playback.NewSoloistProvider(soloistService, artCache)
+			provider = soloistProvider
+			catalogPlayback = soloistProvider
+		case settings.BackendWeb:
+			webProvider := webService.Provider()
+			provider = webProvider
+			catalogPlayback = webProvider
+		default:
+			provider = playback.NewEngineProvider(audioRuntime, artCache)
+		}
 	}
 	playerService := playerapi.NewService(provider)
 	artCache.SetRecorder(recorder)
@@ -199,14 +297,35 @@ func main() {
 		Supervisor: audioRuntime,
 		Art:        artCache,
 		Enabled:    !*demoMode,
+		Playback:   catalogPlayback,
 	})
+	var soloistBackend audioapi.SoloistBackend
+	if soloistService != nil {
+		soloistBackend = soloistService
+	}
+	var webBackend audioapi.WebBackend
+	if webService != nil {
+		webBackend = webService
+	}
+	var developerBackend audioapi.DeveloperBackend
+	if developerService != nil {
+		developerBackend = developerService
+	}
 	audioService := audioapi.NewService(audioapi.Options{
-		Catalog:    catalogService,
-		Supervisor: audioRuntime,
-		Settings:   settingsStore,
-		Enabled:    !*demoMode,
+		Catalog:         catalogService,
+		Supervisor:      audioRuntime,
+		Settings:        settingsStore,
+		Enabled:         !*demoMode,
+		Soloist:         soloistBackend,
+		Web:             webBackend,
+		Developer:       developerBackend,
+		PlaybackBackend: playbackBackend,
 	})
 	visualizerService := visualizerapi.NewService()
+	lyricsClient := lyrics.NewClient(lyrics.Options{
+		CacheDir: filepath.Join(xdg.CacheHome, "cadence", "lyrics"),
+	})
+	lyricsService := lyricsapi.NewService(lyricsClient)
 
 	if recorder != nil {
 		server, err := startDiagnosticsServer(recorder, audioRuntime.Version)
@@ -242,6 +361,7 @@ func main() {
 			application.NewService(skinService),
 			application.NewService(audioService),
 			application.NewService(visualizerService),
+			application.NewService(lyricsService),
 		},
 		Linux: application.LinuxOptions{
 			ProgramName:   "cadence",
@@ -279,9 +399,89 @@ func main() {
 		},
 	})
 
-	if err := cadence.Run(); err != nil {
-		log.Fatal(err)
+	runErr := cadence.Run()
+	if developerService != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := developerService.Stop(stopCtx); err != nil {
+			log.Printf("stop developer automation: %v", err)
+		}
+		cancel()
 	}
+	if webService != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := webService.Stop(stopCtx); err != nil {
+			log.Printf("stop web player: %v", err)
+		}
+		cancel()
+	}
+	if runErr != nil {
+		log.Fatal(runErr)
+	}
+}
+
+func runWebCommand(login, logout, install bool) error {
+	options := webplayer.ServiceOptions{ClientID: webClientID()}
+	if login {
+		// Route the CLI login through the same headless embedded browser as the
+		// settings UI instead of opening the system browser.
+		developerService, err := developer.NewService(developer.Options{
+			ConfigDir: filepath.Join(xdg.ConfigHome, "cadence"),
+			Root:      filepath.Join(xdg.CacheHome, "cadence", "developer"),
+			LogPath:   filepath.Join(xdg.CacheHome, "cadence", "logs", "developer.log"),
+		})
+		if err != nil {
+			return err
+		}
+		options.OpenURL = developerService.OpenOAuthURL
+	}
+	service, err := webplayer.NewService(options)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := service.Stop(ctx); err != nil {
+			log.Printf("stop web player: %v", err)
+		}
+	}()
+
+	switch {
+	case login:
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		if err := service.Login(ctx); err != nil {
+			return err
+		}
+		fmt.Println("Spotify connected.")
+		return nil
+	case logout:
+		if err := service.Logout(); err != nil {
+			return err
+		}
+		fmt.Println("Spotify disconnected.")
+		return nil
+	case install:
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		runtime, err := service.InstallRuntime(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Web player runtime %s installed at %s\n", runtime.Version, runtime.Dir)
+		return nil
+	default:
+		return nil
+	}
+}
+
+func webClientID() string {
+	if value := strings.TrimSpace(os.Getenv("CADENCE_SPOTIFY_CLIENT_ID")); value != "" {
+		return value
+	}
+	// An empty value makes webplayer.NewService load the Client ID stored by
+	// Settings, then fall back to the built-in public app.
+	return ""
 }
 
 func startDiagnosticsServer(recorder *diagnostics.Recorder, engineVersion func() string) (*http.Server, error) {

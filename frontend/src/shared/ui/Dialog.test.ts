@@ -38,6 +38,15 @@ const negativeTabindexBeforeButton = createRawSnippet(() => ({
   `,
 }));
 
+const autofocusBeforeClose = createRawSnippet(() => ({
+  render: () => `
+    <div>
+      <button type="button">Visible action</button>
+      <button type="button" data-autofocus>Generate API key</button>
+    </div>
+  `,
+}));
+
 function props(open: boolean, onclose = vi.fn()) {
   return { open, title: "Test dialog", onclose, children };
 }
@@ -120,6 +129,21 @@ describe("Dialog", () => {
 
     await waitFor(() =>
       expect(document.activeElement).toBe(screen.getByRole("button", { name: "Visible action" })),
+    );
+  });
+
+  it("prefers a body element marked data-autofocus over the close button", async () => {
+    render(Dialog, {
+      props: {
+        open: true,
+        title: "Test dialog",
+        onclose: vi.fn(),
+        children: autofocusBeforeClose,
+      },
+    });
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Generate API key" })),
     );
   });
 

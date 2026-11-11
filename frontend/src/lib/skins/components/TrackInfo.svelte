@@ -3,6 +3,7 @@
   import { t } from "../../../shared/i18n";
   import { playerErrorCopy } from "../../player-error";
   import { player } from "../../player.svelte";
+  import { skins } from "../../skins.svelte";
 
   interface Props {
     showAlbum?: boolean;
@@ -33,7 +34,12 @@
   );
 </script>
 
-<div class="cad-track-info" class:is-centered={align === "center"} data-component="track-info">
+<div
+  class="cad-track-info"
+  class:is-centered={align === "center"}
+  class:is-playing={playing}
+  data-component="track-info"
+>
   {#if showStatus}
     <div class="cad-track-status">
       <span
@@ -49,9 +55,17 @@
     </div>
   {/if}
 
-  <h1 class="cad-track-title" title={displayTitle}>{displayTitle}</h1>
-  <p class="cad-track-artists" title={artists}>{artists}</p>
-  {#if showAlbum && player.state.track.album}
-    <p class="cad-track-album" title={player.state.track.album}>{player.state.track.album}</p>
-  {/if}
+  {#key player.state.track.id}
+    <div class="cad-track-copy">
+      <h1 class="cad-track-title" title={displayTitle}>
+        <button class="cad-track-title-button" type="button" onclick={() => skins.openNowPlaying()}>
+          {displayTitle}
+        </button>
+      </h1>
+      <p class="cad-track-artists" title={artists}>{artists}</p>
+      {#if showAlbum && player.state.track.album}
+        <p class="cad-track-album" title={player.state.track.album}>{player.state.track.album}</p>
+      {/if}
+    </div>
+  {/key}
 </div>

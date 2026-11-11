@@ -9,7 +9,8 @@
     type VisualizerMode,
   } from "../../lib/preferences.svelte";
   import { skins } from "../../lib/skins.svelte";
-  import { i18n, t, type Locale } from "../../shared/i18n";
+  import { music } from "../../lib/music.svelte";
+  import { i18n, t, type Locale, type MessageKey } from "../../shared/i18n";
   import Button from "../../shared/ui/Button.svelte";
   import Dialog from "../../shared/ui/Dialog.svelte";
   import Skeleton from "../../shared/ui/Skeleton.svelte";
@@ -30,7 +31,15 @@
   ];
 
   let confirmRestart = $state(false);
+  let apiKey = $state("");
   let form = $derived(browseSettings.settings);
+  let playback = $derived(browseSettings.playback);
+  let soloist = $derived(music.soloist);
+  let soloistMode = $derived(music.soloistMode);
+  let webStatus = $derived(browseSettings.webStatus);
+  let backendChanged = $derived(
+    Boolean(playback) && playback?.backend !== music.audio.playbackBackend,
+  );
   let declarative = $derived(skins.isDeclarative);
   let themeOptions = $derived(
     declarative
@@ -42,6 +51,13 @@
 
   onMount(() => {
     void browseSettings.load();
+  });
+
+  $effect(() => {
+    const timer = setInterval(() => {
+      if (!document.hidden) void browseSettings.refreshWebStatus();
+    }, 3000);
+    return () => clearInterval(timer);
   });
 
   function labelFromSlug(value: string): string {
@@ -106,6 +122,117 @@
   async function confirmRestartNow(): Promise<void> {
     confirmRestart = false;
     await browseSettings.restart();
+  }
+
+  function describedBy(id: string): string {
+    return soloistMode ? `${id} settings-soloist-note` : id;
+  }
+
+  function installStageLabel(stage: string): string {
+    switch (stage) {
+      case "downloading":
+        return t("browse.soloistStageDownloading");
+      case "extracting":
+        return t("browse.soloistStageExtracting");
+      case "verifying":
+        return t("browse.soloistStageVerifying");
+      case "installing":
+        return t("browse.soloistStageInstalling");
+      default:
+        return "";
+    }
+  }
+
+  function downloadPercent(downloaded: number, total: number): number {
+    if (total <= 0) return 0;
+    return Math.min(100, Math.round((downloaded / total) * 100));
+  }
+
+  function soloistErrorLabel(code: string): MessageKey {
+    switch (code) {
+      case "soloist_not_installed":
+        return "errors.soloistNotInstalled";
+      case "soloist_unsupported_platform":
+        return "errors.soloistUnsupportedPlatform";
+      case "soloist_api_key_missing":
+        return "errors.soloistApiKeyMissing";
+      case "soloist_api_key_invalid":
+        return "errors.soloistApiKeyInvalid";
+      case "soloist_api_key_rejected":
+        return "errors.soloistApiKeyRejected";
+      case "soloist_not_logged_in":
+        return "errors.soloistNotLoggedIn";
+      case "soloist_pairing_required":
+        return "errors.soloistPairingRequired";
+      case "soloist_build_expired":
+        return "errors.soloistBuildExpired";
+      case "soloist_start_failed":
+        return "errors.soloistStartFailed";
+      case "soloist_download_failed":
+        return "errors.soloistDownloadFailed";
+      case "soloist_protocol_error":
+        return "errors.soloistProtocolError";
+      case "soloist_unsupported":
+        return "errors.soloistUnsupported";
+      default:
+        return "browse.soloistError";
+    }
+  }
+
+  function chooseBackend(event: Event): void {
+    browseSettings.updateBackend((event.currentTarget as HTMLSelectElement).value);
+  }
+
+  function webErrorLabel(code: string): MessageKey {
+    switch (code) {
+      case "webplayer_login_required":
+        return "errors.webLoginRequired";
+      case "webplayer_login_timeout":
+        return "errors.webLoginTimeout";
+      case "webplayer_login_in_progress":
+        return "errors.webLoginInProgress";
+      case "webplayer_runtime_missing":
+        return "errors.webRuntimeMissing";
+      case "webplayer_runtime_failed":
+        return "errors.webRuntimeFailed";
+      case "webplayer_download_failed":
+        return "errors.webDownloadFailed";
+      case "webplayer_checksum_mismatch":
+        return "errors.webChecksumMismatch";
+      case "webplayer_install_failed":
+        return "errors.webInstallFailed";
+      case "webplayer_server_failed":
+        return "errors.webServerFailed";
+      case "webplayer_widevine":
+        return "errors.webWidevine";
+      case "webplayer_api":
+        return "errors.webApiError";
+      case "webplayer_rate_limited":
+        return "errors.webRateLimited";
+      case "webplayer_premium":
+        return "errors.webPremiumRequired";
+      case "webplayer_device_missing":
+        return "errors.webDeviceMissing";
+      case "webplayer_unsupported":
+        return "errors.webUnsupported";
+      case "developer_login_required":
+        return "errors.developerLoginRequired";
+      case "developer_premium_required":
+        return "errors.developerPremiumRequired";
+      case "developer_app_limit":
+        return "errors.developerAppLimit";
+      case "developer_failed":
+        return "errors.developerFailed";
+      default:
+        return "errors.webError";
+    }
+  }
+
+  async function saveSoloistKey(): Promise<void> {
+    const key = apiKey.trim();
+    if (!key) return;
+    await browseSettings.saveSoloistKey(key);
+    if (!browseSettings.error) apiKey = "";
   }
 </script>
 
@@ -188,8 +315,393 @@
         </div>
       {/if}
 
+      <fieldset class="settings-section is-wide">
+        <legend>{t("browse.settingsBackend")}</legend>
+
+        <div class="settings-row">
+          <label class="settings-label" for="settings-backend">
+            {t("browse.settingsBackendSelect")}
+          </label>
+          <div class="settings-control">
+            <select
+              id="settings-backend"
+              value={playback?.backend ?? "web"}
+              aria-describedby="settings-backend-help"
+              onchange={chooseBackend}
+            >
+              <option value="librespot">{t("browse.settingsBackendLibrespot")}</option>
+              <option value="soloist">{t("browse.settingsBackendSoloist")}</option>
+              <option value="web">{t("browse.settingsBackendWeb")}</option>
+            </select>
+          </div>
+          <p class="settings-help" id="settings-backend-help">
+            {t("browse.settingsBackendHelp")}
+            {#if playback?.backend === "soloist"}
+              {t("browse.settingsBackendSoloistHelp")}
+            {:else if playback?.backend === "web"}
+              {t("browse.settingsBackendWebHelp")}
+            {:else}
+              {t("browse.settingsBackendLibrespotHelp")}
+            {/if}
+          </p>
+        </div>
+
+        <div class="skin-actions">
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={browseSettings.savingBackend || !playback}
+            onclick={() => void browseSettings.saveBackend()}
+          >
+            {browseSettings.savingBackend
+              ? t("browse.settingsSaving")
+              : t("browse.settingsBackendApply")}
+          </Button>
+        </div>
+
+        {#if backendChanged}
+          <p class="settings-notice" role="status" aria-live="polite">
+            {t("browse.settingsBackendRestart")}
+          </p>
+        {/if}
+      </fieldset>
+
+      <fieldset class="settings-section is-wide">
+        <legend>{t("browse.soloistTitle")}</legend>
+        <p class="settings-help is-lead">{t("browse.soloistIntro")}</p>
+
+        {#if soloist?.error}
+          <div class="settings-notice is-error" role="alert" aria-live="assertive">
+            <span>{t(soloistErrorLabel(soloist.errorCode))}</span>
+            <p class="settings-help">{soloist.error}</p>
+          </div>
+        {/if}
+
+        {#if soloist?.installing}
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.soloistInstalling")}</span>
+            <div class="settings-control is-wide">
+              {#if soloist.total > 0}
+                <progress
+                  class="soloist-progress"
+                  value={soloist.downloaded}
+                  max={soloist.total}
+                  aria-label={t("browse.soloistInstalling")}
+                ></progress>
+              {/if}
+            </div>
+            <p class="settings-help" aria-live="polite">
+              {installStageLabel(soloist.installStage)}
+              {#if soloist.total > 0}
+                {t("browse.soloistDownloading", {
+                  percent: downloadPercent(soloist.downloaded, soloist.total),
+                })}
+              {:else}
+                {t("browse.soloistDownloadingUnknown")}
+              {/if}
+            </p>
+          </div>
+        {/if}
+
+        <div class="settings-row">
+          <span class="settings-label">
+            {soloist?.installed ? t("browse.soloistInstalled") : t("browse.soloistNotInstalled")}
+          </span>
+          <div class="settings-control">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={browseSettings.soloistBusy || soloist?.installing}
+              onclick={() => void browseSettings.installSoloist()}
+            >
+              {soloist?.installed ? t("browse.soloistUpdate") : t("browse.soloistInstall")}
+            </Button>
+          </div>
+          <p class="settings-help">
+            {#if soloist?.installed}
+              {t("browse.soloistVersion", { version: soloist.version || "—" })} ·
+              {#if soloist.expired}
+                {t("browse.soloistExpired")}
+              {:else}
+                {t("browse.soloistExpiresIn", { days: soloist.daysLeft })}
+              {/if}
+            {:else}
+              {t("browse.soloistInstallHelp")}
+            {/if}
+          </p>
+          {#if soloist?.installed && !soloist.expired && soloist.daysLeft >= 0 && soloist.daysLeft <= 14}
+            <p class="settings-help">
+              <span class="soloist-badge is-warn">
+                {t("browse.soloistExpiryWarning", { days: soloist.daysLeft })}
+              </span>
+            </p>
+          {/if}
+        </div>
+
+        {#if soloist?.installed}
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.soloistStatus")}</span>
+            <div class="settings-control soloist-status">
+              <span class="soloist-badge" class:is-on={soloist.running}>
+                {soloist.running ? t("browse.soloistRunning") : t("browse.soloistStopped")}
+              </span>
+              {#if soloist.loggedIn}
+                <span class="soloist-badge is-on">{t("browse.soloistLoggedIn")}</span>
+              {/if}
+              {#if soloist.needsPairing}
+                <span class="soloist-badge is-warn">{t("browse.soloistPairing")}</span>
+              {/if}
+            </div>
+            {#if soloist.needsPairing}
+              <p class="settings-help">{t("browse.soloistPairingHelp")}</p>
+            {/if}
+          </div>
+        {/if}
+
+        <div class="settings-row">
+          <label class="settings-label" for="settings-soloist-api-key">
+            {t("browse.soloistApiKey")}
+          </label>
+          <div class="settings-control soloist-key">
+            <input
+              id="settings-soloist-api-key"
+              type="password"
+              autocomplete="off"
+              placeholder={t("browse.soloistApiKeyPlaceholder")}
+              bind:value={apiKey}
+              aria-describedby="settings-soloist-api-key-help"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={browseSettings.soloistBusy || apiKey.trim() === ""}
+              onclick={() => void saveSoloistKey()}
+            >
+              {t("browse.soloistApiKeySave")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={browseSettings.soloistBusy || !soloist?.apiKeySet}
+              onclick={() => void browseSettings.clearSoloistKey()}
+            >
+              {t("browse.soloistApiKeyClear")}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={browseSettings.developerBusy || browseSettings.soloistBusy}
+              onclick={() => void browseSettings.generateSoloistAPIKey(false)}
+            >
+              {t("browse.soloistGenerateKey")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={browseSettings.developerBusy ||
+                browseSettings.soloistBusy ||
+                !soloist?.apiKeySet}
+              onclick={() => void browseSettings.generateSoloistAPIKey(true)}
+            >
+              {t("browse.soloistRotateKey")}
+            </Button>
+          </div>
+          <p class="settings-help" id="settings-soloist-api-key-help">
+            {t("browse.soloistApiKeyHelp")}
+            {soloist?.apiKeySet ? t("browse.soloistApiKeySet") : t("browse.soloistApiKeyMissing")}
+          </p>
+        </div>
+
+        {#if music.soloistMode}
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.soloistControls")}</span>
+            <div class="settings-control">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.soloistBusy || !soloist?.installed || soloist?.running}
+                onclick={() => void browseSettings.startSoloist()}
+              >
+                {t("browse.soloistStart")}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.soloistBusy || !soloist?.running}
+                onclick={() => void browseSettings.stopSoloist()}
+              >
+                {t("browse.soloistStop")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={browseSettings.soloistBusy || !soloist?.installed}
+                onclick={() => void browseSettings.restartSoloist()}
+              >
+                {t("browse.soloistRestart")}
+              </Button>
+            </div>
+            <p class="settings-help">{t("browse.soloistControlsHelp")}</p>
+          </div>
+        {/if}
+
+        <div class="settings-row">
+          <span class="settings-label">{t("browse.soloistLinks")}</span>
+          <div class="settings-control">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={browseSettings.soloistBusy}
+              onclick={() => void browseSettings.openSoloistDashboard()}
+            >
+              {t("browse.soloistDashboard")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={browseSettings.soloistBusy}
+              onclick={() => void browseSettings.openSoloistDownloads()}
+            >
+              {t("browse.soloistDownloads")}
+            </Button>
+          </div>
+        </div>
+      </fieldset>
+
+      {#if webStatus?.available !== false}
+        <fieldset class="settings-section is-wide">
+          <legend>{t("browse.webTitle")}</legend>
+          <p class="settings-help is-lead">{t("browse.webIntro")}</p>
+
+          {#if webStatus?.lastError}
+            <div class="settings-notice is-error" role="alert" aria-live="assertive">
+              <span>{t(webErrorLabel(webStatus.lastError))}</span>
+            </div>
+          {/if}
+
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.webAccount")}</span>
+            <div class="settings-control soloist-status">
+              <span class="soloist-badge" class:is-on={webStatus?.loggedIn}>
+                {webStatus?.loggedIn ? t("browse.webConnected") : t("browse.webDisconnected")}
+              </span>
+              {#if webStatus?.account}
+                <span class="settings-value">{webStatus.account}</span>
+              {/if}
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.webBusy}
+                onclick={() => void browseSettings.connectWebPlayer()}
+              >
+                {webStatus?.loggedIn ? t("browse.webReconnect") : t("browse.webConnect")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={browseSettings.webBusy || !webStatus?.loggedIn}
+                onclick={() => void browseSettings.disconnectWebPlayer()}
+              >
+                {t("browse.webDisconnect")}
+              </Button>
+            </div>
+            <p class="settings-help">{t("browse.webConnectHelp")}</p>
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.webClientId")}</span>
+            <div class="settings-control soloist-status">
+              <span class="settings-value">{webStatus?.clientId || "—"}</span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.developerBusy}
+                onclick={() => void browseSettings.configureWebPlayerApp()}
+              >
+                {browseSettings.developerBusy ? t("browse.webBusy") : t("browse.webConfigureApp")}
+              </Button>
+            </div>
+            {#if webStatus?.restartRequired}
+              <p class="settings-notice" role="status" aria-live="polite">
+                {t("browse.webRestartReconnect")}
+              </p>
+            {/if}
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.webRuntime")}</span>
+            <div class="settings-control soloist-status">
+              <span class="soloist-badge" class:is-on={webStatus?.runtimeInstalled}>
+                {webStatus?.runtimeInstalled
+                  ? t("browse.webRuntimeInstalled")
+                  : t("browse.webRuntimeMissing")}
+              </span>
+              {#if webStatus?.runtimeInstalled && webStatus.runtimeVersion}
+                <span class="settings-value">
+                  {t("browse.webRuntimeVersion", { version: webStatus.runtimeVersion })}
+                </span>
+              {/if}
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.webBusy}
+                onclick={() => void browseSettings.installWebRuntime()}
+              >
+                {webStatus?.runtimeInstalled ? t("browse.webUpdate") : t("browse.webInstall")}
+              </Button>
+            </div>
+            <p class="settings-help">{t("browse.webInstallHelp")}</p>
+          </div>
+
+          <div class="settings-row">
+            <span class="settings-label">{t("browse.webStatus")}</span>
+            <div class="settings-control soloist-status">
+              <span class="soloist-badge" class:is-on={webStatus?.running}>
+                {webStatus?.running ? t("browse.webRunning") : t("browse.webStopped")}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.webBusy ||
+                  !webStatus?.loggedIn ||
+                  !webStatus?.runtimeInstalled ||
+                  webStatus?.running}
+                onclick={() => void browseSettings.startWebPlayer()}
+              >
+                {t("browse.webStart")}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={browseSettings.webBusy || !webStatus?.running}
+                onclick={() => void browseSettings.stopWebPlayer()}
+              >
+                {t("browse.webStop")}
+              </Button>
+            </div>
+            <p class="settings-help">{t("browse.webControlsHelp")}</p>
+          </div>
+
+          {#if playback?.backend !== "web"}
+            <p class="settings-notice" role="status" aria-live="polite">
+              {t("browse.webBackendNotice")}
+            </p>
+          {/if}
+
+          {#if browseSettings.webBusy}
+            <p class="settings-help" aria-live="polite">{t("browse.webBusy")}</p>
+          {/if}
+        </fieldset>
+      {/if}
+
       <fieldset class="settings-section">
         <legend>{t("browse.settingsEngine")}</legend>
+
+        {#if soloistMode}
+          <p class="settings-notice" id="settings-soloist-note" role="status">
+            {t("browse.soloistSettingsDisabled")}
+          </p>
+        {/if}
 
         <div class="settings-row">
           <label class="settings-label" for="settings-bitrate">
@@ -199,7 +711,8 @@
             <select
               id="settings-bitrate"
               value={form.bitrate}
-              aria-describedby="settings-bitrate-help"
+              disabled={soloistMode}
+              aria-describedby={describedBy("settings-bitrate-help")}
               onchange={(event) =>
                 browseSettings.update(
                   "bitrate",
@@ -230,7 +743,9 @@
               max="12000"
               step="250"
               value={form.crossfadeDurationMs}
-              aria-describedby="settings-crossfade-help"
+              disabled={soloistMode}
+              style={`--range: ${(form.crossfadeDurationMs / 12000) * 100}%`}
+              aria-describedby={describedBy("settings-crossfade-help")}
               oninput={(event) =>
                 browseSettings.update(
                   "crossfadeDurationMs",
@@ -255,7 +770,8 @@
               id="settings-normalisation-disabled"
               type="checkbox"
               checked={form.normalisationDisabled}
-              aria-describedby="settings-normalisation-help"
+              disabled={soloistMode}
+              aria-describedby={describedBy("settings-normalisation-help")}
               onchange={(event) =>
                 browseSettings.update(
                   "normalisationDisabled",
@@ -277,8 +793,8 @@
               id="settings-album-gain"
               type="checkbox"
               checked={form.normalisationUseAlbumGain}
-              disabled={form.normalisationDisabled}
-              aria-describedby="settings-album-gain-help"
+              disabled={soloistMode || form.normalisationDisabled}
+              aria-describedby={describedBy("settings-album-gain-help")}
               onchange={(event) =>
                 browseSettings.update(
                   "normalisationUseAlbumGain",
@@ -303,8 +819,9 @@
               max="20"
               step="0.5"
               value={form.normalisationPregain}
-              disabled={form.normalisationDisabled}
-              aria-describedby="settings-pregain-help"
+              disabled={soloistMode || form.normalisationDisabled}
+              style={`--range: ${((form.normalisationPregain + 20) / 40) * 100}%`}
+              aria-describedby={describedBy("settings-pregain-help")}
               oninput={(event) =>
                 browseSettings.update(
                   "normalisationPregain",
@@ -333,7 +850,8 @@
               id="settings-cache-enabled"
               type="checkbox"
               checked={form.cacheEnabled}
-              aria-describedby="settings-cache-enabled-help"
+              disabled={soloistMode}
+              aria-describedby={describedBy("settings-cache-enabled-help")}
               onchange={(event) =>
                 browseSettings.update(
                   "cacheEnabled",
@@ -354,7 +872,8 @@
             <select
               id="settings-cache-size"
               value={form.cacheSizeLimit}
-              aria-describedby="settings-cache-size-help"
+              disabled={soloistMode}
+              aria-describedby={describedBy("settings-cache-size-help")}
               onchange={(event) =>
                 browseSettings.update(
                   "cacheSizeLimit",
@@ -377,7 +896,7 @@
             <output
               class="settings-readonly"
               aria-label={t("browse.settingsCacheDir")}
-              aria-describedby="settings-cache-dir-help"
+              aria-describedby={describedBy("settings-cache-dir-help")}
             >
               {form.cacheDir || t("browse.settingsCacheDirDefault")}
             </output>
@@ -398,7 +917,8 @@
               id="settings-flac"
               type="checkbox"
               checked={form.flacEnabled}
-              aria-describedby="settings-flac-help"
+              disabled={soloistMode}
+              aria-describedby={describedBy("settings-flac-help")}
               onchange={(event) =>
                 browseSettings.update(
                   "flacEnabled",
@@ -416,7 +936,8 @@
               id="settings-mpris"
               type="checkbox"
               checked={form.mprisEnabled}
-              aria-describedby="settings-mpris-help"
+              disabled={soloistMode}
+              aria-describedby={describedBy("settings-mpris-help")}
               onchange={(event) =>
                 browseSettings.update(
                   "mprisEnabled",
@@ -436,7 +957,8 @@
               id="settings-device-group"
               type="checkbox"
               checked={form.deviceIsGroup}
-              aria-describedby="settings-device-group-help"
+              disabled={soloistMode}
+              aria-describedby={describedBy("settings-device-group-help")}
               onchange={(event) =>
                 browseSettings.update(
                   "deviceIsGroup",
@@ -506,7 +1028,8 @@
         <label class="settings-label" for="settings-theme">
           {t("browse.appearance.theme")}
         </label>
-        <div class="settings-control">
+        <div class="settings-control is-theme">
+          <span class="theme-preview" aria-hidden="true"><i></i><i></i></span>
           <select
             id="settings-theme"
             value={activeTheme}
@@ -712,3 +1235,101 @@
     </div>
   </Dialog>
 </section>
+
+<style>
+  .settings-control.is-theme {
+    justify-content: flex-end;
+  }
+
+  .theme-preview {
+    position: relative;
+    display: inline-flex;
+    width: 27px;
+    height: 18px;
+    flex: 0 0 27px;
+    align-items: center;
+  }
+
+  .theme-preview i {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border: 1px solid rgb(255 255 255 / 16%);
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 7%, transparent),
+      0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  .theme-preview i + i {
+    margin-left: -5px;
+    background: var(--accent-2);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent-2) 7%, transparent),
+      0 0 10px color-mix(in srgb, var(--accent-2) 30%, transparent);
+  }
+
+  .soloist-key {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .soloist-key input[type="password"] {
+    width: 100%;
+    max-width: 220px;
+    padding: 7px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm, 7px);
+    background: linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 58%), var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 11px;
+    transition:
+      border-color var(--motion-fast, 140ms) ease,
+      box-shadow var(--motion-fast, 140ms) ease;
+  }
+
+  .soloist-key input[type="password"]:focus-visible {
+    border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+    outline: none;
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 9%, transparent),
+      0 0 18px color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+
+  .soloist-progress {
+    width: 100%;
+    height: 8px;
+    accent-color: var(--accent);
+  }
+
+  .soloist-status {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .soloist-badge {
+    padding: 2px 7px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-2) 45%, transparent);
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .soloist-badge.is-on {
+    border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    color: var(--text);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+
+  .soloist-badge.is-warn {
+    border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+    background: color-mix(in srgb, var(--danger) 9%, transparent);
+    color: color-mix(in srgb, var(--danger) 85%, var(--text));
+  }
+</style>

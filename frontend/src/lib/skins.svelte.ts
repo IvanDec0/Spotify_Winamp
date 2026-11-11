@@ -9,6 +9,7 @@ export interface SkinHandlers {
   openDevices: () => void;
   openSettings: () => void;
   openMusic: () => void;
+  openNowPlaying: () => void;
 }
 
 export interface SkinsNotice {
@@ -146,6 +147,10 @@ class SkinsStore {
 
   openMusic(): void {
     this.#handlers?.openMusic();
+  }
+
+  openNowPlaying(): void {
+    this.#handlers?.openNowPlaying();
   }
 
   async start(): Promise<void> {

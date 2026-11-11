@@ -4,6 +4,8 @@
   import { player } from "../../lib/player.svelte";
   import { preferences } from "../../lib/preferences.svelte";
   import { skins } from "../../lib/skins.svelte";
+  import BrandMark from "../../lib/components/BrandMark.svelte";
+  import { readSoloistPromptDismissed, writeSoloistPromptDismissed } from "../../lib/soloist-setup";
   import { appWindow, onBrowseNavigate } from "../../shared/api";
   import { t } from "../../shared/i18n";
   import EngineGate from "./EngineGate.svelte";
@@ -12,10 +14,12 @@
   import type { BrowseIcon } from "./icons";
   import LibraryView from "./LibraryView.svelte";
   import NowPlayingBar from "./NowPlayingBar.svelte";
+  import NowPlayingView from "./NowPlayingView.svelte";
   import PodcastsView from "./PodcastsView.svelte";
   import QueueView from "./QueueView.svelte";
   import SearchView from "./SearchView.svelte";
   import SettingsView from "./SettingsView.svelte";
+  import SoloistSetupDialog from "./SoloistSetupDialog.svelte";
   import { browse, normalizeSection, type Section } from "./browse.svelte";
   import { clampBrowseSize, type BrowseSize } from "./browse-window";
   import { applyTokens, readSkinTokens, syncBrowseStylesheet } from "./theme.svelte";
@@ -25,6 +29,7 @@
     label: Parameters<typeof t>[0];
     glyph: BrowseIcon;
   }> = [
+    { id: "nowplaying", label: "browse.nowPlaying", glyph: "note" },
     { id: "search", label: "browse.search", glyph: "search" },
     { id: "library", label: "browse.library", glyph: "library" },
     { id: "podcasts", label: "browse.podcasts", glyph: "podcasts" },
@@ -49,6 +54,43 @@
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   let resizeSession = 0;
 
+  let soloistPromptDismissed = $state(readSoloistPromptDismissed());
+  let soloistDialogOpen = $state(false);
+
+  let soloistNeedsSetup = $derived(
+    music.soloistMode &&
+      !music.audio.soloist?.apiKeySet &&
+      !music.audio.soloist?.installing &&
+      (Boolean(music.audio.soloist?.installed) || Boolean(music.audio.soloist?.error)),
+  );
+  let showSoloistDialog = $derived(
+    music.soloistMode &&
+      !music.loading &&
+      (soloistDialogOpen || (soloistNeedsSetup && !soloistPromptDismissed)),
+  );
+  let showSoloistBanner = $derived(
+    music.soloistMode &&
+      !music.audio.soloist?.apiKeySet &&
+      soloistPromptDismissed &&
+      (Boolean(music.audio.soloist?.installed) || Boolean(music.audio.soloist?.error)),
+  );
+
+  function dismissSoloistPrompt(): void {
+    soloistPromptDismissed = true;
+    soloistDialogOpen = false;
+    writeSoloistPromptDismissed(true);
+  }
+
+  function clearSoloistPrompt(): void {
+    soloistPromptDismissed = false;
+    soloistDialogOpen = false;
+    writeSoloistPromptDismissed(false);
+  }
+
+  function openSoloistDialog(): void {
+    soloistDialogOpen = true;
+  }
+
   let navItems = $derived(SECTIONS.map((item) => ({ ...item, label: t(item.label) })));
   let skinLabel = $derived.by(() => {
     const runtime = skins.runtime;
@@ -57,6 +99,9 @@
     }
     return t("browse.skinTheme", { skin: runtime.name, theme: skins.theme });
   });
+  let activeTheme = $derived(
+    skins.runtime && !skins.runtime.builtin ? skins.theme : preferences.theme,
+  );
 
   $effect(() => {
     const runtime = skins.runtime;
@@ -86,6 +131,10 @@
 
   $effect(() => {
     void browse.syncTrackLike(player.state.track.uri);
+  });
+
+  $effect(() => {
+    if (music.audio.soloist?.apiKeySet) clearSoloistPrompt();
   });
 
   $effect(() => {
@@ -245,11 +294,19 @@
   }
 </script>
 
-<div class="cadence-browse" bind:this={root}>
+<div
+  class="cadence-browse"
+  class:reduce-motion={preferences.reducedMotion}
+  class:is-stage={browse.section === "nowplaying"}
+  bind:this={root}
+>
   <aside class="sidebar">
     <div class="sidebar-head">
-      <span class="eyebrow">{t("browse.open")}</span>
-      <span class="sidebar-caption">{t("browse.navLabel")}</span>
+      <span class="sidebar-mark"><BrandMark size={20} /></span>
+      <div class="sidebar-brand">
+        <strong>Cadence</strong>
+        <span>{t("browse.open")}</span>
+      </div>
     </div>
     <nav class="nav" aria-label={t("browse.navLabel")}>
       {#each navItems as item (item.id)}
@@ -327,7 +384,10 @@
       {/if}
     </form>
 
-    <span class="theme-chip no-drag" title={skinLabel}>{skinLabel}</span>
+    <span class="theme-chip no-drag" title={skinLabel}>
+      <span class="theme-dots" aria-hidden="true"><i></i><i></i></span>
+      <span class="theme-label">{skinLabel}</span>
+    </span>
 
     <div class="window-controls no-drag">
       <button
@@ -352,7 +412,7 @@
   </header>
 
   <main class="content">
-    {#if browse.error || browse.notice}
+    {#if browse.error || browse.notice || showSoloistBanner}
       <div class="browse-banners">
         {#if browse.error}
           <div class="browse-banner is-error" role="alert" aria-live="assertive" aria-atomic="true">
@@ -366,11 +426,21 @@
             <button type="button" onclick={() => browse.dismissNotice()}>{t("ui.dismiss")}</button>
           </div>
         {/if}
+        {#if showSoloistBanner}
+          <div class="browse-banner is-info" role="status" aria-live="polite" aria-atomic="true">
+            <span>{t("browse.soloistKeyBanner")}</span>
+            <button type="button" onclick={openSoloistDialog}>
+              {t("browse.soloistKeyConfigure")}
+            </button>
+          </div>
+        {/if}
       </div>
     {/if}
 
-    {#if browse.section !== "settings" && !music.authenticated}
+    {#if browse.section !== "settings" && browse.section !== "nowplaying" && !music.authenticated}
       <EngineGate />
+    {:else if browse.section === "nowplaying"}
+      <NowPlayingView />
     {:else if browse.route.name === "entity"}
       <EntityView />
     {:else if browse.section === "search"}
@@ -386,7 +456,9 @@
     {/if}
   </main>
 
-  <NowPlayingBar />
+  {#if browse.section !== "nowplaying"}
+    <NowPlayingBar />
+  {/if}
 
   <div
     class="resize-grip no-drag"
@@ -396,6 +468,17 @@
     onpointerup={endResize}
     onpointercancel={endResize}
   ></div>
+
+  <SoloistSetupDialog
+    open={showSoloistDialog}
+    onclose={dismissSoloistPrompt}
+    ondismiss={dismissSoloistPrompt}
+    onstarted={clearSoloistPrompt}
+  />
+
+  {#key activeTheme}
+    <span class="theme-wash" aria-hidden="true"></span>
+  {/key}
 </div>
 
 <style>
@@ -403,7 +486,7 @@
     display: grid;
     height: 100%;
     min-height: 0;
-    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-columns: 208px minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
     overflow: hidden;
     background:
@@ -412,7 +495,7 @@
         color-mix(in srgb, var(--accent) 7%, transparent),
         transparent 55%
       ),
-      var(--bg);
+      color-mix(in srgb, var(--bg) 62%, transparent);
     color: var(--text);
     font-family: var(--font-ui);
   }
@@ -422,22 +505,101 @@
     min-height: 0;
     flex-direction: column;
     grid-row: 1 / 4;
-    gap: 18px;
-    padding: 20px 14px 16px;
+    gap: 20px;
+    padding: 22px 14px 16px;
     border-right: 1px solid var(--line);
-    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 18%),
+      color-mix(in srgb, var(--surface) 72%, transparent);
+    backdrop-filter: blur(22px) saturate(118%);
+  }
+
+  .cadence-browse.is-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cadence-browse.is-stage .sidebar {
+    display: none;
+  }
+
+  .cadence-browse.is-stage .search-field,
+  .cadence-browse.is-stage .theme-chip {
+    display: none;
+  }
+
+  .cadence-browse.is-stage .topbar {
+    justify-content: space-between;
+    padding-inline: 20px;
+  }
+
+  .cadence-browse.is-stage .content {
+    grid-row: 2;
   }
 
   .sidebar-head {
     display: flex;
-    flex-direction: column;
-    gap: 3px;
+    align-items: center;
+    gap: 9px;
     padding: 0 8px;
   }
 
-  .sidebar-caption {
+  .sidebar-mark {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+    border-radius: 9px;
+    background:
+      radial-gradient(
+        70% 70% at 30% 22%,
+        color-mix(in srgb, var(--accent) 22%, transparent),
+        transparent 70%
+      ),
+      color-mix(in srgb, var(--surface-2) 80%, transparent);
+    color: var(--accent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 4%, transparent),
+      0 8px 18px rgb(0 0 0 / 28%);
+    animation: mark-breathe 5.6s ease-in-out infinite;
+  }
+
+  @keyframes mark-breathe {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--accent) 4%, transparent),
+        0 8px 18px rgb(0 0 0 / 28%);
+    }
+    50% {
+      box-shadow:
+        0 0 0 4px color-mix(in srgb, var(--accent) 7%, transparent),
+        0 8px 24px color-mix(in srgb, var(--accent) 14%, transparent);
+    }
+  }
+
+  .sidebar-brand {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .sidebar-brand strong {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 680;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .sidebar-brand span {
     color: var(--faint);
-    font-size: 10px;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
 
   .nav {
@@ -447,31 +609,56 @@
   }
 
   .nav-item {
+    position: relative;
     display: flex;
     width: 100%;
     align-items: center;
     gap: 10px;
-    padding: 9px 10px;
+    padding: 10px 11px;
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: 9px;
     color: var(--muted);
     font-size: 12px;
     text-align: left;
     transition:
-      background-color var(--motion-fast, 120ms) ease,
-      border-color var(--motion-fast, 120ms) ease,
-      color var(--motion-fast, 120ms) ease;
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-out);
   }
 
   .nav-item:hover {
     background: color-mix(in srgb, var(--text) 5%, transparent);
     color: var(--text);
+    transform: translateX(2px);
   }
 
   .nav-item.is-active {
     border-color: color-mix(in srgb, var(--accent) 30%, transparent);
-    background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 78%),
+      color-mix(in srgb, var(--accent) 7%, var(--surface-2));
     color: var(--text);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 4%, transparent),
+      0 8px 20px rgb(0 0 0 / 22%);
+  }
+
+  .nav-item.is-active::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: -1px;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--accent);
+    box-shadow: 0 0 9px var(--accent-glow);
+  }
+
+  .nav-item.is-active :global(svg) {
+    color: var(--accent);
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 40%, transparent));
   }
 
   .sidebar-foot {
@@ -480,7 +667,8 @@
     align-items: stretch;
     gap: 8px;
     margin-top: auto;
-    padding: 8px;
+    padding: 10px 8px 8px;
+    border-top: 1px solid var(--line);
     color: var(--faint);
     font-size: 10px;
   }
@@ -495,22 +683,24 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 8px;
+    padding: 8px 9px;
     border: 1px solid var(--line);
-    border-radius: 7px;
+    border-radius: 8px;
     color: var(--muted);
     font-size: 10px;
     text-align: left;
     transition:
-      border-color var(--motion-fast, 120ms) ease,
-      background-color var(--motion-fast, 120ms) ease,
-      color var(--motion-fast, 120ms) ease;
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      color var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-spring);
   }
 
   .back-to-player:hover {
-    border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
-    background: color-mix(in srgb, var(--accent) 7%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     color: var(--text);
+    transform: translateX(-2px);
   }
 
   .status-dot {
@@ -518,7 +708,20 @@
     height: 6px;
     border-radius: 50%;
     background: var(--accent);
-    box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+    animation: status-pulse 2.6s ease-in-out infinite;
+  }
+
+  @keyframes status-pulse {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(0.9);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.15);
+    }
   }
 
   .topbar {
@@ -528,9 +731,12 @@
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    padding: 12px 24px;
+    padding: 13px 24px;
     border-bottom: 1px solid var(--line);
-    background: color-mix(in srgb, var(--panel) 70%, transparent);
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 60%),
+      color-mix(in srgb, var(--panel) 76%, transparent);
+    backdrop-filter: blur(22px) saturate(120%);
   }
 
   .no-drag,
@@ -562,29 +768,40 @@
   .search-field {
     display: flex;
     min-width: 0;
-    max-width: 420px;
+    max-width: 440px;
     flex: 1 1 auto;
     align-items: center;
     gap: 8px;
-    padding: 0 8px 0 11px;
+    padding: 0 8px 0 12px;
     border: 1px solid var(--line-strong);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+    border-radius: var(--radius-pill);
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 62%),
+      color-mix(in srgb, var(--surface-2) 64%, transparent);
     color: var(--faint);
     transition:
-      border-color var(--motion-fast, 120ms) ease,
-      box-shadow var(--motion-fast, 120ms) ease;
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-base) ease,
+      background-color var(--motion-fast) ease;
+  }
+
+  .search-field:hover {
+    border-color: color-mix(in srgb, var(--accent) 22%, var(--line-strong));
   }
 
   .search-field:focus-within {
-    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+    background-color: color-mix(in srgb, var(--surface-2) 78%, transparent);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent),
+      0 0 24px color-mix(in srgb, var(--accent) 8%, transparent);
+    color: var(--accent);
   }
 
   .search-field input {
     min-width: 0;
     flex: 1 1 auto;
-    padding: 8px 0;
+    padding: 9px 0;
     border: 0;
     outline: 0;
     background: transparent;
@@ -624,18 +841,48 @@
   }
 
   .theme-chip {
+    display: inline-flex;
     overflow: hidden;
     flex: 0 0 auto;
     max-width: 30%;
-    padding: 4px 9px;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px 4px 7px;
     border: 1px solid var(--line);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--surface-2) 52%, transparent);
     color: var(--muted);
     font-family: var(--font-mono);
     font-size: 10px;
     letter-spacing: 0.03em;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .theme-dots {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+
+  .theme-dots i {
+    display: block;
+    width: 7px;
+    height: 7px;
+    border: 1px solid rgb(0 0 0 / 30%);
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+
+  .theme-dots i + i {
+    margin-left: -3px;
+    background: var(--accent-2);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--accent-2) 50%, transparent);
+  }
+
+  .theme-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .window-controls {
@@ -673,20 +920,25 @@
 
   .resize-grip {
     position: fixed;
-    right: 2px;
-    bottom: 2px;
+    right: 3px;
+    bottom: 3px;
     z-index: 60;
     width: 18px;
     height: 18px;
-    border-radius: 3px 0 3px 0;
-    background: repeating-linear-gradient(
-      135deg,
-      transparent 0 3px,
-      color-mix(in srgb, var(--muted) 62%, transparent) 3px 4px
-    );
+    border-radius: 4px;
+    background:
+      linear-gradient(135deg, transparent 45%, color-mix(in srgb, var(--accent) 26%, transparent)),
+      repeating-linear-gradient(
+        135deg,
+        transparent 0 3px,
+        color-mix(in srgb, var(--muted) 58%, transparent) 3px 4px
+      );
     cursor: nwse-resize;
     opacity: 0.55;
     touch-action: none;
+    transition:
+      opacity var(--motion-fast) ease,
+      background-color var(--motion-fast) ease;
   }
 
   .resize-grip:hover {
@@ -698,6 +950,34 @@
     min-height: 0;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  .theme-wash {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    background:
+      radial-gradient(
+        70% 80% at 50% 0%,
+        color-mix(in srgb, var(--accent) 20%, transparent),
+        transparent 65%
+      ),
+      radial-gradient(
+        60% 60% at 80% 100%,
+        color-mix(in srgb, var(--accent-2) 14%, transparent),
+        transparent 70%
+      );
+    pointer-events: none;
+    animation: theme-wash 560ms var(--ease-out) forwards;
+  }
+
+  @keyframes theme-wash {
+    from {
+      opacity: 0.85;
+    }
+    to {
+      opacity: 0;
+    }
   }
 
   @media (max-width: 820px) {

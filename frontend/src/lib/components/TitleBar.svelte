@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from "../../shared/i18n";
+  import BrandMark from "./BrandMark.svelte";
   import Icon from "./Icon.svelte";
 
   interface Props {
@@ -29,16 +30,7 @@
 
 <header class="titlebar" aria-label={t("titlebar.label")}>
   <div class="brand">
-    <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M17.2 7.1A7 7 0 1 0 17.2 16.9"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.2"
-        stroke-linecap="round"
-      />
-      <circle cx="17.2" cy="7.1" r="1.4" fill="currentColor" />
-    </svg>
+    <span class="brand-mark"><BrandMark size={14} /></span>
     <span class="brand-name">CADENCE</span>
     <button
       class="provider-badge"
@@ -124,8 +116,9 @@
     border-bottom: 1px solid var(--line);
     background:
       linear-gradient(180deg, rgb(255 255 255 / 4.5%), transparent 72%),
-      color-mix(in srgb, var(--bg) 76%, transparent);
-    backdrop-filter: blur(12px);
+      color-mix(in srgb, var(--bg) 72%, transparent);
+    backdrop-filter: blur(18px) saturate(120%);
+    transition: background-color var(--motion-slow) ease;
   }
 
   .titlebar::after {
@@ -138,10 +131,11 @@
     background: linear-gradient(
       90deg,
       transparent,
-      color-mix(in srgb, var(--accent) 28%, transparent),
+      color-mix(in srgb, var(--accent) 34%, transparent),
+      color-mix(in srgb, var(--accent-2) 22%, transparent),
       transparent
     );
-    opacity: 0.5;
+    opacity: 0.65;
     pointer-events: none;
   }
 
@@ -153,10 +147,26 @@
   }
 
   .brand-mark {
+    display: grid;
     width: 14px;
     height: 14px;
+    flex: 0 0 14px;
+    place-items: center;
     color: var(--accent);
     filter: drop-shadow(0 0 5px var(--accent-glow));
+    animation: mark-breathe 5.2s ease-in-out infinite;
+  }
+
+  @keyframes mark-breathe {
+    0%,
+    100% {
+      opacity: 0.82;
+      filter: drop-shadow(0 0 4px var(--accent-glow));
+    }
+    50% {
+      opacity: 1;
+      filter: drop-shadow(0 0 9px var(--accent-glow));
+    }
   }
 
   .brand-name {

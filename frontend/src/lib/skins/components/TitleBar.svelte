@@ -1,6 +1,7 @@
 <script lang="ts">
   import { appWindow } from "../../../shared/api";
   import { t } from "../../../shared/i18n";
+  import BrandMark from "../../components/BrandMark.svelte";
   import Icon from "../../components/Icon.svelte";
   import { player } from "../../player.svelte";
   import { skins } from "../../skins.svelte";
@@ -39,16 +40,7 @@
 <header class="cad-titlebar" class:is-compact={compact} data-component="titlebar">
   <div class="cad-brand">
     {#if showMark}
-      <svg class="cad-brand-mark" viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          d="M17.2 7.1A7 7 0 1 0 17.2 16.9"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.2"
-          stroke-linecap="round"
-        />
-        <circle cx="17.2" cy="7.1" r="1.4" fill="currentColor" />
-      </svg>
+      <span class="cad-brand-mark"><BrandMark size={14} /></span>
     {/if}
     {#if showBrand}<span class="cad-brand-name">{brand}</span>{/if}
     {#if showProvider}

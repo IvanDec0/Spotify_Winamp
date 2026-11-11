@@ -23,6 +23,16 @@ Both artifacts are built from the repository with `task package`.
   package on Arch. Playback works without `parec`; only the real visualizer
   needs it.
 
+The Spotify web player is the default playback backend, but its Chromium runtime
+is never part of the AppImage, the tarball or the release checksums. Cadence
+downloads the right build at first launch (~120 MB, SHA-256 verified), opens the
+embedded Spotify login only when no session is stored and starts the playback
+helper automatically, so no manual install step is required. go-librespot is
+still bundled because it serves the library, search and catalog in every backend
+mode, and it remains the explicit `librespot` fallback in Settings; Spotify
+Soloist is the other explicit fallback. Linux is the supported target for all
+playback backends in this release.
+
 ```bash
 sudo pacman -S --needed gtk4 webkitgtk-6.0 libsoup3 \
   libogg libvorbis flac mpg123 alsa-lib libpulse
@@ -88,22 +98,33 @@ install -Dm644 cadence.png ~/.local/share/icons/hicolor/512x512/apps/cadence.png
 
 ## First run and pairing
 
-1. Start Cadence without `--demo`.
+1. Start Cadence without `--demo`. Spotify Soloist is already the selected
+   backend, and Cadence downloads its build in the background.
 2. Click **Browse** in the compact titlebar. It opens the Browse window on
    Library.
-3. If the engine is not paired, Browse shows a pairing code. Choose **Open
-   pairing page**, or copy the code.
-4. Sign in with a Premium account and approve **Cadence** at
+3. If the catalog engine is not paired, Browse shows a pairing code. Choose
+   **Open pairing page**, or copy the code.
+4. Sign in with a Premium account and approve **Cadence Library** at
    `spotify.com/pair`.
-5. Browse updates automatically. Search the catalog, open the Library, or play
+5. When the Soloist download finishes, the setup modal asks for the one-time API
+   key. Choose **Generate API key** to open Spotify's dashboard, sign in, accept
+   the terms, click **Generate API key**, then paste the key into the modal and
+   select **Save and start**.
+6. Open Spotify on your phone on the same Wi-Fi network and choose **Cadence**,
+   not **Cadence Library**. Come back and select **Done** in the modal.
+7. Browse updates automatically. Search the catalog, open the Library, or play
    a track.
 
-Cadence plays audio locally through the engine; the official Spotify desktop
-client is not required.
+Choosing **Later** in the modal dismisses it for this install; a small banner in
+Browse and the **Spotify Soloist** card in Settings remain the way back. Cadence
+does not reopen the modal on every launch.
 
-If Cadence is unpaired and the pairing code is stale, use **Reset pairing** on
-the Browse pairing screen and approve the new code. To reset an installation
-that is already paired, stop Cadence, remove
+Cadence plays audio locally through Soloist; the official Spotify desktop client
+is not required.
+
+If the catalog engine is unpaired and the pairing code is stale, use **Reset
+pairing** on the Browse pairing screen and approve the new code. To reset an
+installation that is already paired, stop Cadence, remove
 `$XDG_CONFIG_HOME/cadence/audio/state.json`, and start Cadence again.
 
 ## The Browse window
@@ -138,11 +159,20 @@ player, and playback continues.
 
 Browse Settings is the single settings surface:
 
+- **Audio backend**: **Spotify Soloist** is the default; **go-librespot** is the
+  explicit fallback. Select **Apply backend**. The saved value applies only after
+  a Cadence restart.
+- **Spotify Soloist**: automatic download at first launch (the card also has
+  **Install Soloist**/**Update Soloist** as a manual path), version and expiry
+  countdown, start/stop/restart in Soloist mode, and the one-time guided Spotify
+  developer API key. The card links to the Spotify dashboard and the official
+  download page.
 - **Engine playback**: bitrate, crossfade, normalisation, pregain and album
-  gain.
+  gain. These controls are disabled in Soloist mode.
 - **Audio cache**: enable the disk cache, choose a size limit, and see the
-  resolved cache directory.
+  resolved cache directory. The cache is disabled in Soloist mode.
 - **Features**: FLAC, MPRIS, speaker-group advertising and artwork image size.
+  FLAC, MPRIS and speaker-group advertising are disabled in Soloist mode.
 - **Appearance**: language, theme, visualizer mode and motion.
 - **Skins**: install a ZIP or folder, activate, uninstall, reset, disable
   third-party skins, and see the safe-mode notice.
@@ -174,9 +204,21 @@ animation. Playback is never blocked by a missing visualizer dependency.
 | Artwork cache | `$XDG_CACHE_HOME/cadence/art` |
 | Audio cache (default) | `$XDG_CACHE_HOME/cadence/audio-cache` |
 | Installed skins | `$XDG_DATA_HOME/cadence/skins/` |
+| Soloist builds | `$XDG_DATA_HOME/cadence/soloist/programs/<build-unix>/soloist` |
+| Soloist data and accounts | `$XDG_DATA_HOME/cadence/soloist/data` |
+| Soloist cache | `$XDG_CACHE_HOME/cadence/soloist/cache` |
+| Soloist log | `$XDG_CACHE_HOME/cadence/logs/soloist.log` |
+| Soloist API key (`0600`) | `$XDG_CONFIG_HOME/cadence/soloist/api-key` |
 
 `config.yml` is regenerated on every engine start; manual edits are overwritten.
-Engine credentials stay in `state.json` and are not sent to the frontend.
+Engine credentials stay in `state.json` and are not sent to the frontend. The
+Soloist key file is owner-only and separate from `config.json`; it is never
+returned to the frontend.
+
+The one-time Soloist setup prompt is dismissed through the webview
+`localStorage` key `cadence.soloist.prompt.v1`, not a file. The compact player
+and Browse share the value. Deleting the webview data makes the prompt eligible
+again; saving an API key clears it.
 
 ## Demo mode
 
@@ -191,6 +233,17 @@ You can run the interface without Spotify or the engine:
 Replace the old AppImage, or extract the new tarball over the previous
 installation. Settings, pairing and installed skins live under the XDG paths
 above and are preserved. Run `--version` after the update to confirm `0.2.0`.
+
+Soloist builds expire 90 days after their build timestamp, so Cadence refreshes
+them automatically while `soloist` is the selected backend. At startup and every
+six hours it checks the installed build; at 89 days of build age, or within 24
+hours of expiry, it downloads and verifies a new build, prunes old ones (keeping
+the newest and the currently running build) and restarts Soloist if it was
+running. Network failures retry silently. **Update Soloist** in Browse Settings
+performs the same update immediately.
+
+A Cadence update never replaces Soloist, and no Soloist archive is shipped in the
+release artifacts.
 
 ## Uninstalling
 
@@ -212,6 +265,15 @@ the pairing, preferences and installed skins:
 rm -rf ~/.config/cadence ~/.cache/cadence ~/.local/share/cadence
 ```
 
+To remove only the Soloist builds, data, cache and API key:
+
+```bash
+rm -rf ~/.local/share/cadence/soloist ~/.cache/cadence/soloist ~/.config/cadence/soloist
+```
+
+The `~/.cache/cadence/soloist` path may not exist when Soloist was never used;
+removing a missing path is harmless.
+
 ## Clean installation checklist
 
 Use this on a fresh Arch Linux x86_64 machine:
@@ -222,9 +284,16 @@ Use this on a fresh Arch Linux x86_64 machine:
       `sha256sum -c cadence-0.2.0-SHA256SUMS`.
 - [ ] Run `--version` from the AppImage and from the tarball; both print
       `Cadence 0.2.0 (<short commit>)` without opening a window.
-- [ ] Start Cadence without `--demo`, click **Browse**, and pair the Cadence
-      device at `spotify.com/pair`.
-- [ ] Play a track and confirm audio through the default sink.
+- [ ] Start Cadence without `--demo`, click **Browse**, and approve the
+      **Cadence Library** catalog device at `spotify.com/pair`.
+- [ ] Wait for the Soloist download, choose **Generate API key**, generate the
+      key at
+      `https://developer.spotify.com/dashboard/soloist`, and paste it into the modal.
+- [ ] Open Spotify on the same Wi-Fi network, choose **Cadence**, approve the
+      pairing, and play a track. Confirm audio through the default sink.
+- [ ] Optional fallback for accounts that work with go-librespot: in Settings,
+      apply the **go-librespot** backend and restart Cadence. Automatic Soloist
+      download and updates stop in that mode.
 - [ ] Open Browse, drag it by the topbar, minimize it, resize it from the
       bottom-right grip, then close it. The compact player returns and playback
       continues.

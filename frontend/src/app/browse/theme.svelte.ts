@@ -17,6 +17,8 @@ export const BROWSE_TOKENS = [
   "--line-strong",
   "--accent",
   "--accent-2",
+  "--accent-soft",
+  "--accent-glow",
   "--danger",
   "--font-ui",
   "--font-mono",

@@ -192,7 +192,19 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    animation: cover-image-in 520ms var(--ease-out) both;
     transition: transform 900ms var(--ease-out);
+  }
+
+  @keyframes cover-image-in {
+    from {
+      opacity: 0;
+      transform: scale(1.06);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .cover-art:hover .cover-art__image {
@@ -224,6 +236,31 @@
     opacity: 0.13;
     mix-blend-mode: overlay;
     pointer-events: none;
+  }
+
+  .cover-art::before {
+    content: "";
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      118deg,
+      transparent 32%,
+      rgb(255 255 255 / 14%) 46%,
+      transparent 58%
+    );
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-24%);
+    transition:
+      opacity var(--motion-base) ease,
+      transform 620ms var(--ease-out);
+  }
+
+  .cover-art:hover::before {
+    opacity: 1;
+    transform: translateX(24%);
   }
 
   .cover-art::after {

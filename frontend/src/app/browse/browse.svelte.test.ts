@@ -130,6 +130,7 @@ describe("BrowseStore", () => {
 
   it("accepts a validated initial section", () => {
     expect(normalizeSection("podcasts")).toBe("podcasts");
+    expect(normalizeSection("nowplaying")).toBe("nowplaying");
     expect(normalizeSection("bogus")).toBe("library");
     expect(normalizeSection(null)).toBe("library");
     expect(normalizeSection("settings", "search")).toBe("settings");

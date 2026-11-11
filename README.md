@@ -6,10 +6,13 @@
 
 **0.2.0: two-window playback.** Cadence is a real Spotify player. A compact,
 skinnable player and a dedicated **Browse** window cover playback, search, the
-user's library, podcasts, the queue and settings. Audio is decoded locally by a
-managed **go-librespot** engine and plays through PulseAudio/PipeWire; the
-official Spotify client is not required. Pairing uses Spotify's device flow, and
-the frontend never receives playback credentials.
+user's library, podcasts, the queue and settings. Audio is played by the
+**Spotify web player** — Spotify's official Web Playback SDK inside a bundled
+Chromium runtime — by default; the runtime is downloaded automatically at
+startup, and Spotify Soloist and the managed **go-librespot** engine remain
+explicit fallbacks. Both fallbacks play through PulseAudio/PipeWire, and the
+official Spotify client is not required. Pairing uses Spotify's device flow,
+and the frontend never receives playback credentials.
 
 - Installation: [`docs/installation.md`](docs/installation.md)
 - Release history: [`CHANGELOG.md`](CHANGELOG.md)
@@ -26,8 +29,12 @@ the frontend never receives playback credentials.
 Cadence is a desktop **Spotify player** with two surfaces: a compact, skinnable
 player and a larger Browse window for the catalog.
 
-- **Audio is local.** A bundled or externally installed `go-librespot` process decodes and plays Spotify audio through PulseAudio or PipeWire.
-- **No Spotify Desktop dependency.** Cadence appears to Spotify as a device named **Cadence** and is paired once through `spotify.com/pair`.
+- **Audio is local.** The web player runtime, Spotify Soloist and the managed `go-librespot` engine run as separate local processes and output through PulseAudio or PipeWire.
+- **The Spotify web player is the default playback backend.** Cadence downloads the Chromium runtime at startup, opens the Spotify login only when no session is stored, and starts the helper automatically; no Browse Settings step is needed. The runtime is never bundled, so the base app stays light.
+- **go-librespot owns the catalog.** Library, search, context resolution, queue metadata and the catalog session stay on go-librespot in every backend mode. It appears as **Cadence Library**; the web player is **Cadence Web** and Soloist is **Cadence**.
+- **Soloist and `librespot` are explicit fallbacks.** Both remain selectable in Browse Settings and apply after a restart. Automatic runtime download and login apply only while the web player is the active backend.
+- **Web player trade-offs are explicit.** Radio is unavailable in web and Soloist modes, and the go-librespot bitrate, FLAC, normalisation, crossfade, cache, MPRIS and speaker-group options are disabled; each engine uses its own defaults.
+- **No Spotify Desktop dependency.** Cadence appears to Spotify as the playback device **Cadence Web** (web player) or **Cadence** (Soloist), plus the catalog device **Cadence Library** (go-librespot). Pick the Cadence device that matches the active backend when you start playback from another Spotify app.
 - **Browse is the library.** Playlists, saved albums, followed artists, Liked Songs and Your Episodes live in Browse. Search the catalog, open entity pages, queue tracks and manage saves and follows there.
 - **Search and podcasts.** Search results are grouped into tracks, albums, artists, playlists, shows and episodes. Podcast episodes play through the local engine, and show pages support saving.
 - **Spotify radio, locally.** Start a radio station from a track, album, artist or playlist and keep it playing through the local engine.
@@ -59,7 +66,7 @@ and a bottom-right resize grip.
 
 - Not the official Spotify client and not affiliated with Spotify.
 - Not a Spotify Connect controller; it does not need the official desktop client to play audio.
-- Not a Web Playback SDK or DRM integration. WebKitGTK cannot run Spotify's Widevine/EME playback.
+- Not a WebKitGTK or Wails Web Playback SDK integration. The default web backend runs Spotify's official SDK with Widevine in a separate Chromium runtime; the compact Wails window never runs DRM playback.
 - Not an audio extractor. The visualizer samples the system-wide default Linux monitor, not the Spotify stream in isolation.
 - Not a native Winamp skin loader in 0.2.0.
 - Not a marketplace, visual skin editor or level 3 executable-skin runtime in 0.2.0.
@@ -90,7 +97,10 @@ and a bottom-right resize grip.
 - `internal/engine/supervisor.go` owns the sidecar process, its config and pairing state.
 - `internal/engine/rest.go` is the loopback REST client.
 - `internal/playback/engine_provider.go` maps engine state to the provider-independent player model.
+- `internal/playback/soloist_provider.go` maps the default Soloist state to the same model; `internal/soloist` owns the Soloist protocol client, installer, updater, pruning, credentials and process supervisor.
+- `internal/wailsapi/audio/service.go` also runs the Soloist maintenance loop: auto-install, 89-day/24-hour update checks, pruning and restart.
 - `internal/catalog/service.go` implements library, search, context, save/follow and playback selection; `internal/wailsapi/audio/service.go` exposes it to the frontend.
+- `internal/catalog` consumes a small `Playback` interface, so `PlayContext`, `PlayTrack`, `AddToQueue` and `StartRadio` reach the active backend without changing `playback.Provider`.
 - `internal/artwork/cache.go` proxies and bounds album art.
 - `internal/visualizer` captures the system-wide default PulseAudio/PipeWire monitor through `parec` on Linux and turns it into band, RMS and waveform frames; the frontend falls back to a simulated animation when capture is unavailable.
 - `internal/buildinfo` carries the version and short commit stamped into release builds.
@@ -102,7 +112,7 @@ and a bottom-right resize grip.
   state.
 - Package graph, dependency rule and event flow: [`docs/architecture.md`](docs/architecture.md).
 
-The engine binds only to `127.0.0.1` on a random port and stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json`. The frontend receives token-free state.
+The engine binds only to `127.0.0.1` on a random port and stores its credentials in `$XDG_CONFIG_HOME/cadence/audio/state.json`. The frontend receives token-free state. The Spotify web player plays audio by default; Soloist and `librespot` are explicit fallbacks. go-librespot keeps the catalog session as `Cadence Library` in every backend mode.
 
 ## Stack
 
@@ -114,6 +124,8 @@ The engine binds only to `127.0.0.1` on a random port and stores its credentials
 - Vitest 5.0.5, ESLint 10.13.0, Prettier 3.9.10
 - Node.js 26.12.1 / npm 12.2.1
 - go-librespot pinned to `v0.10.6-0.20261104085532-16b65bb4cd2b` (GPL-3.0 binary, separate process)
+- Spotify web player (default): castlabs Chromium runtime with Widevine and AAC, downloaded at startup, never bundled
+- Spotify Soloist (optional fallback): downloaded from Spotify at runtime, never bundled; updated automatically before the 90-day build expiry
 
 TypeScript 7 is intentionally not used because `svelte-check` 4.7.7 and `typescript-eslint` 8.72.0 are not compatible with it.
 
@@ -128,10 +140,12 @@ Arch Linux x86_64 only.
 | [`CHANGELOG.md`](CHANGELOG.md) | Release history |
 | [`plan/nombre_plan.md`](plan/nombre_plan.md) | Actionable implementation plan and test gates |
 | [`docs/development.md`](docs/development.md) | Local setup, commands and tooling notes |
+| [`docs/architecture.md`](docs/architecture.md) | Package layout, dependency rule, event flow and the audio backend seam |
+| [`docs/adr/0004-dual-audio-backend.md`](docs/adr/0004-dual-audio-backend.md) | ADR: Soloist as the default audio backend, go-librespot as the catalog engine and fallback |
 | [`docs/installation.md`](docs/installation.md) | Release installation, pairing and uninstall |
 | [`docs/skin-format.md`](docs/skin-format.md) | Skin package, layout, theme and security reference |
 | [`docs/skin-authoring.md`](docs/skin-authoring.md) | Step-by-step guide to creating and installing a skin |
-| [`docs/spotify-setup.md`](docs/spotify-setup.md) | Local engine build, pairing, library and troubleshooting |
+| [`docs/spotify-setup.md`](docs/spotify-setup.md) | Default Soloist setup, one-time API key, pairing, auto-updates and troubleshooting |
 | [`documentacion-cliente-musical-skins.md`](documentacion-cliente-musical-skins.md) | Original design baseline (historical architecture sections) |
 | [`docs/archive/documentacion-cliente-musical-skins.es.md`](docs/archive/documentacion-cliente-musical-skins.es.md) | Original Spanish design document (archived) |
 
@@ -196,22 +210,47 @@ The engine binary is not committed. `task audio:build` downloads the pinned sour
 
 ## Spotify setup
 
-1. Build the engine with `task audio:build`.
-2. Start Cadence without `--demo`.
+1. Build the engine with `task audio:build`. It serves the catalog in every backend mode.
+2. Start Cadence without `--demo`. The Spotify web player is already the selected backend: Cadence downloads its Chromium runtime (~120 MB, verified), opens the embedded Spotify login when no session is stored and starts the playback helper automatically.
 3. Click **Browse** in the compact titlebar.
-4. If the engine is not paired, copy the pairing code or choose **Open pairing page**.
-5. Approve **Cadence** at `spotify.com/pair`.
-6. Browse the Library, search the catalog, or play a track from Browse. Closing Browse returns to the compact player without stopping playback.
+4. If the catalog engine is not paired, copy the pairing code or choose **Open pairing page**, then approve **Cadence Library** at `spotify.com/pair`.
+5. Play a track from Browse, search, or another Spotify app after choosing **Cadence Web**. Closing Browse returns to the compact player without stopping playback.
 
-Playback requires Spotify Premium and an audio sink. The engine runs as a separate process; its log is written to `$XDG_CACHE_HOME/cadence/logs/go-librespot.log`.
+Playback requires Spotify Premium and an audio sink. The web player, Soloist and go-librespot run as separate processes; the go-librespot log is written to `$XDG_CACHE_HOME/cadence/logs/go-librespot.log` and the Soloist log to `$XDG_CACHE_HOME/cadence/logs/soloist.log`.
 
 See [`docs/spotify-setup.md`](docs/spotify-setup.md) for prerequisites, binary discovery, reset pairing and troubleshooting.
+
+### Spotify Soloist (optional fallback)
+
+Spotify Soloist plays audio when selected in Browse Settings. Cadence downloads the right build for the
+host architecture from Spotify at first launch and refreshes it in the
+background at 89 days or within 24 hours of expiry, pruning old builds and
+restarting Soloist after the update.
+
+The only manual step is the one-time API key. Spotify requires a signed-in
+dashboard session, accepting the terms and clicking **Generate API key**, so the
+first-run modal opens
+[`developer.spotify.com/dashboard/soloist`](https://developer.spotify.com/dashboard/soloist) in
+your browser and asks for one paste. Cadence validates the key, stores it in
+`$XDG_CONFIG_HOME/cadence/soloist/api-key` (`0600`) and starts Soloist. **Later**
+dismisses the prompt; a Browse banner and the Settings card remain the way back.
+
+Soloist is never part of the Cadence artifact, and no headless browser or stored
+Spotify password is involved. Radio and the go-librespot bitrate, FLAC,
+normalisation, crossfade, cache, MPRIS and speaker-group options are unavailable
+in Soloist mode. Accounts that work with go-librespot can select the `librespot`
+backend in Settings; automatic Soloist download and updates stop in that mode.
+
+See
+[`docs/spotify-setup.md`](docs/spotify-setup.md)
+for devices, paths, expiry and troubleshooting, and
+[ADR 0004](docs/adr/0004-dual-audio-backend.md) for the original backend decision.
 
 ## Search and radio
 
 Browse Search queries the Spotify catalog directly through the local engine. Results are split into **Tracks**, **Albums**, **Artists**, **Playlists**, **Shows** and **Episodes**. Tracks and episodes play immediately, the other result types open entity pages, and tracks plus album, artist and playlist pages have a **Radio** action. Library Liked Songs and Your Episodes also open their own views.
 
-Radio stations are resolved by the engine and play through the same local output as normal tracks. This requires Spotify Premium, like playback.
+Radio stations are resolved by the engine and play through the same local output as normal tracks. This requires Spotify Premium, like playback. Radio is only available with the go-librespot backend; the action is hidden in Soloist mode.
 
 ## Skins
 
@@ -277,6 +316,7 @@ Shaped windows need a compositing environment with an alpha channel. Sway and th
 │   ├── engine/                      # Sidecar supervisor, REST client and wire DTOs
 │   ├── catalog/                     # Library, search and context orchestration
 │   ├── playback/                    # Provider, player state, demo and engine providers
+│   ├── soloist/                     # Default Soloist protocol, installer, updater, pruning and process supervisor
 │   ├── artwork/                     # Album-art proxying and caching
 │   ├── visualizer/                  # Monitor capture and spectrum/RMS/waveform analysis
 │   ├── buildinfo/                   # Release version and commit stamping
@@ -294,6 +334,8 @@ Shaped windows need a compositing environment with an alpha channel. Sway and th
 ├── plan/
 │   └── nombre_plan.md
 ├── docs/
+│   ├── adr/
+│   │   └── 0004-dual-audio-backend.md
 │   ├── architecture.md
 │   ├── development.md
 │   ├── installation.md

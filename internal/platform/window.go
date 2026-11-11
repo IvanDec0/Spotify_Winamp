@@ -67,7 +67,7 @@ func browseSection(section string) (string, error) {
 	switch section {
 	case "", "library":
 		return "library", nil
-	case "search", "podcasts", "settings":
+	case "search", "podcasts", "settings", "nowplaying":
 		return section, nil
 	default:
 		return "", fmt.Errorf("unsupported browse section %q", section)

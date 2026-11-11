@@ -51,7 +51,7 @@
                     "type": "component",
                     "component": "album-art",
                     "props": {
-                      "size": 96,
+                      "size": 104,
                       "frame": true,
                       "reflection": true
                     }

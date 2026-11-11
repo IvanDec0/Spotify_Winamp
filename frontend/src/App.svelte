@@ -8,9 +8,12 @@
   import Queue from "./lib/components/Queue.svelte";
   import TitleBar from "./lib/components/TitleBar.svelte";
   import { player } from "./lib/player.svelte";
+  import { music } from "./lib/music.svelte";
   import { preferences, themes, visualizerModes, type ThemeId } from "./lib/preferences.svelte";
   import SkinHost from "./lib/skins/SkinHost.svelte";
   import { skins } from "./lib/skins.svelte";
+  import { readSoloistPromptDismissed, writeSoloistPromptDismissed } from "./lib/soloist-setup";
+  import SoloistSetupDialog from "./app/browse/SoloistSetupDialog.svelte";
   import {
     DEFAULT_UI_SCALE,
     EXPANDED_HEIGHT,
@@ -24,6 +27,8 @@
   let queueClosing = $state(false);
   let devicesOpen = $state(false);
   let browseOpenError = $state<string | null>(null);
+  let soloistPromptDismissed = $state(readSoloistPromptDismissed());
+  let soloistDialogOpen = $state(false);
   let uiScale = $state(DEFAULT_UI_SCALE);
   let baseNativeWidth = Math.round(WINDOW_WIDTH * DEFAULT_UI_SCALE);
   let baseNativeHeight = Math.round(WINDOW_HEIGHT * DEFAULT_UI_SCALE);
@@ -50,6 +55,21 @@
   let activeModeLabel = $derived(t(activeMode.labelKey));
   let skinError = $derived(skins.errorKey ? t(skins.errorKey) : skins.error);
   let displayError = $derived(player.error || skinError || browseOpenError);
+  let soloistSetupError = $derived(
+    player.state.error?.code.startsWith("soloist_") === true ||
+      player.error?.startsWith("soloist_") === true,
+  );
+  let soloistNeedsSetup = $derived(
+    music.soloistMode &&
+      !music.audio.soloist?.apiKeySet &&
+      !music.audio.soloist?.installing &&
+      (Boolean(music.audio.soloist?.installed) || Boolean(music.audio.soloist?.error)),
+  );
+  let showSoloistDialog = $derived(
+    music.soloistMode &&
+      !music.loading &&
+      (soloistDialogOpen || (soloistNeedsSetup && !soloistPromptDismissed)),
+  );
   let overlayThemeStyle = $derived(
     skins.isDeclarative
       ? Object.entries(skins.palette)
@@ -135,7 +155,7 @@
     }
   }
 
-  function openBrowseSection(section: "library" | "settings"): void {
+  function openBrowseSection(section: "library" | "settings" | "nowplaying"): void {
     closePopovers();
     browseOpenError = null;
     void appWindow.openBrowse(section).catch((error: unknown) => {
@@ -305,6 +325,22 @@
     browseOpenError = null;
   }
 
+  function dismissSoloistPrompt(): void {
+    soloistPromptDismissed = true;
+    soloistDialogOpen = false;
+    writeSoloistPromptDismissed(true);
+  }
+
+  function clearSoloistPrompt(): void {
+    soloistPromptDismissed = false;
+    soloistDialogOpen = false;
+    writeSoloistPromptDismissed(false);
+  }
+
+  $effect(() => {
+    if (music.audio.soloist?.apiKeySet) clearSoloistPrompt();
+  });
+
   $effect(() => {
     if (skins.loading) return;
     const id = skins.runtime?.id ?? "clarity";
@@ -350,9 +386,11 @@
       openDevices,
       openSettings,
       openMusic: openBrowse,
+      openNowPlaying: () => openBrowseSection("nowplaying"),
     });
     void player.start();
     void skins.start();
+    void music.start();
     const cleanupMotion = preferences.syncSystemMotion();
     const cleanupPreferenceStorage = preferences.startStorageSync();
     globalThis.addEventListener("resize", scheduleUiScaleSync);
@@ -364,6 +402,7 @@
       if (scaleSyncTimer) clearTimeout(scaleSyncTimer);
       player.stop();
       skins.stop();
+      music.stop();
       skins.setHandlers(null);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
@@ -413,6 +452,7 @@
             onShuffle={() => void player.toggleShuffle()}
             onRepeat={() => void player.cycleRepeat()}
             onCycleVisualizer={() => preferences.cycleVisualizer()}
+            onOpenNowPlaying={() => openBrowseSection("nowplaying")}
           />
         </main>
 
@@ -448,6 +488,10 @@
           </div>
         {/if}
       </div>
+
+      {#key preferences.theme}
+        <span class="theme-wash" aria-hidden="true"></span>
+      {/key}
     </div>
   {/if}
 
@@ -492,6 +536,11 @@
           <Icon name="info" size={13} />
         </span>
         <span class="toast-message">{displayError}</span>
+        {#if soloistSetupError}
+          <button class="toast-action" type="button" onclick={() => (soloistDialogOpen = true)}>
+            {t("browse.soloistKeyConfigure")}
+          </button>
+        {/if}
         <button
           class="toast-close"
           type="button"
@@ -503,12 +552,49 @@
       </div>
     </div>
   {/if}
+
+  <div class="clarity" data-theme={preferences.theme} style={overlayThemeStyle}>
+    <SoloistSetupDialog
+      open={showSoloistDialog}
+      onclose={dismissSoloistPrompt}
+      ondismiss={dismissSoloistPrompt}
+      onstarted={clearSoloistPrompt}
+    />
+  </div>
 </div>
 
 <style>
   .shell {
     position: relative;
     isolation: isolate;
+  }
+
+  .theme-wash {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    background:
+      radial-gradient(
+        70% 80% at 50% 0%,
+        color-mix(in srgb, var(--accent) 22%, transparent),
+        transparent 65%
+      ),
+      radial-gradient(
+        60% 60% at 80% 100%,
+        color-mix(in srgb, var(--accent-2) 16%, transparent),
+        transparent 70%
+      );
+    pointer-events: none;
+    animation: theme-wash 560ms var(--ease-out) forwards;
+  }
+
+  @keyframes theme-wash {
+    from {
+      opacity: 0.9;
+    }
+    to {
+      opacity: 0;
+    }
   }
 
   .player-region {
@@ -521,7 +607,7 @@
     flex: 0 0 240px;
     min-height: 0;
     overflow: hidden;
-    animation: queue-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: queue-in 260ms var(--ease-out);
   }
 
   .queue-slot.is-closing {
@@ -539,10 +625,20 @@
     position: absolute;
     inset: 0;
     border: 0;
-    background: rgb(0 0 0 / 16%);
+    background: rgb(0 0 0 / 22%);
     cursor: default;
     pointer-events: auto;
-    backdrop-filter: blur(0.8px);
+    backdrop-filter: blur(2px);
+    animation: backdrop-in 200ms ease-out both;
+  }
+
+  @keyframes backdrop-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .popover-backdrop:focus-visible {
@@ -554,7 +650,7 @@
     top: 35px;
     right: 10px;
     z-index: 1;
-    animation: pop-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: pop-in 200ms var(--ease-out);
     pointer-events: auto;
   }
 
@@ -567,12 +663,17 @@
     display: flex;
     align-items: center;
     gap: 7px;
-    padding: 7px 8px 7px 10px;
+    padding: 8px 8px 8px 10px;
     border: 1px solid color-mix(in srgb, var(--danger) 34%, transparent);
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--surface) 92%, var(--danger));
-    box-shadow: 0 10px 28px rgb(0 0 0 / 48%);
-    animation: toast-in 180ms ease-out;
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 42%),
+      color-mix(in srgb, var(--surface) 92%, var(--danger));
+    box-shadow:
+      0 12px 32px rgb(0 0 0 / 52%),
+      0 0 24px color-mix(in srgb, var(--danger) 12%, transparent);
+    backdrop-filter: blur(16px);
+    animation: toast-in 240ms var(--ease-out);
   }
 
   .toast-icon {
@@ -604,6 +705,25 @@
   .toast-close:hover {
     background: var(--surface-2);
     color: var(--text);
+  }
+
+  .toast-action {
+    flex: 0 0 auto;
+    padding: 3px 7px;
+    border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 9px;
+    line-height: 1;
+  }
+
+  .toast-action:hover {
+    background: var(--surface-2);
+  }
+
+  .toast-action:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+    outline-offset: 1px;
   }
 
   @keyframes queue-in {

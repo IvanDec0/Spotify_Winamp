@@ -69,19 +69,48 @@ type Pairing struct {
 
 // AudioState is the token-free state exposed to the frontend.
 type AudioState struct {
-	Available       bool     `json:"available"`
-	Running         bool     `json:"running"`
-	Authenticated   bool     `json:"authenticated"`
-	Engine          string   `json:"engine"`
-	EngineVersion   string   `json:"engineVersion"`
-	DeviceName      string   `json:"deviceName"`
-	DeviceType      string   `json:"deviceType"`
-	Pairing         *Pairing `json:"pairing"`
-	Error           string   `json:"error"`
-	ErrorCode       string   `json:"errorCode"`
-	BinaryPath      string   `json:"binaryPath"`
-	ConfigDirectory string   `json:"configDirectory"`
-	AudioBackend    string   `json:"audioBackend"`
+	Available       bool          `json:"available"`
+	Running         bool          `json:"running"`
+	Authenticated   bool          `json:"authenticated"`
+	Engine          string        `json:"engine"`
+	EngineVersion   string        `json:"engineVersion"`
+	DeviceName      string        `json:"deviceName"`
+	DeviceType      string        `json:"deviceType"`
+	Pairing         *Pairing      `json:"pairing"`
+	Error           string        `json:"error"`
+	ErrorCode       string        `json:"errorCode"`
+	BinaryPath      string        `json:"binaryPath"`
+	ConfigDirectory string        `json:"configDirectory"`
+	AudioBackend    string        `json:"audioBackend"`
+	PlaybackBackend string        `json:"playbackBackend"`
+	Soloist         *SoloistState `json:"soloist,omitempty"`
+}
+
+// SoloistState is the frontend-facing Soloist process, install and expiry
+// state. Times are RFC3339 UTC strings and empty when unset. The engine package
+// owns this DTO so it does not import internal/soloist; the audio adapter maps
+// the domain state into it.
+type SoloistState struct {
+	Installed    bool     `json:"installed"`
+	BinaryPath   string   `json:"binaryPath"`
+	Version      string   `json:"version"`
+	BuiltAt      string   `json:"builtAt"`
+	ExpiresAt    string   `json:"expiresAt"`
+	Expired      bool     `json:"expired"`
+	DaysLeft     int      `json:"daysLeft"`
+	Running      bool     `json:"running"`
+	LoggedIn     bool     `json:"loggedIn"`
+	NeedsPairing bool     `json:"needsPairing"`
+	Active       bool     `json:"active"`
+	DeviceName   string   `json:"deviceName"`
+	Accounts     []string `json:"accounts"`
+	Installing   bool     `json:"installing"`
+	InstallStage string   `json:"installStage"`
+	Downloaded   int64    `json:"downloaded"`
+	Total        int64    `json:"total"`
+	APIKeySet    bool     `json:"apiKeySet"`
+	Error        string   `json:"error"`
+	ErrorCode    string   `json:"errorCode"`
 }
 
 // LibraryPlaylist is a playlist in the user's library.

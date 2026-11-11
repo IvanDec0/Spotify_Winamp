@@ -39,7 +39,9 @@
     if (!open) return;
     restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     void tick().then(() => {
-      (focusable()[0] ?? dialog)?.focus();
+      const target =
+        dialog?.querySelector<HTMLElement>("[data-autofocus]") ?? focusable()[0] ?? dialog;
+      target?.focus();
     });
     return () => {
       restoreFocus?.focus();
@@ -115,14 +117,16 @@
     inset: 0;
     display: grid;
     place-items: center;
+    animation: dialog-fade 220ms ease-out both;
   }
 
   .ui-dialog-backdrop {
     position: absolute;
     inset: 0;
     border: 0;
-    background: rgb(0 0 0 / 46%);
+    background: rgb(0 0 0 / 52%);
     cursor: default;
+    backdrop-filter: blur(4px);
   }
 
   .ui-dialog {
@@ -131,10 +135,37 @@
     max-height: calc(100vh - 24px);
     overflow: auto;
     border: 1px solid var(--line, rgb(255 255 255 / 12%));
-    border-radius: 8px;
-    background: var(--surface, #10141b);
+    border-radius: var(--radius-md, 11px);
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 5%), transparent 30%),
+      color-mix(in srgb, var(--surface, #10141b) 94%, transparent);
     color: var(--text, #e8edf4);
-    box-shadow: 0 18px 48px rgb(0 0 0 / 55%);
+    box-shadow:
+      0 24px 64px rgb(0 0 0 / 58%),
+      0 0 0 1px rgb(0 0 0 / 26%),
+      0 0 42px color-mix(in srgb, var(--accent, #5ef0ff) 7%, transparent);
+    backdrop-filter: blur(22px) saturate(125%);
+    animation: dialog-in 260ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+  }
+
+  @keyframes dialog-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
   }
 
   .ui-dialog-head {

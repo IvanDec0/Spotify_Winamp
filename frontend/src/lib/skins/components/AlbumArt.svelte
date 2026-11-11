@@ -2,6 +2,7 @@
   import { t } from "../../../shared/i18n";
   import { coverURL } from "../../artwork";
   import { player } from "../../player.svelte";
+  import { skins } from "../../skins.svelte";
 
   interface Props {
     size?: number;
@@ -32,8 +33,6 @@
   class:is-framed={frame}
   class:is-reflected={reflection}
   style={`--cover-size: ${size}px`}
-  role="img"
-  aria-label={t("albumArt.label", { title: player.state.track.title })}
   data-component="album-art"
 >
   <div class="cad-cover-inner">
@@ -60,4 +59,11 @@
       </svg>
     {/if}
   </div>
+  <button
+    class="cad-cover-open"
+    type="button"
+    aria-label={t("player.openNowPlaying")}
+    title={t("player.openNowPlaying")}
+    onclick={() => skins.openNowPlaying()}
+  ></button>
 </div>

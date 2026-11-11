@@ -32,6 +32,8 @@ export interface AudioState {
     "binaryPath": string;
     "configDirectory": string;
     "audioBackend": string;
+    "playbackBackend": string;
+    "soloist"?: SoloistState | null;
 }
 
 /**
@@ -137,4 +139,33 @@ export interface SearchResults {
     "playlists": SearchGroup;
     "shows": SearchGroup;
     "episodes": SearchGroup;
+}
+
+/**
+ * SoloistState is the frontend-facing Soloist process, install and expiry
+ * state. Times are RFC3339 UTC strings and empty when unset. The engine package
+ * owns this DTO so it does not import internal/soloist; the audio adapter maps
+ * the domain state into it.
+ */
+export interface SoloistState {
+    "installed": boolean;
+    "binaryPath": string;
+    "version": string;
+    "builtAt": string;
+    "expiresAt": string;
+    "expired": boolean;
+    "daysLeft": number;
+    "running": boolean;
+    "loggedIn": boolean;
+    "needsPairing": boolean;
+    "active": boolean;
+    "deviceName": string;
+    "accounts": string[] | null;
+    "installing": boolean;
+    "installStage": string;
+    "downloaded": number;
+    "total": number;
+    "apiKeySet": boolean;
+    "error": string;
+    "errorCode": string;
 }

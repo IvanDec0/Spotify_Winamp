@@ -65,6 +65,18 @@ const mocks = vi.hoisted(() => {
 
   const on = vi.fn(() => () => {});
 
+  const music = {
+    loading: false,
+    audio: {
+      playbackBackend: "librespot",
+      soloist: null as Record<string, unknown> | null,
+    },
+    soloistMode: false,
+    soloist: null as Record<string, unknown> | null,
+    start: vi.fn(() => Promise.resolve()),
+    stop: vi.fn(),
+  };
+
   return {
     setSize,
     setMinSize,
@@ -77,6 +89,7 @@ const mocks = vi.hoisted(() => {
     catalog,
     runtime,
     on,
+    music,
   };
 });
 
@@ -106,6 +119,8 @@ vi.mock("./lib/player.svelte", async () => {
   const { playerMock: player } = await import("./lib/testing/player-mock.svelte");
   return { player };
 });
+
+vi.mock("./lib/music.svelte", () => ({ music: mocks.music }));
 
 vi.mock("../bindings/cadence/internal/platform", () => ({
   WindowService: { SetSize: mocks.setSize, OpenBrowse: mocks.openBrowse },
@@ -145,6 +160,13 @@ describe("App shell", () => {
     skins.errorKey = null;
     skins.notice = null;
     mocks.openBrowse.mockClear();
+    mocks.music.loading = false;
+    mocks.music.audio = { playbackBackend: "librespot", soloist: null };
+    mocks.music.soloistMode = false;
+    mocks.music.soloist = null;
+    mocks.music.start.mockClear();
+    mocks.music.stop.mockClear();
+    localStorage.clear();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   });
 
@@ -263,5 +285,18 @@ describe("App shell", () => {
 
     const shell = document.querySelector(".clarity");
     expect(shell?.classList.contains("reduce-motion")).toBe(true);
+  });
+
+  it("prompts for the Soloist API key at launch when the build has none", () => {
+    const soloist = { installed: true, apiKeySet: false, installing: false };
+    mocks.music.soloistMode = true;
+    mocks.music.audio = { playbackBackend: "soloist", soloist };
+    mocks.music.soloist = soloist;
+
+    render(App);
+
+    expect(screen.getByRole("dialog", { name: "Set up Spotify Soloist" })).not.toBeNull();
+    expect(screen.getByText(/Soloist needs a one-time API key/)).not.toBeNull();
+    expect(mocks.music.start).toHaveBeenCalledOnce();
   });
 });
