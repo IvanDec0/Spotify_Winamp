@@ -115,13 +115,21 @@ export class MusicStore {
     return this.audio.soloist;
   }
 
-  async start(): Promise<void> {
+  async start(options: { ensureEngine?: boolean } = {}): Promise<void> {
     if (this.#started) return;
     this.#started = true;
     this.#unsubscribe = onAudioState((state) => {
       this.audio = normalizeAudio(state);
       this.#syncPoll();
     });
+    if (options.ensureEngine) {
+      try {
+        this.audio = normalizeAudio(await audioApi.startEngine());
+        this.error = null;
+      } catch (error) {
+        this.error = toApiError(error).message;
+      }
+    }
     await this.refresh();
   }
 
@@ -160,6 +168,24 @@ export class MusicStore {
     if (!this.#pollTimer) return;
     clearInterval(this.#pollTimer);
     this.#pollTimer = null;
+  }
+
+  /**
+   * Starts the catalog engine on demand. Browse calls this on mount and the
+   * EngineGate retry button calls it again; the compact window never starts
+   * the engine by itself.
+   */
+  async ensureEngine(): Promise<void> {
+    this.busy = true;
+    try {
+      this.audio = normalizeAudio(await audioApi.startEngine());
+      this.error = null;
+    } catch (error) {
+      this.error = toApiError(error).message;
+    } finally {
+      this.busy = false;
+    }
+    await this.refresh();
   }
 
   async openPairing(): Promise<void> {

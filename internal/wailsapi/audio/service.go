@@ -283,6 +283,24 @@ func (s *Service) GetState() AudioState {
 	return s.mergeState(s.catalog.GetState())
 }
 
+// StartEngine starts the catalog engine on demand. The Browse surface calls
+// this when it mounts; the compact window stays lazy so the engine is not
+// resident from boot.
+func (s *Service) StartEngine() (AudioState, error) {
+	if s.supervisor == nil {
+		return s.GetState(), errors.New("the audio engine is not configured")
+	}
+	if !s.enabled {
+		return s.GetState(), nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if err := s.supervisor.Start(ctx); err != nil {
+		return s.GetState(), err
+	}
+	return s.GetState(), nil
+}
+
 // mergeState adds the backend selection and Soloist state to a catalog state.
 // It is used by GetState and by the actions that return the state produced by
 // catalog.ResetSession and catalog.Restart, which carry neither field.

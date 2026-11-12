@@ -22,7 +22,7 @@ export function mountBrowse(): void {
   browse.setInitialSection(section);
   preferences.startStorageSync();
   void player.start();
-  void music.start();
+  void music.start({ ensureEngine: true });
   void skins.start();
   mount(BrowseApp, { target: document.getElementById("app")! });
 }

@@ -8,6 +8,7 @@ import { call } from "./client";
  */
 export const audio = {
   getState: () => call(() => Service.GetState()),
+  startEngine: () => call(() => Service.StartEngine()),
   getEngineSettings: () => call(() => Service.GetEngineSettings()),
   setEngineSettings: (settings: EngineSettings) => call(() => Service.SetEngineSettings(settings)),
   getPlaybackSettings: () => call(() => Service.GetPlaybackSettings()),

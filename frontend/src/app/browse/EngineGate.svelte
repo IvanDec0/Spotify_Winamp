@@ -162,7 +162,7 @@
         <h1 id="engine-gate-title" class="view-title">{t("browse.pairing.startingTitle")}</h1>
         <p class="engine-gate-copy">{t("browse.pairing.waitingBody")}</p>
         <div class="engine-gate-actions">
-          <Button variant="secondary" size="sm" onclick={() => void music.refresh()}>
+          <Button variant="secondary" size="sm" onclick={() => void music.ensureEngine()}>
             {t("browse.pairing.checkAgain")}
           </Button>
         </div>
