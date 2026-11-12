@@ -124,6 +124,17 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 		args = append(args, "--cadence-url="+opts.PlayerURL)
 	}
 	args = appendTuningArgs(args, opts.Tuning)
+
+	// proxychains preloads a library that is incompatible with Chromium's
+	// zygote/sandbox. When we can read its proxy list, hand the proxy to
+	// Chromium directly and remove the preload from the helper environment.
+	// Otherwise fall back to the sandbox-disabled mode that proxychains needs.
+	proxy, proxychains := proxychainsProxy()
+	if proxy != "" {
+		args = append(args, "--proxy-server="+proxy, "--proxy-bypass-list=127.0.0.1;localhost")
+	} else if proxychains {
+		args = append(args, "--no-sandbox", "--in-process-gpu")
+	}
 	// Deliberately absent: --no-sandbox (user namespaces work here and the
 	// Chromium sandbox must stay on) and --disable-component-update (the
 	// component updater installs the Widevine CDM).
@@ -133,6 +144,9 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 	cmd.SysProcAttr = helperSysProcAttr()
 	cmd.Stdout = writer
 	cmd.Stderr = writer
+	if proxy != "" {
+		cmd.Env = withoutProxychains(os.Environ())
+	}
 
 	process := &Process{
 		cmd:      cmd,
@@ -164,6 +178,94 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 
 	go process.wait(cmd)
 	return process, nil
+}
+
+// proxychainsProxy returns a Chromium proxy URL when the process was launched
+// through proxychains. The boolean reports whether proxychains was detected at
+// all, even if its config could not be parsed.
+func proxychainsProxy() (string, bool) {
+	if override := strings.TrimSpace(os.Getenv("CADENCE_WEB_PROXY")); override != "" {
+		return override, true
+	}
+	if !strings.Contains(os.Getenv("LD_PRELOAD"), "proxychains") {
+		return "", false
+	}
+	path := strings.TrimSpace(os.Getenv("PROXYCHAINS_CONF_FILE"))
+	if path == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			candidate := filepath.Join(home, ".proxychains", "proxychains.conf")
+			if _, err := os.Stat(candidate); err == nil {
+				path = candidate
+			}
+		}
+	}
+	if path == "" {
+		for _, candidate := range []string{"/etc/proxychains4.conf", "/etc/proxychains.conf"} {
+			if _, err := os.Stat(candidate); err == nil {
+				path = candidate
+				break
+			}
+		}
+	}
+	if path == "" {
+		return "", true
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", true
+	}
+	inList := false
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "[") {
+			inList = strings.EqualFold(line, "[ProxyList]")
+			continue
+		}
+		if !inList || line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		scheme := ""
+		switch strings.ToLower(fields[0]) {
+		case "http":
+			scheme = "http"
+		case "socks4":
+			scheme = "socks4"
+		case "socks5":
+			scheme = "socks5"
+		default:
+			continue
+		}
+		return scheme + "://" + fields[1] + ":" + fields[2], true
+	}
+	return "", true
+}
+
+// withoutProxychains removes proxychains entries from LD_PRELOAD while keeping
+// any other preload the user may need.
+func withoutProxychains(env []string) []string {
+	result := make([]string, 0, len(env))
+	for _, entry := range env {
+		if !strings.HasPrefix(entry, "LD_PRELOAD=") {
+			result = append(result, entry)
+			continue
+		}
+		value := strings.TrimPrefix(entry, "LD_PRELOAD=")
+		kept := make([]string, 0, len(value))
+		for _, part := range strings.Split(value, ":") {
+			if part == "" || strings.Contains(part, "proxychains") {
+				continue
+			}
+			kept = append(kept, part)
+		}
+		if len(kept) > 0 {
+			result = append(result, "LD_PRELOAD="+strings.Join(kept, ":"))
+		}
+	}
+	return result
 }
 
 // defaultHelperTuning is the production tuning for the SDK helper. The GPU is
