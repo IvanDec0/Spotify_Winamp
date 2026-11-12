@@ -401,7 +401,15 @@ func (p *Provider) SetShuffle(ctx context.Context, enabled bool) error {
 	if err != nil {
 		return err
 	}
-	return api.SetShuffle(ctx, p.controlDeviceID(), enabled)
+	if err := api.SetShuffle(ctx, p.controlDeviceID(), enabled); err != nil {
+		return err
+	}
+	// The SDK push state does not carry shuffle/repeat. Keep the last known
+	// value so the next pushed state does not flip the UI back to off.
+	p.streamMu.Lock()
+	p.lastState.Shuffle = enabled
+	p.streamMu.Unlock()
+	return nil
 }
 
 // SetRepeat applies off, context or track.
@@ -415,7 +423,13 @@ func (p *Provider) SetRepeat(ctx context.Context, mode playback.RepeatMode) erro
 	if err != nil {
 		return err
 	}
-	return api.SetRepeat(ctx, p.controlDeviceID(), string(mode))
+	if err := api.SetRepeat(ctx, p.controlDeviceID(), string(mode)); err != nil {
+		return err
+	}
+	p.streamMu.Lock()
+	p.lastState.Repeat = mode
+	p.streamMu.Unlock()
+	return nil
 }
 
 // Transfer activates a device. An empty id means the SDK device, which is
@@ -585,6 +599,8 @@ func (p *Provider) mapSDKState(snapshot SDKState, at time.Time, devices []apiDev
 	}
 	state.Device = selected
 	state.Volume = selected.VolumePercent
+	state.Shuffle = p.lastToggleState()
+	state.Repeat = p.lastRepeatState()
 	state.CanControl = p.backend.LoggedIn()
 	state.CanSeek = state.Track.URI != "" && state.DurationMS > 0
 	return state
@@ -594,6 +610,18 @@ func (p *Provider) lastVolume() int {
 	p.streamMu.Lock()
 	defer p.streamMu.Unlock()
 	return p.lastState.Volume
+}
+
+func (p *Provider) lastToggleState() bool {
+	p.streamMu.Lock()
+	defer p.streamMu.Unlock()
+	return p.lastState.Shuffle
+}
+
+func (p *Provider) lastRepeatState() playback.RepeatMode {
+	p.streamMu.Lock()
+	defer p.streamMu.Unlock()
+	return p.lastState.Repeat
 }
 
 func (p *Provider) mapState(player *playerResponse, devices []apiDevice) playback.PlayerState {

@@ -679,6 +679,10 @@ func jsonEqual(left, right any) bool {
 func TestMapSDKStateInterpolatesPosition(t *testing.T) {
 	backend := &fakeProviderBackend{deviceID: "sdk-dev", running: true, loggedIn: true}
 	provider := &Provider{backend: backend, deviceName: "Cadence Web"}
+	provider.streamMu.Lock()
+	provider.lastState.Shuffle = true
+	provider.lastState.Repeat = playback.RepeatContext
+	provider.streamMu.Unlock()
 	at := time.Now().Add(-2 * time.Second)
 	state := provider.mapSDKState(SDKState{
 		IsPlaying:  true,
@@ -713,6 +717,30 @@ func TestMapSDKStateInterpolatesPosition(t *testing.T) {
 	}
 	if !state.CanSeek {
 		t.Fatal("CanSeek = false, want true")
+	}
+	if !state.Shuffle || state.Repeat != playback.RepeatContext {
+		t.Fatalf("toggles = shuffle %v, repeat %q; want true, context", state.Shuffle, state.Repeat)
+	}
+}
+
+func TestProviderSetShuffleUpdatesLastState(t *testing.T) {
+	server, recorder := newAPITestServer(t, func(writer http.ResponseWriter, _ *http.Request, _ []byte) {
+		writer.WriteHeader(http.StatusNoContent)
+	})
+	backend := &fakeProviderBackend{deviceID: "sdk-dev", running: true, loggedIn: true}
+	provider := newProviderForTest(t, backend, server.URL, nil)
+
+	if err := provider.SetShuffle(context.Background(), true); err != nil {
+		t.Fatalf("SetShuffle() error = %v", err)
+	}
+	provider.streamMu.Lock()
+	got := provider.lastState.Shuffle
+	provider.streamMu.Unlock()
+	if !got {
+		t.Fatal("lastState.Shuffle = false after SetShuffle(true)")
+	}
+	if requests := recorder.snapshot(); len(requests) != 1 {
+		t.Fatalf("requests = %d, want 1", len(requests))
 	}
 }
 
