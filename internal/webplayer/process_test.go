@@ -2,6 +2,7 @@ package webplayer
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -172,5 +173,25 @@ func TestValidateLoopbackURLs(t *testing.T) {
 	}
 	if err := validatePlayerURL("ws://127.0.0.1:1234/player"); err == nil {
 		t.Fatal("a ws player URL was accepted")
+	}
+}
+
+func TestAppendTuningArgs(t *testing.T) {
+	got := appendTuningArgs([]string{"base"}, HelperTuning{
+		LowEndMode:      true,
+		JSHeapMB:        64,
+		DisableGPU:      true,
+		DisableFeatures: []string{"MediaRouter", "Translate"},
+	})
+	want := []string{
+		"base",
+		"--enable-low-end-device-mode",
+		"--js-flags=--max-old-space-size=64",
+		"--disable-gpu",
+		"--disable-software-rasterizer",
+		"--disable-features=MediaRouter,Translate",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("appendTuningArgs() = %v, want %v", got, want)
 	}
 }

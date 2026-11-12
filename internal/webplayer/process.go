@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -26,6 +27,17 @@ type StartOptions struct {
 	ProfileDir string
 	LogPath    string
 	ExtraArgs  []string
+	// Tuning applies memory-reduction Chromium flags. Zero values keep the
+	// stock flags; the developer helper leaves it empty.
+	Tuning HelperTuning
+}
+
+// HelperTuning controls optional Chromium flags for the SDK helper.
+type HelperTuning struct {
+	LowEndMode      bool
+	JSHeapMB        int
+	DisableGPU      bool
+	DisableFeatures []string
 }
 
 // Process owns one helper process and its redacted log.
@@ -111,6 +123,7 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 	if opts.PlayerURL != "" {
 		args = append(args, "--cadence-url="+opts.PlayerURL)
 	}
+	args = appendTuningArgs(args, opts.Tuning)
 	// Deliberately absent: --no-sandbox (user namespaces work here and the
 	// Chromium sandbox must stay on) and --disable-component-update (the
 	// component updater installs the Widevine CDM).
@@ -151,6 +164,39 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 
 	go process.wait(cmd)
 	return process, nil
+}
+
+// defaultHelperTuning is the production tuning for the SDK helper. The GPU is
+// left enabled by default because Widevine and the SDK are sensitive to
+// compositor changes; CADENCE_WEB_DISABLE_GPU=1 enables the experiment.
+func defaultHelperTuning() HelperTuning {
+	tuning := HelperTuning{
+		LowEndMode:      true,
+		JSHeapMB:        64,
+		DisableFeatures: []string{"MediaRouter", "Translate", "OptimizationHints"},
+	}
+	if os.Getenv("CADENCE_WEB_DISABLE_GPU") == "1" {
+		tuning.DisableGPU = true
+	}
+	return tuning
+}
+
+// appendTuningArgs adds the optional memory-reduction flags. They are kept in
+// one place so the developer helper can omit them.
+func appendTuningArgs(args []string, tuning HelperTuning) []string {
+	if tuning.LowEndMode {
+		args = append(args, "--enable-low-end-device-mode")
+	}
+	if tuning.JSHeapMB > 0 {
+		args = append(args, fmt.Sprintf("--js-flags=--max-old-space-size=%d", tuning.JSHeapMB))
+	}
+	if tuning.DisableGPU {
+		args = append(args, "--disable-gpu", "--disable-software-rasterizer")
+	}
+	if len(tuning.DisableFeatures) > 0 {
+		args = append(args, "--disable-features="+strings.Join(tuning.DisableFeatures, ","))
+	}
+	return args
 }
 
 func (p *Process) wait(cmd *exec.Cmd) {

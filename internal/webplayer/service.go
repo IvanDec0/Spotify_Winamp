@@ -351,6 +351,7 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	helperProcess, err := s.runtime.Start(ctx, install, StartOptions{
 		ControlURL: control.URL(),
 		PlayerURL:  server.PlayerURL(),
+		Tuning:     defaultHelperTuning(),
 	})
 	if err != nil {
 		_ = control.Close()
@@ -547,7 +548,7 @@ func (s *Service) ensureServer() error {
 	if err != nil {
 		return codedError(
 			CodeServerFailed,
-			fmt.Sprintf("cannot start the Spotify login server on %s; the fixed Spotify login port may be in use", s.listenAddr),
+			fmt.Sprintf("cannot start the Spotify login server on %s; the fixed Spotify login port may be in use. Close the app using that port and try again", s.listenAddr),
 			err,
 		)
 	}
