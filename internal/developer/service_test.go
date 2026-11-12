@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -48,6 +49,45 @@ func TestNewServiceCreatesPrivateProfile(t *testing.T) {
 	}
 	if info.Mode().Perm() != 0o700 {
 		t.Fatalf("profile mode = %o, want 700", info.Mode().Perm())
+	}
+}
+
+func TestNewServicePrunesDRMCaches(t *testing.T) {
+	root := t.TempDir()
+	profile := filepath.Join(root, "profile")
+	for _, name := range []string{"WidevineCdm", "component_crx_cache"} {
+		dir := filepath.Join(profile, name, "nested")
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "file"), []byte("x"), 0o600); err != nil {
+			t.Fatalf("write %s: %v", dir, err)
+		}
+	}
+	if _, err := NewService(Options{
+		Root:       filepath.Join(root, "cache"),
+		ConfigDir:  filepath.Join(root, "config"),
+		ProfileDir: profile,
+		LogPath:    filepath.Join(root, "logs", "developer.log"),
+	}); err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	for _, name := range []string{"WidevineCdm", "component_crx_cache"} {
+		if _, err := os.Stat(filepath.Join(profile, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("%s still exists after NewService(), err = %v", name, err)
+		}
+	}
+}
+
+func TestHelperArgsDisableComponentUpdate(t *testing.T) {
+	for _, args := range [][]string{
+		helperArgs("web-app", false, ""),
+		helperArgs("soloist-key", true, ""),
+		helperArgs("oauth", false, "https://accounts.spotify.com/authorize"),
+	} {
+		if !slices.Contains(args, developerDisableComponentUpdate) {
+			t.Fatalf("helperArgs() = %v, want %s", args, developerDisableComponentUpdate)
+		}
 	}
 }
 

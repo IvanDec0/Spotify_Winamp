@@ -26,6 +26,11 @@ const (
 	clientIDFileMode = 0o600
 	directoryMode    = 0o700
 	configDirMode    = 0o700
+
+	// developerDisableComponentUpdate stops the dashboard helper from
+	// downloading Widevine and other Chromium components. The dashboard does
+	// not use DRM.
+	developerDisableComponentUpdate = "--disable-component-update"
 )
 
 var developerClientIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
@@ -94,14 +99,25 @@ func NewService(opts Options) (*Service, error) {
 		return nil, fmt.Errorf("secure the Spotify developer profile directory: %w", err)
 	}
 
-	return &Service{
+	service := &Service{
 		runtime:    opts.Runtime,
 		root:       opts.Root,
 		configDir:  opts.ConfigDir,
 		profileDir: opts.ProfileDir,
 		logPath:    opts.LogPath,
 		now:        opts.Now,
-	}, nil
+	}
+	service.pruneDRMCaches()
+	return service, nil
+}
+
+// pruneDRMCaches removes the Widevine CDM and Chromium component cache from the
+// dashboard profile. They are never used by the dashboard and account for tens
+// of megabytes on profiles created by older builds.
+func (s *Service) pruneDRMCaches() {
+	for _, name := range []string{"WidevineCdm", "component_crx_cache"} {
+		_ = os.RemoveAll(filepath.Join(s.profileDir, name))
+	}
 }
 
 // EnsureWebApp returns the Cadence Client ID, creating the Spotify Developer
@@ -171,10 +187,7 @@ func (s *Service) OpenOAuthURL(raw string) error {
 		AppDir:     filepath.Join(s.root, "helper"),
 		ProfileDir: s.profileDir,
 		LogPath:    s.logPath,
-		ExtraArgs: []string{
-			"--cadence-action=oauth",
-			"--cadence-oauth-url=" + raw,
-		},
+		ExtraArgs:  helperArgs("oauth", false, raw),
 	})
 	_ = control.Close()
 	if err != nil {
@@ -257,6 +270,19 @@ func (s *Service) Stop(ctx context.Context) error {
 	return stopHelper(ctx, process, control)
 }
 
+// helperArgs builds the dashboard helper arguments. Every action disables the
+// component updater so the helper never downloads Widevine.
+func helperArgs(action string, rotate bool, oauthURL string) []string {
+	args := []string{"--cadence-action=" + action, developerDisableComponentUpdate}
+	if action == "soloist-key" {
+		args = append(args, fmt.Sprintf("--cadence-rotate=%t", rotate))
+	}
+	if action == "oauth" {
+		args = append(args, "--cadence-oauth-url="+oauthURL)
+	}
+	return args
+}
+
 func (s *Service) runHelper(ctx context.Context, action string, rotate bool) (webplayer.Message, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -281,10 +307,7 @@ func (s *Service) runHelper(ctx context.Context, action string, rotate bool) (we
 	}
 	defer func() { _ = control.Close() }()
 
-	extraArgs := []string{"--cadence-action=" + action}
-	if action == "soloist-key" {
-		extraArgs = append(extraArgs, fmt.Sprintf("--cadence-rotate=%t", rotate))
-	}
+	extraArgs := helperArgs(action, rotate, "")
 	process, err := s.runtime.Start(ctx, install, webplayer.StartOptions{
 		ControlURL: control.URL(),
 		AppDir:     filepath.Join(s.root, "helper"),
