@@ -66,6 +66,7 @@ type ServiceOptions struct {
 // Service owns the web player runtime, OAuth session and provider.
 type Service struct {
 	clientID    string
+	clientMu    sync.RWMutex
 	redirectURI string
 	listenAddr  string
 	root        string
@@ -233,14 +234,35 @@ func (s *Service) Provider() *Provider {
 // ClientID returns the Spotify Client ID the service was built with. The
 // helper and OAuth flow keep using it until the service is recreated.
 func (s *Service) ClientID() string {
+	s.clientMu.RLock()
+	defer s.clientMu.RUnlock()
 	return s.clientID
+}
+
+// SetClientID switches the Spotify app used by the web player. It does not
+// clear the stored session; the session is bound to the previous Client ID and
+// will be treated as signed out until the user reconnects.
+func (s *Service) SetClientID(clientID string) error {
+	clientID = strings.TrimSpace(clientID)
+	if !validClientID(clientID) {
+		return codedError(CodeInvalidArgument, "the Spotify client ID is invalid", nil)
+	}
+	s.clientMu.Lock()
+	s.clientID = clientID
+	s.clientMu.Unlock()
+	s.oauth.SetClientID(clientID)
+	return nil
 }
 
 // ConfiguredClientID returns the Client ID stored by Settings, or "" when no
 // valid file exists. It reads the file on every call so a newly configured app
 // is visible without restarting the service.
 func (s *Service) ConfiguredClientID() string {
-	return LoadClientID(s.configDir)
+	value := LoadClientID(s.configDir)
+	if value == DefaultClientID {
+		return ""
+	}
+	return value
 }
 
 // API returns the Spotify Web API client.
@@ -493,7 +515,7 @@ func (s *Service) Status() Status {
 	// One load feeds both fields; a corrupt or missing store means signed out.
 	// A session from another Client ID is invalid until the user reconnects.
 	if tokens, err := s.store.Load(); err == nil {
-		status.LoggedIn = tokens.RefreshToken != "" && tokens.ClientID == s.clientID
+		status.LoggedIn = tokens.RefreshToken != "" && tokens.ClientID == s.ClientID()
 		if status.LoggedIn {
 			status.Account = tokens.Account
 		}
@@ -502,7 +524,7 @@ func (s *Service) Status() Status {
 		status.RuntimeInstalled = true
 		status.RuntimeVersion = install.Version
 	}
-	status.ClientID = s.clientID
+	status.ClientID = s.ClientID()
 	status.ConfiguredClientID = s.ConfiguredClientID()
 	s.mu.Lock()
 	process := s.process

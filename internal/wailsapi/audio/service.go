@@ -52,6 +52,9 @@ type Options struct {
 	Web             WebBackend
 	Developer       DeveloperBackend
 	PlaybackBackend string
+	// DisableAutoProvision keeps the explicit CADENCE_SPOTIFY_CLIENT_ID from
+	// being replaced by an automatically created Spotify app.
+	DisableAutoProvision bool
 }
 
 // installProgress is the mutable install snapshot merged into SoloistState. It
@@ -67,15 +70,16 @@ type installProgress struct {
 // Service exposes the local audio engine, pairing and library browsing to the
 // frontend. It never exposes stored playback credentials.
 type Service struct {
-	catalog    *catalog.Service
-	supervisor *engine.Supervisor
-	settings   *settings.Store
-	enabled    bool
-	soloist    SoloistBackend
-	web        WebBackend
-	developer  DeveloperBackend
-	backend    string
-	progress   installProgress
+	catalog              *catalog.Service
+	supervisor           *engine.Supervisor
+	settings             *settings.Store
+	enabled              bool
+	soloist              SoloistBackend
+	web                  WebBackend
+	developer            DeveloperBackend
+	backend              string
+	disableAutoProvision bool
+	progress             installProgress
 
 	mu                 sync.Mutex
 	app                *application.App
@@ -86,14 +90,15 @@ type Service struct {
 
 func NewService(options Options) *Service {
 	return &Service{
-		catalog:    options.Catalog,
-		supervisor: options.Supervisor,
-		settings:   options.Settings,
-		enabled:    options.Enabled,
-		soloist:    options.Soloist,
-		web:        options.Web,
-		developer:  options.Developer,
-		backend:    settings.NormalizePlaybackBackend(options.PlaybackBackend),
+		catalog:              options.Catalog,
+		supervisor:           options.Supervisor,
+		settings:             options.Settings,
+		enabled:              options.Enabled,
+		soloist:              options.Soloist,
+		web:                  options.Web,
+		developer:            options.Developer,
+		backend:              settings.NormalizePlaybackBackend(options.PlaybackBackend),
+		disableAutoProvision: options.DisableAutoProvision,
 	}
 }
 

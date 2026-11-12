@@ -312,14 +312,15 @@ func main() {
 		developerBackend = developerService
 	}
 	audioService := audioapi.NewService(audioapi.Options{
-		Catalog:         catalogService,
-		Supervisor:      audioRuntime,
-		Settings:        settingsStore,
-		Enabled:         !*demoMode,
-		Soloist:         soloistBackend,
-		Web:             webBackend,
-		Developer:       developerBackend,
-		PlaybackBackend: playbackBackend,
+		Catalog:              catalogService,
+		Supervisor:           audioRuntime,
+		Settings:             settingsStore,
+		Enabled:              !*demoMode,
+		Soloist:              soloistBackend,
+		Web:                  webBackend,
+		Developer:            developerBackend,
+		PlaybackBackend:      playbackBackend,
+		DisableAutoProvision: strings.TrimSpace(os.Getenv("CADENCE_SPOTIFY_CLIENT_ID")) != "",
 	})
 	visualizerService := visualizerapi.NewService()
 	lyricsClient := lyrics.NewClient(lyrics.Options{

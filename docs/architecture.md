@@ -116,14 +116,16 @@ an unknown or missing value normalizes to `web`.
   the value but does not switch the running provider. The UI marks the change as
   requiring a Cadence restart.
 - **Automatic web player provisioning.** In web mode the audio adapter installs
-  the Chromium runtime when missing and runs the Spotify login in the system
-  browser when no refreshable session exists, in one background goroutine
-  started by `ServiceStartup`. It does not start the helper: the first Play,
-  PlayContext or Transfer starts it, unless the user enabled
-  `keepWebAvailable`. Installing first keeps the login flow from downloading the
-  runtime again. The flow is cancelled on shutdown and failures stay in the
-  `webplayer_*` status codes. In web and Soloist modes go-librespot is only the
-  catalog sidecar and starts on the first catalog call.
+  the Chromium runtime when missing, creates a personal Spotify app through the
+  developer dashboard automation when none is configured, applies its Client ID
+  in memory, and runs the Spotify login in the system browser when no
+  refreshable session exists, in one background goroutine started by
+  `ServiceStartup`. It does not start the helper: the first Play, PlayContext or
+  Transfer starts it, unless the user enabled `keepWebAvailable`. Installing
+  first keeps the login flow from downloading the runtime again. The flow is
+  cancelled on shutdown and failures stay in the `webplayer_*` status codes.
+  In web and Soloist modes go-librespot is only the catalog sidecar and starts
+  on the first catalog call.
 - **Automatic Soloist maintenance.** In Soloist mode the audio adapter installs
   the build when missing, checks for a newer build at startup and every six
   hours (89-day age or 24 hours to expiry), prunes old versions and restarts the

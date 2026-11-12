@@ -394,7 +394,7 @@ export const es: Record<MessageKey, string> = {
   "browse.webClientId": "ID de cliente",
   "browse.webConfigureApp": "Configurar aplicación automáticamente",
   "browse.webConfigureDone": "Aplicación de Spotify configurada.",
-  "browse.webRestartReconnect": "Reinicia Cadence y conecta Spotify con la nueva aplicación.",
+  "browse.webRestartReconnect": "Conectá Spotify con la nueva app cuando quieras.",
   "browse.webAccount": "Cuenta",
   "browse.webConnected": "Conectado",
   "browse.webDisconnected": "Sin conexión",

@@ -18,9 +18,11 @@ Settings requires a Cadence restart.
 
 With the web backend Cadence needs no manual setup step: at startup it downloads
 the Chromium runtime (~120 MB, SHA-256 verified) and opens the Spotify login in
-your system browser only when no session is stored. The playback helper starts
-on the first play; enable **Keep Cadence Web available** to keep it connected at
-startup. The runtime lives under
+your system browser only when no session is stored. When no personal Spotify app
+is configured, Cadence creates one through the Spotify Developer dashboard
+automation and applies its Client ID before login; you may need to sign in to
+the dashboard once. The playback helper starts on the first play; enable
+**Keep Cadence Web available** to keep it connected at startup. The runtime lives under
 `$XDG_CACHE_HOME/cadence/webplayer`; the OAuth session lives in
 `$XDG_CONFIG_HOME/cadence/webplayer/tokens.json` (`0600`). Its refresh token
 never reaches the app frontend or the logs, and the isolated helper page receives

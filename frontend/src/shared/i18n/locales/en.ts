@@ -382,7 +382,7 @@ export const en = {
   "browse.webClientId": "Client ID",
   "browse.webConfigureApp": "Configure app automatically",
   "browse.webConfigureDone": "Spotify app configured.",
-  "browse.webRestartReconnect": "Restart Cadence and connect Spotify with the new app.",
+  "browse.webRestartReconnect": "Connect Spotify with the new app when you are ready.",
   "browse.webAccount": "Account",
   "browse.webConnected": "Connected",
   "browse.webDisconnected": "Not connected",

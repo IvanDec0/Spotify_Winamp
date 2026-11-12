@@ -71,8 +71,9 @@ type OAuth struct {
 	now          func() time.Time
 	loginTimeout time.Duration
 
-	mu      sync.Mutex
-	pending *loginAttempt
+	mu       sync.Mutex
+	pending  *loginAttempt
+	clientMu sync.RWMutex
 
 	refreshMu sync.Mutex
 }
@@ -145,6 +146,25 @@ func NewOAuth(opts OAuthOptions) (*OAuth, error) {
 		now:          opts.Now,
 		loginTimeout: opts.LoginTimeout,
 	}, nil
+}
+
+// SetClientID switches the Spotify app used by subsequent login and refresh
+// operations. The current session is bound to the previous Client ID and will
+// be treated as signed out.
+func (o *OAuth) SetClientID(clientID string) {
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		return
+	}
+	o.clientMu.Lock()
+	o.clientID = clientID
+	o.clientMu.Unlock()
+}
+
+func (o *OAuth) currentClientID() string {
+	o.clientMu.RLock()
+	defer o.clientMu.RUnlock()
+	return o.clientID
 }
 
 // Login starts one Authorization Code + PKCE login. It returns
@@ -262,7 +282,7 @@ func (o *OAuth) LoggedIn() bool {
 		return false
 	}
 	tokens, err := o.store.Load()
-	return err == nil && tokens.RefreshToken != "" && tokens.ClientID == o.clientID
+	return err == nil && tokens.RefreshToken != "" && tokens.ClientID == o.currentClientID()
 }
 
 // AccessToken returns the current access token, refreshing it when it expires
@@ -278,7 +298,7 @@ func (o *OAuth) AccessToken(ctx context.Context) (string, time.Time, error) {
 		}
 		return "", time.Time{}, err
 	}
-	if tokens.ClientID != o.clientID {
+	if tokens.ClientID != o.currentClientID() {
 		return "", time.Time{}, ErrLoginRequired
 	}
 	if tokens.AccessToken != "" && tokens.Expiry.After(o.now().Add(accessTokenMargin)) {
@@ -299,14 +319,14 @@ func (o *OAuth) Refresh(ctx context.Context) (string, time.Time, error) {
 		}
 		return "", time.Time{}, err
 	}
-	if tokens.RefreshToken == "" || tokens.ClientID != o.clientID {
+	if tokens.RefreshToken == "" || tokens.ClientID != o.currentClientID() {
 		return "", time.Time{}, ErrLoginRequired
 	}
 
 	response, err := o.requestToken(ctx, url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {tokens.RefreshToken},
-		"client_id":     {o.clientID},
+		"client_id":     {o.currentClientID()},
 	})
 	if err != nil {
 		if errors.Is(err, ErrLoginRequired) {
@@ -350,7 +370,7 @@ func (o *OAuth) exchange(ctx context.Context, code, verifier string) error {
 		"grant_type":    {"authorization_code"},
 		"code":          {code},
 		"redirect_uri":  {o.redirectURI},
-		"client_id":     {o.clientID},
+		"client_id":     {o.currentClientID()},
 		"code_verifier": {verifier},
 	})
 	if err != nil {
@@ -365,7 +385,7 @@ func (o *OAuth) exchange(ctx context.Context, code, verifier string) error {
 		TokenType:    response.TokenType,
 		Scope:        response.Scope,
 		Expiry:       o.now().Add(time.Duration(response.ExpiresIn) * time.Second),
-		ClientID:     o.clientID,
+		ClientID:     o.currentClientID(),
 	}
 	if tokens.TokenType == "" {
 		tokens.TokenType = "Bearer"
@@ -423,7 +443,7 @@ func (o *OAuth) authorizeURLFor(state, challenge string) string {
 		target, _ = url.Parse(defaultAuthorizeURL)
 	}
 	query := target.Query()
-	query.Set("client_id", o.clientID)
+	query.Set("client_id", o.currentClientID())
 	query.Set("response_type", "code")
 	query.Set("redirect_uri", o.redirectURI)
 	query.Set("scope", strings.Join(o.scopes, " "))

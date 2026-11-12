@@ -59,7 +59,7 @@ tar -xzf cadence-0.2.0-linux-x86_64.tar.gz
 The lean AppImage requires `gtk4`, `webkitgtk-6.0` and `libsoup3` on the host
 (Arch, Fedora 40+, Ubuntu 24.04+). The portable AppImage bundles them.
 
-At first launch Cadence downloads the Chromium web player runtime and opens the Spotify login in your system browser when no session is stored. The playback helper starts on the first play; enable **Keep Cadence Web available** in Settings if you want Cadence Web connected at startup. If the catalog engine is not paired, approve **Cadence Library** once at [spotify.com/pair](https://spotify.com/pair) from Browse.
+At first launch Cadence downloads the Chromium web player runtime, creates a personal Spotify app automatically when none is configured (a one-time Spotify Developer dashboard login may be required), and opens the Spotify login in your system browser when no session is stored. The playback helper starts on the first play; enable **Keep Cadence Web available** in Settings if you want Cadence Web connected at startup. If the catalog engine is not paired, approve **Cadence Library** once at [spotify.com/pair](https://spotify.com/pair) from Browse.
 
 System requirements:
 

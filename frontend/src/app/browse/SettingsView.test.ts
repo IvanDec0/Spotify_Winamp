@@ -626,10 +626,10 @@ describe("SettingsView", () => {
     );
   });
 
-  it("configures the web app automatically and asks for a reconnect", async () => {
+  it("configures the web app automatically and applies the new app", async () => {
     const newID = "0123456789abcdef0123456789abcdef";
     mocks.configureWebPlayerApp.mockResolvedValue(
-      webStatus({ clientId: newID, restartRequired: true }),
+      webStatus({ clientId: newID, restartRequired: false }),
     );
 
     await renderSettings();
@@ -640,8 +640,8 @@ describe("SettingsView", () => {
     expect(screen.getByText("Spotify app configured.")).not.toBeNull();
     expect(screen.getByText(newID)).not.toBeNull();
     expect(
-      screen.getByText("Restart Cadence and connect Spotify with the new app."),
-    ).not.toBeNull();
+      screen.queryByText("Restart Cadence and connect Spotify with the new app."),
+    ).toBeNull();
   });
 
   it("generates and rotates the Soloist API key automatically", async () => {

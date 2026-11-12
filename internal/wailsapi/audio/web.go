@@ -15,7 +15,7 @@ const (
 	webInstallTimeout   = 15 * time.Minute
 	webStartTimeout     = 3 * time.Minute
 	webStopTimeout      = 30 * time.Second
-	webProvisionTimeout = 20 * time.Minute
+	webProvisionTimeout = 30 * time.Minute
 	webUnavailableText  = "the web player is not configured"
 )
 
@@ -29,6 +29,8 @@ type WebBackend interface {
 	Stop(context.Context) error
 	ClientID() string
 	Status() webplayer.Status
+	ConfiguredClientID() string
+	SetClientID(string) error
 	SetKeepAvailable(bool)
 	KeepAvailable() bool
 }
@@ -105,6 +107,19 @@ func (s *Service) provisionWebPlayer(ctx context.Context) error {
 	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	// Zero-touch first run: when the user has no personal Spotify app yet,
+	// create one through the existing developer dashboard automation. The
+	// helper may show a login window once; after that the app is created and
+	// its Client ID is applied in memory, so the web login uses it immediately.
+	if s.developer != nil && !s.disableAutoProvision && s.web.ConfiguredClientID() == "" {
+		log.Printf("web player automatic setup: creating a Spotify app")
+		clientID, err := s.developer.EnsureWebApp(ctx)
+		if err != nil {
+			log.Printf("web player automatic setup: cannot create a Spotify app: %v", err)
+		} else if err := s.web.SetClientID(clientID); err != nil {
+			log.Printf("web player automatic setup: cannot apply the Spotify app: %v", err)
+		}
 	}
 	status := s.web.Status()
 	if !status.RuntimeInstalled {

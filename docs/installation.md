@@ -102,10 +102,12 @@ install -Dm644 cadence.png ~/.local/share/icons/hicolor/512x512/apps/cadence.png
 ## First run and pairing
 
 1. Start Cadence without `--demo`. The default **web** backend downloads the
-   Chromium runtime in the background (~120 MB, SHA-256 verified) and opens the
-   Spotify login in your system browser when no session is stored. The playback
-   helper starts on the first play. No separate playback engine install or API
-   key is required.
+   Chromium runtime in the background (~120 MB, SHA-256 verified), creates a
+   personal Spotify app automatically when none is configured (a one-time
+   Spotify Developer dashboard login may be required), and opens the Spotify
+   login in your system browser when no session is stored. The playback helper
+   starts on the first play. No separate playback engine install or API key is
+   required.
 2. Click **Browse** in the compact titlebar. It opens the Browse window on
    Library.
 3. If the catalog engine is not paired, Browse shows a pairing code. Choose

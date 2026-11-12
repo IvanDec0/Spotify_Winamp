@@ -312,3 +312,21 @@ func TestKeepAvailablePreference(t *testing.T) {
 		t.Fatal("KeepAvailable() = true after SetKeepAvailable(false)")
 	}
 }
+
+func TestSetClientIDUpdatesTheServiceAndOAuth(t *testing.T) {
+	service := newServiceForTest(t, ServiceOptions{})
+	clientID := "7fe450922d8b4d31ac8bda4a1767d903"
+
+	if err := service.SetClientID(clientID); err != nil {
+		t.Fatalf("SetClientID() error = %v", err)
+	}
+	if got := service.ClientID(); got != clientID {
+		t.Fatalf("ClientID() = %q, want %q", got, clientID)
+	}
+	if got := service.oauth.currentClientID(); got != clientID {
+		t.Fatalf("oauth client ID = %q, want %q", got, clientID)
+	}
+	if err := service.SetClientID("not-a-client-id"); err == nil {
+		t.Fatal("SetClientID(invalid) error = nil")
+	}
+}
