@@ -149,7 +149,8 @@ Run the app:
 ```
 
 With the default web backend, startup also downloads the Chromium runtime and
-opens the embedded Spotify login when no session is stored. Click **Browse** in
+opens the Spotify login in your system browser when no session is stored. The
+playback helper starts on the first play. Click **Browse** in
 the titlebar to open the dedicated window. The search field queries Spotify's
 internal catalog and groups results into Tracks, Albums, Artists, Playlists,
 Shows and Episodes; the Library, Podcasts, Queue and Settings sections cover the

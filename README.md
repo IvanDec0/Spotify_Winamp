@@ -52,7 +52,7 @@ tar -xzf cadence-0.2.0-linux-x86_64.tar.gz
 ./cadence-0.2.0/cadence
 ```
 
-At first launch Cadence downloads the Chromium web player runtime, opens the embedded Spotify login when no session is stored, and starts the playback helper automatically. If the catalog engine is not paired, approve **Cadence Library** once at [spotify.com/pair](https://spotify.com/pair) from Browse.
+At first launch Cadence downloads the Chromium web player runtime and opens the Spotify login in your system browser when no session is stored. The playback helper starts on the first play; enable **Keep Cadence Web available** in Settings if you want Cadence Web connected at startup. If the catalog engine is not paired, approve **Cadence Library** once at [spotify.com/pair](https://spotify.com/pair) from Browse.
 
 System requirements:
 
