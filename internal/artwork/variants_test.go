@@ -384,8 +384,8 @@ func TestNewUsesExtendedMemoryBounds(t *testing.T) {
 	if cache.maxItems != 256 {
 		t.Fatalf("max entries = %d, want 256", cache.maxItems)
 	}
-	if cache.maxBytes != 64<<20 {
-		t.Fatalf("max bytes = %d, want 64 MiB", cache.maxBytes)
+	if cache.maxBytes != 32<<20 {
+		t.Fatalf("max bytes = %d, want 32 MiB", cache.maxBytes)
 	}
 	if cache.maxImage != 3<<20 {
 		t.Fatalf("max image = %d, want 3 MiB", cache.maxImage)

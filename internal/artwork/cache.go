@@ -35,9 +35,9 @@ import (
 
 const (
 	defaultMaxEntries = 256
-	defaultMaxBytes   = 64 << 20
+	defaultMaxBytes   = 32 << 20
 	defaultMaxImage   = 3 << 20
-	defaultDiskLimit  = 256 << 20
+	defaultDiskLimit  = 128 << 20
 
 	variantContentType = "image/jpeg"
 )
@@ -47,7 +47,7 @@ type Options struct {
 	Client *http.Client
 	// DiskDir enables a bounded on-disk LRU of resized variants.
 	DiskDir string
-	// DiskLimit caps the disk cache in bytes. Zero uses 256 MiB.
+	// DiskLimit caps the disk cache in bytes. Zero uses 128 MiB.
 	DiskLimit int64
 }
 

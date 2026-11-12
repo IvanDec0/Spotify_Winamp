@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -26,6 +27,13 @@ const (
 	defaultTTL     = 7 * 24 * time.Hour
 	notFoundTTL    = 6 * time.Hour
 	userAgent      = "Cadence/0.2.0 (https://github.com/ivandec0/cadence)"
+)
+
+// Cache bounds. Lyrics files are small; these caps keep the directory from
+// growing forever across months of listening.
+var (
+	maxCacheFiles = 2000
+	maxCacheBytes = int64(16 << 20)
 )
 
 // Track is the metadata sent to the lyrics provider.
@@ -383,6 +391,48 @@ func (c *Client) writeCache(key string, entry cacheEntry) {
 		return
 	}
 	_ = os.Rename(temp, path)
+	c.pruneCache()
+}
+
+// pruneCache removes the oldest lyrics files until the directory is under the
+// file-count and byte limits. It is best effort.
+func (c *Client) pruneCache() {
+	entries, err := os.ReadDir(c.cacheDir)
+	if err != nil {
+		return
+	}
+	type cacheFile struct {
+		name    string
+		size    int64
+		modTime time.Time
+	}
+	files := make([]cacheFile, 0, len(entries))
+	var total int64
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		files = append(files, cacheFile{name: entry.Name(), size: info.Size(), modTime: info.ModTime()})
+		total += info.Size()
+	}
+	if len(files) <= maxCacheFiles && total <= maxCacheBytes {
+		return
+	}
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].modTime.Before(files[j].modTime)
+	})
+	for index, file := range files {
+		if len(files)-index <= maxCacheFiles && total <= maxCacheBytes {
+			break
+		}
+		if err := os.Remove(filepath.Join(c.cacheDir, file.name)); err == nil {
+			total -= file.size
+		}
+	}
 }
 
 func cacheKey(track Track) string {

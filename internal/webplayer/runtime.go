@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -367,7 +366,8 @@ func (r *Runtime) trusted(dir string, platform Platform) bool {
 	return err == nil && info.Mode().IsRegular()
 }
 
-// prune keeps keep's directory and the newest other runtime directory.
+// prune keeps only the named runtime directory. When keep is empty or
+// unknown, it keeps the newest directory as a safety net.
 func (r *Runtime) prune(keep string) error {
 	keep = filepath.Base(filepath.Clean(keep))
 	if keep == "." || keep == string(filepath.Separator) {
@@ -378,32 +378,29 @@ func (r *Runtime) prune(keep string) error {
 	if err != nil {
 		return err
 	}
-	type candidate struct {
-		name    string
-		modTime time.Time
+	if keep == "" {
+		var newest string
+		var newestTime time.Time
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			if newest == "" || info.ModTime().After(newestTime) {
+				newest = entry.Name()
+				newestTime = info.ModTime()
+			}
+		}
+		keep = newest
 	}
-	candidates := make([]candidate, 0, len(entries))
 	for _, entry := range entries {
 		if entry.Name() == keep || !entry.IsDir() {
 			continue
 		}
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		candidates = append(candidates, candidate{name: entry.Name(), modTime: info.ModTime()})
-	}
-	if len(candidates) <= 1 {
-		return nil
-	}
-	sort.Slice(candidates, func(i, j int) bool {
-		if candidates[i].modTime.Equal(candidates[j].modTime) {
-			return candidates[i].name > candidates[j].name
-		}
-		return candidates[i].modTime.After(candidates[j].modTime)
-	})
-	for _, stale := range candidates[1:] {
-		_ = os.RemoveAll(filepath.Join(dir, stale.name))
+		_ = os.RemoveAll(filepath.Join(dir, entry.Name()))
 	}
 	return nil
 }

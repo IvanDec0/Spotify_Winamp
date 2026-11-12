@@ -3,9 +3,11 @@ package lyrics
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -135,5 +137,42 @@ func TestFetchNotFoundCachesNegativeResult(t *testing.T) {
 	if requests.Load() != 2 {
 		// /get and /search are both tried on the first call; the second call is cached.
 		t.Fatalf("provider requests = %d; want 2", requests.Load())
+	}
+}
+
+func TestPruneCacheRemovesOldest(t *testing.T) {
+	dir := t.TempDir()
+	client := NewClient(Options{CacheDir: dir})
+	previousFiles, previousBytes := maxCacheFiles, maxCacheBytes
+	maxCacheFiles = 2
+	maxCacheBytes = 1 << 20
+	defer func() {
+		maxCacheFiles, maxCacheBytes = previousFiles, previousBytes
+	}()
+
+	now := time.Now()
+	for index := 0; index < 4; index++ {
+		path := filepath.Join(dir, fmt.Sprintf("%d.json", index))
+		if err := os.WriteFile(path, []byte("x"), 0o600); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+		stamp := now.Add(time.Duration(index) * time.Hour)
+		if err := os.Chtimes(path, stamp, stamp); err != nil {
+			t.Fatalf("chtimes %s: %v", path, err)
+		}
+	}
+	client.pruneCache()
+
+	for index := 0; index < 2; index++ {
+		path := filepath.Join(dir, fmt.Sprintf("%d.json", index))
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("%s should have been pruned, err = %v", path, err)
+		}
+	}
+	for index := 2; index < 4; index++ {
+		path := filepath.Join(dir, fmt.Sprintf("%d.json", index))
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("%s should have been kept: %v", path, err)
+		}
 	}
 }

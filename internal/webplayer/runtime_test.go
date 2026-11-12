@@ -379,12 +379,10 @@ func TestRuntimePrune(t *testing.T) {
 	if err := runtime.Prune("keep-me"); err != nil {
 		t.Fatalf("prune: %v", err)
 	}
-	for _, name := range []string{"keep-me", "newest"} {
-		if _, err := os.Stat(filepath.Join(runtimeDir, name)); err != nil {
-			t.Fatalf("%s should have been kept: %v", name, err)
-		}
+	if _, err := os.Stat(filepath.Join(runtimeDir, "keep-me")); err != nil {
+		t.Fatalf("keep-me should have been kept: %v", err)
 	}
-	for _, name := range []string{"middle", "older"} {
+	for _, name := range []string{"middle", "older", "newest"} {
 		if _, err := os.Stat(filepath.Join(runtimeDir, name)); !os.IsNotExist(err) {
 			t.Fatalf("%s should have been pruned: %v", name, err)
 		}
