@@ -25,5 +25,11 @@ export interface EngineState {
  */
 export interface PlaybackState {
     "backend": string;
-    "keepWebAvailable": boolean;
+
+    /**
+     * KeepWebAvailable keeps the SDK device connected while Cadence is idle.
+     * The default is false: the helper starts on the first playback and stops
+     * after a long pause.
+     */
+    "keepWebAvailable"?: boolean;
 }
