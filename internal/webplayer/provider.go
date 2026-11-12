@@ -29,7 +29,6 @@ var (
 	webStreamPausedInterval  = 5 * time.Second
 	webStreamIdleInterval    = 10 * time.Second
 	webStreamSDKInterval     = time.Second
-	webStreamSDKFreshness    = 30 * time.Second
 	webStreamDevicesInterval = 10 * time.Second
 	webStreamLoginInterval   = 2 * time.Second
 	webStreamErrorInterval   = 5 * time.Second
@@ -174,7 +173,6 @@ func (p *Provider) Stream(ctx context.Context, emit func(playback.PlayerState)) 
 		// target. The SDK emits only state changes, so the position is
 		// interpolated from the snapshot timestamp.
 		if snapshot, at, ok := p.sdkState(); ok &&
-			time.Since(at) <= webStreamSDKFreshness &&
 			sdkDeviceActive(devices, p.backend.DeviceID()) {
 			state := p.mapSDKState(snapshot, at, devices)
 			p.publish(state, p.fetchSeq.Add(1), emit)

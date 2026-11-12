@@ -727,14 +727,13 @@ func (f *fakeSDKProviderBackend) SDKState() (SDKState, time.Time, bool) {
 
 func TestProviderStreamPrefersSDKPush(t *testing.T) {
 	previousPlayer, previousDevices := webStreamPlayerInterval, webStreamDevicesInterval
-	previousSDK, previousFresh := webStreamSDKInterval, webStreamSDKFreshness
+	previousSDK := webStreamSDKInterval
 	webStreamPlayerInterval = 5 * time.Millisecond
 	webStreamDevicesInterval = time.Minute
 	webStreamSDKInterval = 5 * time.Millisecond
-	webStreamSDKFreshness = time.Minute
 	defer func() {
 		webStreamPlayerInterval, webStreamDevicesInterval = previousPlayer, previousDevices
-		webStreamSDKInterval, webStreamSDKFreshness = previousSDK, previousFresh
+		webStreamSDKInterval = previousSDK
 	}()
 
 	var mu sync.Mutex

@@ -602,6 +602,12 @@ func (s *Service) watchIdle(process *Process, deviceID string) {
 			if time.Since(lastActive) < idleStopAfter {
 				continue
 			}
+			s.mu.Lock()
+			current := s.process
+			s.mu.Unlock()
+			if current != process {
+				return
+			}
 			stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
 			_ = s.Stop(stopCtx)
 			stopCancel()
