@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cadence/internal/artwork"
@@ -33,8 +34,15 @@ const (
 )
 
 // readyTimeout bounds how long EnsureStarted waits for the helper's ready
-// event.
+// event on a cold profile. Once Widevine is installed, a warm start uses the
+// shorter warmReadyTimeout.
 var readyTimeout = 2 * time.Minute
+
+const (
+	warmReadyTimeout  = 15 * time.Second
+	idleCheckInterval = time.Minute
+	idleStopAfter     = 10 * time.Minute
+)
 
 // ServiceOptions configures the web player service. Zero values select the
 // production defaults; NewService performs no network access, starts no
@@ -50,11 +58,15 @@ type ServiceOptions struct {
 	OpenURL     func(string) error
 	Art         *artwork.Cache
 	Now         func() time.Time
+	// KeepAvailable keeps the SDK device connected at startup and disables the
+	// idle shutdown. The default is lazy: the helper starts on first playback.
+	KeepAvailable bool
 }
 
 // Service owns the web player runtime, OAuth session and provider.
 type Service struct {
 	clientID    string
+	clientMu    sync.RWMutex
 	redirectURI string
 	listenAddr  string
 	root        string
@@ -75,6 +87,12 @@ type Service struct {
 	control   *Control
 	deviceID  string
 	lastError string
+
+	keepAvailable atomic.Bool
+
+	sdkMu    sync.Mutex
+	sdkState *SDKState
+	sdkAt    time.Time
 }
 
 // Status is the web player status shown by the settings UI. It never starts
@@ -163,8 +181,49 @@ func NewService(opts ServiceOptions) (*Service, error) {
 		api:         NewWebAPI(WebAPIOptions{Tokens: oauth, HTTPClient: client, Now: opts.Now}),
 		runtime:     NewRuntime(RuntimeOptions{Root: opts.Root, HTTPClient: opts.HTTPClient, Now: opts.Now}),
 	}
+	service.keepAvailable.Store(opts.KeepAvailable)
 	service.provider = NewProvider(service, opts.Art)
 	return service, nil
+}
+
+// SetKeepAvailable changes the keep-always-connected preference. It does not
+// start or stop the helper; the caller decides whether to call EnsureStarted.
+func (s *Service) SetKeepAvailable(value bool) {
+	s.keepAvailable.Store(value)
+}
+
+// KeepAvailable reports whether the helper should stay connected while idle.
+func (s *Service) KeepAvailable() bool {
+	return s.keepAvailable.Load()
+}
+
+// SDKState returns the last player_state_changed snapshot and when it was
+// received. It is used by the provider to avoid polling while the SDK device
+// is active.
+func (s *Service) SDKState() (SDKState, time.Time, bool) {
+	s.sdkMu.Lock()
+	defer s.sdkMu.Unlock()
+	if s.sdkState == nil {
+		return SDKState{}, time.Time{}, false
+	}
+	return *s.sdkState, s.sdkAt, true
+}
+
+func (s *Service) setSDKState(state *SDKState) {
+	if state == nil {
+		return
+	}
+	s.sdkMu.Lock()
+	s.sdkState = state
+	s.sdkAt = time.Now()
+	s.sdkMu.Unlock()
+}
+
+func (s *Service) clearSDKState() {
+	s.sdkMu.Lock()
+	s.sdkState = nil
+	s.sdkAt = time.Time{}
+	s.sdkMu.Unlock()
 }
 
 // Provider returns the playback provider backed by this service.
@@ -175,14 +234,35 @@ func (s *Service) Provider() *Provider {
 // ClientID returns the Spotify Client ID the service was built with. The
 // helper and OAuth flow keep using it until the service is recreated.
 func (s *Service) ClientID() string {
+	s.clientMu.RLock()
+	defer s.clientMu.RUnlock()
 	return s.clientID
+}
+
+// SetClientID switches the Spotify app used by the web player. It does not
+// clear the stored session; the session is bound to the previous Client ID and
+// will be treated as signed out until the user reconnects.
+func (s *Service) SetClientID(clientID string) error {
+	clientID = strings.TrimSpace(clientID)
+	if !validClientID(clientID) {
+		return codedError(CodeInvalidArgument, "the Spotify client ID is invalid", nil)
+	}
+	s.clientMu.Lock()
+	s.clientID = clientID
+	s.clientMu.Unlock()
+	s.oauth.SetClientID(clientID)
+	return nil
 }
 
 // ConfiguredClientID returns the Client ID stored by Settings, or "" when no
 // valid file exists. It reads the file on every call so a newly configured app
 // is visible without restarting the service.
 func (s *Service) ConfiguredClientID() string {
-	return LoadClientID(s.configDir)
+	value := LoadClientID(s.configDir)
+	if value == DefaultClientID {
+		return ""
+	}
+	return value
 }
 
 // API returns the Spotify Web API client.
@@ -285,6 +365,7 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	s.clearSDKState()
 	control, err := NewControl()
 	if err != nil {
 		return codedError(CodeRuntimeFailed, "cannot start the web player control socket", err)
@@ -292,12 +373,17 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	helperProcess, err := s.runtime.Start(ctx, install, StartOptions{
 		ControlURL: control.URL(),
 		PlayerURL:  server.PlayerURL(),
+		Tuning:     defaultHelperTuning(),
 	})
 	if err != nil {
 		_ = control.Close()
 		return err
 	}
-	deviceID, err := waitForReady(ctx, helperProcess, control)
+	timeout := readyTimeout
+	if s.hasWidevine() {
+		timeout = warmReadyTimeout
+	}
+	deviceID, err := waitForReady(ctx, helperProcess, control, timeout)
 	if err != nil {
 		logProcessTail(helperProcess)
 		_ = control.Close()
@@ -313,6 +399,8 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	s.deviceID = deviceID
 	s.mu.Unlock()
 	go s.watchProcess(helperProcess, control)
+	go s.consumeControl(control, helperProcess)
+	go s.watchIdle(helperProcess, deviceID)
 	return nil
 }
 
@@ -393,6 +481,7 @@ func (s *Service) Stop(ctx context.Context) error {
 	s.server = nil
 	s.deviceID = ""
 	s.mu.Unlock()
+	s.clearSDKState()
 
 	var errs []error
 	if control != nil {
@@ -426,7 +515,7 @@ func (s *Service) Status() Status {
 	// One load feeds both fields; a corrupt or missing store means signed out.
 	// A session from another Client ID is invalid until the user reconnects.
 	if tokens, err := s.store.Load(); err == nil {
-		status.LoggedIn = tokens.RefreshToken != "" && tokens.ClientID == s.clientID
+		status.LoggedIn = tokens.RefreshToken != "" && tokens.ClientID == s.ClientID()
 		if status.LoggedIn {
 			status.Account = tokens.Account
 		}
@@ -435,7 +524,7 @@ func (s *Service) Status() Status {
 		status.RuntimeInstalled = true
 		status.RuntimeVersion = install.Version
 	}
-	status.ClientID = s.clientID
+	status.ClientID = s.ClientID()
 	status.ConfiguredClientID = s.ConfiguredClientID()
 	s.mu.Lock()
 	process := s.process
@@ -481,7 +570,7 @@ func (s *Service) ensureServer() error {
 	if err != nil {
 		return codedError(
 			CodeServerFailed,
-			fmt.Sprintf("cannot start the Spotify login server on %s; the fixed Spotify login port may be in use", s.listenAddr),
+			fmt.Sprintf("cannot start the Spotify login server on %s; the fixed Spotify login port may be in use. Close the app using that port and try again", s.listenAddr),
 			err,
 		)
 	}
@@ -489,6 +578,86 @@ func (s *Service) ensureServer() error {
 	s.server = server
 	s.mu.Unlock()
 	return nil
+}
+
+// hasWidevine reports whether the helper profile already has a Widevine CDM.
+// The first launch may need to download it, so it gets the longer timeout.
+func (s *Service) hasWidevine() bool {
+	entries, err := os.ReadDir(filepath.Join(s.root, "profile", "WidevineCdm"))
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+// watchIdle stops the helper after a long pause when the SDK device is not the
+// active Spotify Connect device. It never stops while the SDK device is active
+// (playing or paused), and it is disabled by keepAvailable.
+func (s *Service) watchIdle(process *Process, deviceID string) {
+	ticker := time.NewTicker(idleCheckInterval)
+	defer ticker.Stop()
+	lastActive := time.Now()
+	for {
+		select {
+		case <-process.Done():
+			return
+		case <-ticker.C:
+			if s.KeepAvailable() {
+				lastActive = time.Now()
+				continue
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			state, err := s.provider.State(ctx)
+			cancel()
+			if err != nil {
+				continue
+			}
+			if state.Device.ID == deviceID && state.Device.Active {
+				lastActive = time.Now()
+				continue
+			}
+			if time.Since(lastActive) < idleStopAfter {
+				continue
+			}
+			s.mu.Lock()
+			current := s.process
+			s.mu.Unlock()
+			if current != process {
+				return
+			}
+			stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			_ = s.Stop(stopCtx)
+			stopCancel()
+			return
+		}
+	}
+}
+
+// consumeControl keeps reading push snapshots after the ready handshake. The
+// channel is buffered, so events that arrive between ready and this goroutine
+// are not lost.
+func (s *Service) consumeControl(control *Control, process *Process) {
+	for {
+		select {
+		case <-process.Done():
+			return
+		case message, ok := <-control.Events():
+			if !ok {
+				return
+			}
+			switch message.Type {
+			case "state":
+				s.setSDKState(message.Player)
+			case "error":
+				s.setLastError(readyError(message))
+			}
+		}
+	}
 }
 
 // watchProcess clears the ephemeral device id when the helper exits and keeps
@@ -502,12 +671,16 @@ func (s *Service) watchProcess(process *Process, control *Control) {
 		s.deviceID = ""
 	}
 	s.mu.Unlock()
+	s.clearSDKState()
 	_ = control.Close()
 	logProcessTail(process)
 }
 
-func waitForReady(ctx context.Context, process *Process, control *Control) (string, error) {
-	timer := time.NewTimer(readyTimeout)
+func waitForReady(ctx context.Context, process *Process, control *Control, timeout time.Duration) (string, error) {
+	if timeout <= 0 {
+		timeout = readyTimeout
+	}
+	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	for {
 		select {

@@ -4,11 +4,12 @@ import { MusicStore } from "./music.svelte";
 
 const mocks = vi.hoisted(() => ({
   getState: vi.fn(),
+  startEngine: vi.fn(),
   onAudioState: vi.fn(),
 }));
 
 vi.mock("../shared/api", () => ({
-  audio: { getState: mocks.getState },
+  audio: { getState: mocks.getState, startEngine: mocks.startEngine },
   onAudioState: mocks.onAudioState,
   toApiError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
 }));
@@ -137,5 +138,34 @@ describe("MusicStore", () => {
     expect(store.soloistMode).toBe(false);
     expect(store.soloist).toBeNull();
     store.stop();
+  });
+});
+
+describe("MusicStore engine start", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("starts the catalog engine when Browse asks for it", async () => {
+    mocks.startEngine.mockResolvedValue(audioState({ authenticated: false, running: true }));
+    mocks.getState.mockResolvedValue(audioState({ authenticated: false, running: true }));
+    const store = new MusicStore();
+
+    await store.start({ ensureEngine: true });
+
+    expect(mocks.startEngine).toHaveBeenCalledOnce();
+    expect(store.audio.running).toBe(true);
+    store.stop();
+  });
+
+  it("ensureEngine starts the engine and clears the busy flag", async () => {
+    mocks.startEngine.mockResolvedValue(audioState({ authenticated: false, running: true }));
+    mocks.getState.mockResolvedValue(audioState({ authenticated: false, running: true }));
+    const store = new MusicStore();
+
+    await store.ensureEngine();
+
+    expect(mocks.startEngine).toHaveBeenCalledOnce();
+    expect(store.busy).toBe(false);
   });
 });

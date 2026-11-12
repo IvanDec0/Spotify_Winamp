@@ -302,6 +302,15 @@ export function SetPlaybackSettings(value: $models.PlaybackSettings): $Cancellab
 }
 
 /**
+ * StartEngine starts the catalog engine on demand. The Browse surface calls
+ * this when it mounts; the compact window stays lazy so the engine is not
+ * resident from boot.
+ */
+export function StartEngine(): $CancellablePromise<$models.AudioState> {
+    return $Call.ByID(2723050463);
+}
+
+/**
  * StartRadio plays a Spotify radio station seeded by a track, album, artist or
  * playlist uri.
  */

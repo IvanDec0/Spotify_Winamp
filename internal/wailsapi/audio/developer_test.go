@@ -68,8 +68,11 @@ func TestConfigureWebPlayerAppChangesClientID(t *testing.T) {
 	if status.ClientID != newID {
 		t.Fatalf("ClientID = %q, want the new app", status.ClientID)
 	}
-	if !status.RestartRequired {
-		t.Fatal("RestartRequired = false after a Client ID change")
+	if status.RestartRequired {
+		t.Fatal("RestartRequired = true after the Client ID was applied in memory")
+	}
+	if web.clientID != newID {
+		t.Fatalf("web client ID = %q, want %q", web.clientID, newID)
 	}
 	if web.logoutCalls != 1 {
 		t.Fatalf("logout calls = %d, want 1", web.logoutCalls)

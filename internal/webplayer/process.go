@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -25,6 +27,17 @@ type StartOptions struct {
 	ProfileDir string
 	LogPath    string
 	ExtraArgs  []string
+	// Tuning applies memory-reduction Chromium flags. Zero values keep the
+	// stock flags; the developer helper leaves it empty.
+	Tuning HelperTuning
+}
+
+// HelperTuning controls optional Chromium flags for the SDK helper.
+type HelperTuning struct {
+	LowEndMode      bool
+	JSHeapMB        int
+	DisableGPU      bool
+	DisableFeatures []string
 }
 
 // Process owns one helper process and its redacted log.
@@ -110,6 +123,18 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 	if opts.PlayerURL != "" {
 		args = append(args, "--cadence-url="+opts.PlayerURL)
 	}
+	args = appendTuningArgs(args, opts.Tuning)
+
+	// proxychains preloads a library that is incompatible with Chromium's
+	// zygote/sandbox. When we can read its proxy list, hand the proxy to
+	// Chromium directly and remove the preload from the helper environment.
+	// Otherwise fall back to the sandbox-disabled mode that proxychains needs.
+	proxy, proxychains := proxychainsProxy()
+	if proxy != "" {
+		args = append(args, "--proxy-server="+proxy, "--proxy-bypass-list=127.0.0.1;localhost")
+	} else if proxychains {
+		args = append(args, "--no-sandbox", "--in-process-gpu")
+	}
 	// Deliberately absent: --no-sandbox (user namespaces work here and the
 	// Chromium sandbox must stay on) and --disable-component-update (the
 	// component updater installs the Widevine CDM).
@@ -119,9 +144,8 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 	cmd.SysProcAttr = helperSysProcAttr()
 	cmd.Stdout = writer
 	cmd.Stderr = writer
-	if err := cmd.Start(); err != nil {
-		_ = writer.Close()
-		return nil, codedError(CodeStartFailed, "cannot start the web player helper", err)
+	if proxy != "" {
+		cmd.Env = withoutProxychains(os.Environ())
 	}
 
 	process := &Process{
@@ -131,8 +155,150 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 		log:      writer,
 		stopDone: make(chan struct{}),
 	}
+
+	// Pdeathsig is attached to the OS thread that forked the child, not to the
+	// process. Go may retire that thread at any time, which would send SIGTERM
+	// to a healthy helper. Start the process from a locked thread and keep the
+	// thread alive until the helper exits.
+	started := make(chan error, 1)
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		if err := cmd.Start(); err != nil {
+			started <- err
+			return
+		}
+		started <- nil
+		<-process.done
+	}()
+	if err := <-started; err != nil {
+		_ = writer.Close()
+		return nil, codedError(CodeStartFailed, "cannot start the web player helper", err)
+	}
+
 	go process.wait(cmd)
 	return process, nil
+}
+
+// proxychainsProxy returns a Chromium proxy URL when the process was launched
+// through proxychains. The boolean reports whether proxychains was detected at
+// all, even if its config could not be parsed.
+func proxychainsProxy() (string, bool) {
+	if override := strings.TrimSpace(os.Getenv("CADENCE_WEB_PROXY")); override != "" {
+		return override, true
+	}
+	if !strings.Contains(os.Getenv("LD_PRELOAD"), "proxychains") {
+		return "", false
+	}
+	path := strings.TrimSpace(os.Getenv("PROXYCHAINS_CONF_FILE"))
+	if path == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			candidate := filepath.Join(home, ".proxychains", "proxychains.conf")
+			if _, err := os.Stat(candidate); err == nil {
+				path = candidate
+			}
+		}
+	}
+	if path == "" {
+		for _, candidate := range []string{"/etc/proxychains4.conf", "/etc/proxychains.conf"} {
+			if _, err := os.Stat(candidate); err == nil {
+				path = candidate
+				break
+			}
+		}
+	}
+	if path == "" {
+		return "", true
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", true
+	}
+	inList := false
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "[") {
+			inList = strings.EqualFold(line, "[ProxyList]")
+			continue
+		}
+		if !inList || line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		scheme := ""
+		switch strings.ToLower(fields[0]) {
+		case "http":
+			scheme = "http"
+		case "socks4":
+			scheme = "socks4"
+		case "socks5":
+			scheme = "socks5"
+		default:
+			continue
+		}
+		return scheme + "://" + fields[1] + ":" + fields[2], true
+	}
+	return "", true
+}
+
+// withoutProxychains removes proxychains entries from LD_PRELOAD while keeping
+// any other preload the user may need.
+func withoutProxychains(env []string) []string {
+	result := make([]string, 0, len(env))
+	for _, entry := range env {
+		if !strings.HasPrefix(entry, "LD_PRELOAD=") {
+			result = append(result, entry)
+			continue
+		}
+		value := strings.TrimPrefix(entry, "LD_PRELOAD=")
+		kept := make([]string, 0, len(value))
+		for _, part := range strings.Split(value, ":") {
+			if part == "" || strings.Contains(part, "proxychains") {
+				continue
+			}
+			kept = append(kept, part)
+		}
+		if len(kept) > 0 {
+			result = append(result, "LD_PRELOAD="+strings.Join(kept, ":"))
+		}
+	}
+	return result
+}
+
+// defaultHelperTuning is the production tuning for the SDK helper. The GPU is
+// left enabled by default because Widevine and the SDK are sensitive to
+// compositor changes; CADENCE_WEB_DISABLE_GPU=1 enables the experiment.
+func defaultHelperTuning() HelperTuning {
+	tuning := HelperTuning{
+		LowEndMode:      true,
+		JSHeapMB:        64,
+		DisableFeatures: []string{"MediaRouter", "Translate", "OptimizationHints"},
+	}
+	if os.Getenv("CADENCE_WEB_DISABLE_GPU") == "1" {
+		tuning.DisableGPU = true
+	}
+	return tuning
+}
+
+// appendTuningArgs adds the optional memory-reduction flags. They are kept in
+// one place so the developer helper can omit them.
+func appendTuningArgs(args []string, tuning HelperTuning) []string {
+	if tuning.LowEndMode {
+		args = append(args, "--enable-low-end-device-mode")
+	}
+	if tuning.JSHeapMB > 0 {
+		args = append(args, fmt.Sprintf("--js-flags=--max-old-space-size=%d", tuning.JSHeapMB))
+	}
+	if tuning.DisableGPU {
+		args = append(args, "--disable-gpu", "--disable-software-rasterizer")
+	}
+	if len(tuning.DisableFeatures) > 0 {
+		args = append(args, "--disable-features="+strings.Join(tuning.DisableFeatures, ","))
+	}
+	return args
 }
 
 func (p *Process) wait(cmd *exec.Cmd) {

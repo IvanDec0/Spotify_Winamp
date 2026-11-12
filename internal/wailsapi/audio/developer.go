@@ -32,10 +32,14 @@ func (s *Service) ConfigureWebPlayerApp() (WebPlayerStatus, error) {
 		return s.webPlayerStatus(), err
 	}
 
-	restartRequired := false
 	if clientID != s.web.ClientID() {
-		restartRequired = true
 		if err := s.web.Logout(); err != nil {
+			status := s.webPlayerStatus()
+			status.ClientID = clientID
+			status.RestartRequired = true
+			return status, err
+		}
+		if err := s.web.SetClientID(clientID); err != nil {
 			status := s.webPlayerStatus()
 			status.ClientID = clientID
 			status.RestartRequired = true
@@ -44,7 +48,7 @@ func (s *Service) ConfigureWebPlayerApp() (WebPlayerStatus, error) {
 	}
 	status := s.webPlayerStatus()
 	status.ClientID = clientID
-	status.RestartRequired = restartRequired || status.RestartRequired
+	status.RestartRequired = false
 	return status, nil
 }
 

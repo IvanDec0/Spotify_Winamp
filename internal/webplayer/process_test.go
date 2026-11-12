@@ -2,6 +2,9 @@ package webplayer
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -172,5 +175,64 @@ func TestValidateLoopbackURLs(t *testing.T) {
 	}
 	if err := validatePlayerURL("ws://127.0.0.1:1234/player"); err == nil {
 		t.Fatal("a ws player URL was accepted")
+	}
+}
+
+func TestAppendTuningArgs(t *testing.T) {
+	got := appendTuningArgs([]string{"base"}, HelperTuning{
+		LowEndMode:      true,
+		JSHeapMB:        64,
+		DisableGPU:      true,
+		DisableFeatures: []string{"MediaRouter", "Translate"},
+	})
+	want := []string{
+		"base",
+		"--enable-low-end-device-mode",
+		"--js-flags=--max-old-space-size=64",
+		"--disable-gpu",
+		"--disable-software-rasterizer",
+		"--disable-features=MediaRouter,Translate",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("appendTuningArgs() = %v, want %v", got, want)
+	}
+}
+
+func TestWithoutProxychains(t *testing.T) {
+	got := withoutProxychains([]string{
+		"HOME=/home/test",
+		"LD_PRELOAD=/usr/lib/libproxychains4.so:/usr/lib/libother.so",
+		"PATH=/usr/bin",
+	})
+	want := []string{"HOME=/home/test", "LD_PRELOAD=/usr/lib/libother.so", "PATH=/usr/bin"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("withoutProxychains() = %v, want %v", got, want)
+	}
+	if got := withoutProxychains([]string{"LD_PRELOAD=/usr/lib/libproxychains4.so"}); len(got) != 0 {
+		t.Fatalf("withoutProxychains() = %v, want no LD_PRELOAD", got)
+	}
+}
+
+func TestProxychainsProxy(t *testing.T) {
+	config := filepath.Join(t.TempDir(), "proxychains.conf")
+	if err := os.WriteFile(config, []byte("[ProxyList]\nhttp 127.0.0.1 3128\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	t.Setenv("LD_PRELOAD", "/usr/lib/libproxychains4.so")
+	t.Setenv("PROXYCHAINS_CONF_FILE", config)
+	t.Setenv("CADENCE_WEB_PROXY", "")
+	proxy, detected := proxychainsProxy()
+	if !detected || proxy != "http://127.0.0.1:3128" {
+		t.Fatalf("proxychainsProxy() = %q, %v", proxy, detected)
+	}
+
+	t.Setenv("LD_PRELOAD", "")
+	if proxy, detected := proxychainsProxy(); detected || proxy != "" {
+		t.Fatalf("proxychainsProxy() without preload = %q, %v", proxy, detected)
+	}
+
+	t.Setenv("CADENCE_WEB_PROXY", "socks5://127.0.0.1:1080")
+	if proxy, detected := proxychainsProxy(); !detected || proxy != "socks5://127.0.0.1:1080" {
+		t.Fatalf("proxychainsProxy() override = %q, %v", proxy, detected)
 	}
 }

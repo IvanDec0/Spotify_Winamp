@@ -25,14 +25,15 @@ const (
 // direction. ClientID, Key and State carry the developer dashboard results;
 // Key is a secret and must never be logged.
 type Message struct {
-	Type     string `json:"type"`
-	Version  string `json:"version,omitempty"`
-	DeviceID string `json:"deviceId,omitempty"`
-	Code     string `json:"code,omitempty"`
-	Message  string `json:"message,omitempty"`
-	ClientID string `json:"clientId,omitempty"`
-	Key      string `json:"key,omitempty"`
-	State    string `json:"state,omitempty"`
+	Type     string    `json:"type"`
+	Version  string    `json:"version,omitempty"`
+	DeviceID string    `json:"deviceId,omitempty"`
+	Code     string    `json:"code,omitempty"`
+	Message  string    `json:"message,omitempty"`
+	ClientID string    `json:"clientId,omitempty"`
+	Key      string    `json:"key,omitempty"`
+	State    string    `json:"state,omitempty"`
+	Player   *SDKState `json:"player,omitempty"`
 }
 
 // Control is the loopback WebSocket endpoint the helper connects to. It
@@ -214,6 +215,11 @@ func (c *Control) readLoop(conn *websocket.Conn) {
 			continue
 		}
 		switch message.Type {
+		case "state":
+			message.Player = sanitizeSDKState(message.Player)
+			if message.Player != nil {
+				c.emit(message)
+			}
 		case "ready", "error", "webApp", "soloistKey":
 			c.emit(message)
 		}

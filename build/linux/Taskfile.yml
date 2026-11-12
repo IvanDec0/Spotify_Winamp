@@ -3,6 +3,10 @@ version: '3'
 includes:
   common: ../Taskfile.yml
 
+vars:
+  APPIMAGETOOL: '{{.ROOT_DIR}}/build/linux/appimage/build/appimagetool-{{.ARCH}}.AppImage'
+  APPIMAGETOOL_URL: 'https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-{{.ARCH}}.AppImage'
+
 tasks:
   build:
     summary: Builds the application natively on Linux
@@ -33,14 +37,25 @@ tasks:
       - task: build
     cmds:
       - task: create:appimage
+      - task: create:appimage:lean
       - task: create:tarball
       - task: checksums
+
+  download:appimagetool:
+    summary: Downloads the AppImage packer used for the final zstd image
+    status:
+      - test -x "{{.APPIMAGETOOL}}"
+    cmds:
+      - mkdir -p "{{.ROOT_DIR}}/build/linux/appimage/build"
+      - curl --fail --location --silent --show-error --output "{{.APPIMAGETOOL}}" "{{.APPIMAGETOOL_URL}}"
+      - chmod +x "{{.APPIMAGETOOL}}"
 
   create:appimage:
     summary: Creates an AppImage with the go-librespot engine bundled
     deps:
       - task: build
       - task: generate:dotdesktop
+      - task: download:appimagetool
     dir: build/linux/appimage
     cmds:
       - cp "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}" "{{.APP_NAME}}"
@@ -76,8 +91,24 @@ tasks:
       - cp "{{.ROOT_DIR}}/build/linux/icons/256x256.png" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/256x256/apps/{{.APP_NAME}}.png"
       - cp "{{.ROOT_DIR}}/build/linux/icons/512x512.png" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons/hicolor/512x512/apps/{{.APP_NAME}}.png"
       - chmod -R a+rX "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/doc/cadence" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/applications" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/icons" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir/usr/share/pixmaps"
-      - cd "{{.ROOT_DIR}}/build/linux/appimage/build" && NO_STRIP=1 OUTPUT="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage" ./linuxdeploy-{{.ARCH}}.AppImage --appimage-extract-and-run --appdir {{.APP_NAME}}-{{.ARCH}}.AppDir --output appimage
+      # Deploy only; appimagetool packs with a 1 MiB zstd block, which is
+      # smaller than linuxdeploy's default 128 KiB block.
+      - cd "{{.ROOT_DIR}}/build/linux/appimage/build" && NO_STRIP=1 ./linuxdeploy-{{.ARCH}}.AppImage --appimage-extract-and-run --appdir {{.APP_NAME}}-{{.ARCH}}.AppDir
+      - '{{.APPIMAGETOOL}} --appimage-extract-and-run --no-appstream --comp zstd --mksquashfs-opt -b --mksquashfs-opt 1M --mksquashfs-opt -Xcompression-level --mksquashfs-opt 19 "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir" "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage"' 
       - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/out"
+
+  create:appimage:lean:
+    summary: Creates a lean AppImage that uses the system WebKitGTK 6.0
+    deps:
+      - task: create:appimage
+    cmds:
+      # Reuse the portable AppDir and drop the WebKit libraries and helpers.
+      # The host must provide WebKitGTK 6.0 (Arch, Fedora 40+, Ubuntu 24.04+).
+      - cp -a "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir"
+      - rm -f "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir/usr/lib/libwebkitgtk-6.0.so.4" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir/usr/lib/libjavascriptcoregtk-6.0.so.1"
+      - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir/usr/lib/webkitgtk-6.0"
+      - '{{.APPIMAGETOOL}} --appimage-extract-and-run --no-appstream --comp zstd --mksquashfs-opt -b --mksquashfs-opt 1M --mksquashfs-opt -Xcompression-level --mksquashfs-opt 19 "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir" "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}-lean.AppImage"'
+      - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir"
 
   create:tarball:
     summary: Creates a portable tar.gz archive with the audio engine
@@ -93,6 +124,7 @@ tasks:
       - cp "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" "{{.APP_NAME}}-{{.APP_VERSION}}/"
       - cp "{{.ROOT_DIR}}/LICENSE" "{{.ROOT_DIR}}/LICENSE-ASSETS" "{{.ROOT_DIR}}/README.md" "{{.ROOT_DIR}}/CHANGELOG.md" "{{.ROOT_DIR}}/THIRD-PARTY-NOTICES.md" "{{.APP_NAME}}-{{.APP_VERSION}}/"
       - cp -R "{{.ROOT_DIR}}/docs" "{{.ROOT_DIR}}/LICENSES" "{{.APP_NAME}}-{{.APP_VERSION}}/"
+      - rm -rf "{{.APP_NAME}}-{{.APP_VERSION}}/docs/screenshots"
       - mkdir -p "{{.APP_NAME}}-{{.APP_VERSION}}/skins"
       - cp -R "{{.ROOT_DIR}}/skins-dev/lumina" "{{.ROOT_DIR}}/skins-dev/afterglow" "{{.ROOT_DIR}}/skins-dev/vanta" "{{.ROOT_DIR}}/skins-dev/nightstar" "{{.APP_NAME}}-{{.APP_VERSION}}/skins/"
       - tar -czf "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.tar.gz" "{{.APP_NAME}}-{{.APP_VERSION}}"
@@ -103,7 +135,7 @@ tasks:
     dir: '{{.ROOT_DIR}}/{{.BIN_DIR}}'
     cmds:
       - rm -f "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
-      - sha256sum "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage" "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.tar.gz" > "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
+      - sha256sum "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage" "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}-lean.AppImage" "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.tar.gz" > "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
 
   generate:dotdesktop:
     summary: Generates the Linux .desktop entry

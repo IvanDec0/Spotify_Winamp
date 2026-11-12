@@ -40,19 +40,26 @@ The catalog engine and the playback fallbacks use unofficial Spotify integration
 
 ## Installation
 
-Cadence is distributed as an AppImage and a tarball. Both include the patched go-librespot engine and the bundled skins.
+Cadence is distributed as a portable AppImage, a lean AppImage and a tarball. All include the patched go-librespot engine and the bundled skins.
 
 ```bash
-# AppImage
+# Portable AppImage: bundles WebKitGTK, ~107 MB
 chmod +x cadence-0.2.0-linux-x86_64.AppImage
 ./cadence-0.2.0-linux-x86_64.AppImage
+
+# Lean AppImage: uses the host WebKitGTK 6.0, ~63 MB
+chmod +x cadence-0.2.0-linux-x86_64-lean.AppImage
+./cadence-0.2.0-linux-x86_64-lean.AppImage
 
 # Tarball
 tar -xzf cadence-0.2.0-linux-x86_64.tar.gz
 ./cadence-0.2.0/cadence
 ```
 
-At first launch Cadence downloads the Chromium web player runtime, opens the embedded Spotify login when no session is stored, and starts the playback helper automatically. If the catalog engine is not paired, approve **Cadence Library** once at [spotify.com/pair](https://spotify.com/pair) from Browse.
+The lean AppImage requires `gtk4`, `webkitgtk-6.0` and `libsoup3` on the host
+(Arch, Fedora 40+, Ubuntu 24.04+). The portable AppImage bundles them.
+
+At first launch Cadence downloads the Chromium web player runtime, creates a personal Spotify app automatically when none is configured (a one-time Spotify Developer dashboard login may be required), and opens the Spotify login in your system browser when no session is stored. The playback helper starts on the first play; enable **Keep Cadence Web available** in Settings if you want Cadence Web connected at startup. If the catalog engine is not paired, approve **Cadence Library** once at [spotify.com/pair](https://spotify.com/pair) from Browse.
 
 System requirements:
 

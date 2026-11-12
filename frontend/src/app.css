@@ -8,7 +8,7 @@
 
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("/fonts/JetBrainsMonoVariable.ttf") format("truetype-variations");
+  src: url("/fonts/JetBrainsMonoVariable.woff2") format("woff2-variations");
   font-weight: 100 800;
   font-style: normal;
   font-display: swap;
@@ -16,7 +16,7 @@
 
 @font-face {
   font-family: "Twemoji Mozilla";
-  src: url("/fonts/Twemoji.Mozilla.ttf") format("truetype");
+  src: url("/fonts/Twemoji.Mozilla.woff2") format("woff2");
   font-display: swap;
 }
 

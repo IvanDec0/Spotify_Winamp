@@ -207,6 +207,8 @@
         return "errors.webWidevine";
       case "webplayer_api":
         return "errors.webApiError";
+      case "webplayer_forbidden":
+        return "errors.webForbidden";
       case "webplayer_rate_limited":
         return "errors.webRateLimited";
       case "webplayer_premium":
@@ -345,6 +347,29 @@
             {/if}
           </p>
         </div>
+
+        {#if (playback?.backend ?? "web") === "web"}
+          <div class="settings-row">
+            <label class="settings-label" for="settings-keep-web-available">
+              {t("browse.settingsKeepWebAvailable")}
+            </label>
+            <div class="settings-control">
+              <input
+                id="settings-keep-web-available"
+                type="checkbox"
+                checked={playback?.keepWebAvailable ?? false}
+                aria-describedby="settings-keep-web-available-help"
+                onchange={(event) =>
+                  browseSettings.updateKeepWebAvailable(
+                    (event.currentTarget as HTMLInputElement).checked,
+                  )}
+              />
+            </div>
+            <p class="settings-help" id="settings-keep-web-available-help">
+              {t("browse.settingsKeepWebAvailableHelp")}
+            </p>
+          </div>
+        {/if}
 
         <div class="skin-actions">
           <Button

@@ -15,7 +15,7 @@ const (
 	webInstallTimeout   = 15 * time.Minute
 	webStartTimeout     = 3 * time.Minute
 	webStopTimeout      = 30 * time.Second
-	webProvisionTimeout = 20 * time.Minute
+	webProvisionTimeout = 30 * time.Minute
 	webUnavailableText  = "the web player is not configured"
 )
 
@@ -29,6 +29,10 @@ type WebBackend interface {
 	Stop(context.Context) error
 	ClientID() string
 	Status() webplayer.Status
+	ConfiguredClientID() string
+	SetClientID(string) error
+	SetKeepAvailable(bool)
+	KeepAvailable() bool
 }
 
 // GetWebPlayerStatus returns the web player state without starting or
@@ -77,9 +81,10 @@ func (s *Service) StopWebPlayer() (WebPlayerStatus, error) {
 }
 
 // provisionWeb prepares the web backend in the background at startup: it
-// installs the Chromium runtime when missing, signs in when no session is
-// stored and starts the helper. Failures stay in the web player status; this
-// path never blocks the application start.
+// installs the Chromium runtime when missing and signs in when no session is
+// stored. The helper itself is started lazily by the first Play/PlayContext/
+// Transfer, unless the user opted into keeping the device available. Failures
+// stay in the web player status; this path never blocks the application start.
 func (s *Service) provisionWeb(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, webProvisionTimeout)
 	defer cancel()
@@ -102,6 +107,19 @@ func (s *Service) provisionWebPlayer(ctx context.Context) error {
 	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	// Zero-touch first run: when the user has no personal Spotify app yet,
+	// create one through the existing developer dashboard automation. The
+	// helper may show a login window once; after that the app is created and
+	// its Client ID is applied in memory, so the web login uses it immediately.
+	if s.developer != nil && !s.disableAutoProvision && s.web.ConfiguredClientID() == "" {
+		log.Printf("web player automatic setup: creating a Spotify app")
+		clientID, err := s.developer.EnsureWebApp(ctx)
+		if err != nil {
+			log.Printf("web player automatic setup: cannot create a Spotify app: %v", err)
+		} else if err := s.web.SetClientID(clientID); err != nil {
+			log.Printf("web player automatic setup: cannot apply the Spotify app: %v", err)
+		}
 	}
 	status := s.web.Status()
 	if !status.RuntimeInstalled {
@@ -130,7 +148,13 @@ func (s *Service) provisionWebPlayer(ctx context.Context) error {
 	if status.Running {
 		return nil
 	}
-	return s.web.EnsureStarted(ctx)
+	// Do not start the helper here. Chromium is the largest resident cost and
+	// the SDK device is only needed when the user actually plays something.
+	// EnsureStarted is called by Play, PlayContext and Transfer("").
+	if s.web.KeepAvailable() {
+		return s.web.EnsureStarted(ctx)
+	}
+	return nil
 }
 
 // webPlayerStatus maps the domain status to the generated frontend model. The

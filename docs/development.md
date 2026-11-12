@@ -149,7 +149,8 @@ Run the app:
 ```
 
 With the default web backend, startup also downloads the Chromium runtime and
-opens the embedded Spotify login when no session is stored. Click **Browse** in
+opens the Spotify login in your system browser when no session is stored. The
+playback helper starts on the first play. Click **Browse** in
 the titlebar to open the dedicated window. The search field queries Spotify's
 internal catalog and groups results into Tracks, Albums, Artists, Playlists,
 Shows and Episodes; the Library, Podcasts, Queue and Settings sections cover the
@@ -283,7 +284,7 @@ typed key list lives in `frontend/src/shared/i18n/locales/en.ts`.
 
 `.github/workflows/release.yml` builds the same artifacts on a `v*` tag and publishes a GitHub release. The tag must match `version` in `build/config.yml`.
 
-`task package` builds the engine with `task audio:build` when it is missing, bundles `go-librespot` in both artifacts and writes SHA-256 checksums. Packaging requires the audio CGO libraries listed in [`installation.md`](installation.md).
+`task package` builds the engine with `task audio:build` when it is missing, bundles `go-librespot` in all artifacts and writes SHA-256 checksums. Packaging requires the audio CGO libraries listed in [`installation.md`](installation.md).
 
 ## Troubleshooting
 

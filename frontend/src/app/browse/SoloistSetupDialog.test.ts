@@ -231,7 +231,12 @@ describe("SoloistSetupDialog", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: "Use the web player instead" }));
 
-    await waitFor(() => expect(mocks.setPlaybackSettings).toHaveBeenCalledWith({ backend: "web" }));
+    await waitFor(() =>
+      expect(mocks.setPlaybackSettings).toHaveBeenCalledWith({
+        backend: "web",
+        keepWebAvailable: false,
+      }),
+    );
     expect(screen.getByRole("dialog", { name: "Use the web player" })).not.toBeNull();
     expect(screen.getByText(/official Web Playback SDK/)).not.toBeNull();
     expect(screen.getByText(/Settings → Web player/)).not.toBeNull();

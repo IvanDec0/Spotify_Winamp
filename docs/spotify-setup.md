@@ -17,9 +17,12 @@ The backend is persisted in `config.json` and applied at startup. Changing it in
 Settings requires a Cadence restart.
 
 With the web backend Cadence needs no manual setup step: at startup it downloads
-the Chromium runtime (~120 MB, SHA-256 verified), opens the embedded Spotify
-login only when no session is stored, and starts the playback helper
-automatically. The runtime lives under
+the Chromium runtime (~120 MB, SHA-256 verified) and opens the Spotify login in
+your system browser only when no session is stored. When no personal Spotify app
+is configured, Cadence creates one through the Spotify Developer dashboard
+automation and applies its Client ID before login; you may need to sign in to
+the dashboard once. The playback helper starts on the first play; enable
+**Keep Cadence Web available** to keep it connected at startup. The runtime lives under
 `$XDG_CACHE_HOME/cadence/webplayer`; the OAuth session lives in
 `$XDG_CONFIG_HOME/cadence/webplayer/tokens.json` (`0600`). Its refresh token
 never reaches the app frontend or the logs, and the isolated helper page receives
@@ -75,8 +78,10 @@ modes; in `librespot` mode the same go-librespot process owns both roles.
 4. Choose **Open pairing page**, sign in to Spotify, and approve the device.
 5. Cadence updates automatically. The catalog device appears as **Cadence
    Library** in web and Soloist modes.
-6. In the default web mode, complete the embedded Spotify login if prompted and
-   choose **Cadence Web** in another Spotify app to start playback there.
+6. In the default web mode, complete the Spotify login in your system browser
+   if prompted, then play a track in Cadence. **Cadence Web** starts
+   automatically; choose it in another Spotify app if you want to control
+   playback from there.
 
 With Soloist, playback pairing is a separate one-time step: open Spotify on a
 phone, tablet or another computer on the same Wi-Fi network and choose

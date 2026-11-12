@@ -23,6 +23,7 @@ const (
 	CodeAPI                 = "webplayer_api"
 	CodeRateLimited         = "webplayer_rate_limited"
 	CodePremium             = "webplayer_premium"
+	CodeForbidden           = "webplayer_forbidden"
 	CodeDeviceMissing       = "webplayer_device_missing"
 	CodeWidevine            = "webplayer_widevine"
 	CodeUnsupported         = "webplayer_unsupported"

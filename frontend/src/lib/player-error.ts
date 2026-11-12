@@ -91,6 +91,10 @@ const ERROR_COPY: Record<string, ErrorCopy> = {
   webplayer_api: {
     title: "errors.webApiError",
   },
+  webplayer_forbidden: {
+    title: "errors.webForbidden",
+    hint: "errors.webForbiddenHint",
+  },
   webplayer_unsupported: {
     title: "errors.webUnsupported",
   },

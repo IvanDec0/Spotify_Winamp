@@ -120,7 +120,7 @@
     busy = true;
     error = null;
     try {
-      await audio.setPlaybackSettings({ backend: "web" });
+      await audio.setPlaybackSettings({ backend: "web", keepWebAvailable: false });
       step = "web";
     } catch (cause) {
       error = { title: "browse.soloistError", detail: toApiError(cause).message };

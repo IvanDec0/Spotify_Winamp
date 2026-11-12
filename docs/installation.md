@@ -3,20 +3,22 @@
 Cadence 0.2.0 is distributed for **Arch Linux x86_64** as:
 
 - `cadence-0.2.0-linux-x86_64.AppImage` — a self-contained bundle with the
-  patched `go-librespot` engine.
+  patched `go-librespot` engine (~107 MB). It bundles WebKitGTK and its helpers.
+- `cadence-0.2.0-linux-x86_64-lean.AppImage` — the same app without the bundled
+  WebKitGTK/JSC libraries (~63 MB). It uses the host's WebKitGTK 6.0.
 - `cadence-0.2.0-linux-x86_64.tar.gz` — Cadence, the engine, the four bundled
   skins, README, CHANGELOG, notices, licenses and `docs/`.
-- `cadence-0.2.0-SHA256SUMS` — SHA-256 checksums for both artifacts.
+- `cadence-0.2.0-SHA256SUMS` — SHA-256 checksums for all artifacts.
 
-Both artifacts are built from the repository with `task package`.
+All artifacts are built from the repository with `task package`.
 
 ## Requirements
 
 - Arch Linux x86_64.
 - A Spotify **Premium** account.
 - PipeWire with `pipewire-pulse`, or PulseAudio.
-- For the tarball: `gtk4`, `webkitgtk-6.0` and `libsoup3`. The AppImage bundles
-  these libraries.
+- For the lean AppImage and the tarball: `gtk4`, `webkitgtk-6.0` and
+  `libsoup3`. The portable AppImage bundles these libraries.
 - Engine codec libraries: `libogg`, `libvorbis`, `flac`, `mpg123`, `alsa-lib`
   and `libpulse`.
 - `parec` and `pactl` for the real visualizer. Both ship in the `libpulse`
@@ -24,10 +26,11 @@ Both artifacts are built from the repository with `task package`.
   needs it.
 
 The Spotify web player is the default playback backend, but its Chromium runtime
-is never part of the AppImage, the tarball or the release checksums. Cadence
+is never part of any AppImage, the tarball or the release checksums. Cadence
 downloads the right build at first launch (~120 MB, SHA-256 verified), opens the
-embedded Spotify login only when no session is stored and starts the playback
-helper automatically, so no manual install step is required. go-librespot is
+Spotify login in your system browser only when no session is stored, and starts
+the playback helper on the first play (enable **Keep Cadence Web available** to
+connect it at startup), so no manual install step is required. go-librespot is
 still bundled because it serves the library, search and catalog in every backend
 mode, and it remains the explicit `librespot` fallback in Settings; Spotify
 Soloist is the other explicit fallback. Linux is the supported target for all
@@ -99,9 +102,12 @@ install -Dm644 cadence.png ~/.local/share/icons/hicolor/512x512/apps/cadence.png
 ## First run and pairing
 
 1. Start Cadence without `--demo`. The default **web** backend downloads the
-   Chromium runtime in the background (~120 MB, SHA-256 verified) and opens the
-   embedded Spotify login when no session is stored. No separate playback engine
-   install or API key is required.
+   Chromium runtime in the background (~120 MB, SHA-256 verified), creates a
+   personal Spotify app automatically when none is configured (a one-time
+   Spotify Developer dashboard login may be required), and opens the Spotify
+   login in your system browser when no session is stored. The playback helper
+   starts on the first play. No separate playback engine install or API key is
+   required.
 2. Click **Browse** in the compact titlebar. It opens the Browse window on
    Library.
 3. If the catalog engine is not paired, Browse shows a pairing code. Choose
@@ -321,12 +327,13 @@ Use this on a fresh Arch Linux x86_64 machine:
 
 - [ ] Install the system dependencies and start PipeWire with
       `pipewire-pulse`, or PulseAudio.
-- [ ] Download both artifacts and `cadence-0.2.0-SHA256SUMS`; run
+- [ ] Download all three artifacts and `cadence-0.2.0-SHA256SUMS`; run
       `sha256sum -c cadence-0.2.0-SHA256SUMS`.
-- [ ] Run `--version` from the AppImage and from the tarball; both print
+- [ ] Run `--version` from the portable AppImage, the lean AppImage and the tarball; all print
       `Cadence 0.2.0 (<short commit>)` without opening a window.
 - [ ] Start Cadence without `--demo`, wait for the Chromium runtime download,
-      and complete the embedded Spotify login if it appears.
+      and complete the Spotify login in your system browser if it appears. The
+      playback helper starts when you play a track.
 - [ ] Click **Browse**, and approve the **Cadence Library** catalog device at
       `spotify.com/pair`.
 - [ ] Play a track from Browse and confirm audio through the default sink. In

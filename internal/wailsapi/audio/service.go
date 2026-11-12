@@ -52,6 +52,9 @@ type Options struct {
 	Web             WebBackend
 	Developer       DeveloperBackend
 	PlaybackBackend string
+	// DisableAutoProvision keeps the explicit CADENCE_SPOTIFY_CLIENT_ID from
+	// being replaced by an automatically created Spotify app.
+	DisableAutoProvision bool
 }
 
 // installProgress is the mutable install snapshot merged into SoloistState. It
@@ -67,15 +70,16 @@ type installProgress struct {
 // Service exposes the local audio engine, pairing and library browsing to the
 // frontend. It never exposes stored playback credentials.
 type Service struct {
-	catalog    *catalog.Service
-	supervisor *engine.Supervisor
-	settings   *settings.Store
-	enabled    bool
-	soloist    SoloistBackend
-	web        WebBackend
-	developer  DeveloperBackend
-	backend    string
-	progress   installProgress
+	catalog              *catalog.Service
+	supervisor           *engine.Supervisor
+	settings             *settings.Store
+	enabled              bool
+	soloist              SoloistBackend
+	web                  WebBackend
+	developer            DeveloperBackend
+	backend              string
+	disableAutoProvision bool
+	progress             installProgress
 
 	mu                 sync.Mutex
 	app                *application.App
@@ -86,14 +90,15 @@ type Service struct {
 
 func NewService(options Options) *Service {
 	return &Service{
-		catalog:    options.Catalog,
-		supervisor: options.Supervisor,
-		settings:   options.Settings,
-		enabled:    options.Enabled,
-		soloist:    options.Soloist,
-		web:        options.Web,
-		developer:  options.Developer,
-		backend:    settings.NormalizePlaybackBackend(options.PlaybackBackend),
+		catalog:              options.Catalog,
+		supervisor:           options.Supervisor,
+		settings:             options.Settings,
+		enabled:              options.Enabled,
+		soloist:              options.Soloist,
+		web:                  options.Web,
+		developer:            options.Developer,
+		backend:              settings.NormalizePlaybackBackend(options.PlaybackBackend),
+		disableAutoProvision: options.DisableAutoProvision,
 	}
 }
 
@@ -111,6 +116,7 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 		})
 	}
 	if s.enabled {
+		libraryOnly := s.backend == settings.BackendWeb || s.backend == settings.BackendSoloist
 		if s.soloist != nil && s.backend == settings.BackendSoloist {
 			ctx, cancel := context.WithCancel(context.Background())
 			s.mu.Lock()
@@ -118,11 +124,15 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 			s.mu.Unlock()
 			go s.maintainSoloist(ctx)
 		}
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			_ = s.supervisor.Start(ctx)
-		}()
+		if !libraryOnly {
+			// In librespot mode the supervisor is the audio engine and must be
+			// ready at startup. Web/Soloist start it on the first catalog call.
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				_ = s.supervisor.Start(ctx)
+			}()
+		}
 		if s.web != nil && s.backend == settings.BackendWeb {
 			// The web backend downloads its runtime, signs in and starts the
 			// helper once at startup so a first run needs no Settings visit.
@@ -276,6 +286,24 @@ func (s *Service) restartSoloistMaintenance(ctx context.Context) {
 // and, in Soloist mode, the Soloist process and install state.
 func (s *Service) GetState() AudioState {
 	return s.mergeState(s.catalog.GetState())
+}
+
+// StartEngine starts the catalog engine on demand. The Browse surface calls
+// this when it mounts; the compact window stays lazy so the engine is not
+// resident from boot.
+func (s *Service) StartEngine() (AudioState, error) {
+	if s.supervisor == nil {
+		return s.GetState(), errors.New("the audio engine is not configured")
+	}
+	if !s.enabled {
+		return s.GetState(), nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if err := s.supervisor.Start(ctx); err != nil {
+		return s.GetState(), err
+	}
+	return s.GetState(), nil
 }
 
 // mergeState adds the backend selection and Soloist state to a catalog state.
@@ -547,7 +575,10 @@ func (s *Service) GetPlaybackSettings() (PlaybackSettings, error) {
 	if config.Playback == nil {
 		return PlaybackSettings{Backend: settings.BackendWeb}, nil
 	}
-	return PlaybackSettings{Backend: settings.NormalizePlaybackBackend(config.Playback.Backend)}, nil
+	return PlaybackSettings{
+		Backend:          settings.NormalizePlaybackBackend(config.Playback.Backend),
+		KeepWebAvailable: config.Playback.KeepWebAvailable,
+	}, nil
 }
 
 // SetPlaybackSettings validates and persists the audio backend. It never
@@ -557,12 +588,25 @@ func (s *Service) SetPlaybackSettings(value PlaybackSettings) (PlaybackSettings,
 	if s.settings == nil {
 		return PlaybackSettings{}, errors.New("the settings store is not configured")
 	}
-	saved := PlaybackSettings{Backend: settings.NormalizePlaybackBackend(value.Backend)}
+	saved := PlaybackSettings{
+		Backend:          settings.NormalizePlaybackBackend(value.Backend),
+		KeepWebAvailable: value.KeepWebAvailable,
+	}
 	if err := s.settings.UpdatePlayback(func(state *settings.PlaybackState) error {
 		*state = saved
 		return nil
 	}); err != nil {
 		return PlaybackSettings{}, err
+	}
+	if s.web != nil {
+		s.web.SetKeepAvailable(saved.KeepWebAvailable)
+		if saved.KeepWebAvailable && saved.Backend == settings.BackendWeb {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+				defer cancel()
+				_ = s.web.EnsureStarted(ctx)
+			}()
+		}
 	}
 	return saved, nil
 }

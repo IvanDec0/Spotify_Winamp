@@ -75,6 +75,9 @@ export const es: Record<MessageKey, string> = {
   "errors.webWidevine": "Widevine no está disponible en el entorno del reproductor web",
   "errors.webWidevineHint": "Actualiza o reinstala el entorno desde Configuración.",
   "errors.webApiError": "Spotify rechazó la solicitud del reproductor web",
+  "errors.webForbidden": "Spotify rechazó esta aplicación",
+  "errors.webForbiddenHint":
+    "Verificá que la cuenta sea Premium, esté autorizada para la app configurada y que Cadence Web esté disponible. Podés configurar tu propia app en Configuración → Reproductor web.",
   "errors.webRateLimited": "Spotify está limitando las solicitudes",
   "errors.webRateLimitedHint": "Espera un momento y vuelve a intentarlo.",
   "errors.webPremiumRequired": "Se requiere Spotify Premium para la reproducción web",
@@ -294,6 +297,9 @@ export const es: Record<MessageKey, string> = {
   "browse.settingsBackendRestart":
     "Reinicia Cadence para cambiar el motor de audio. Hasta entonces, la reproducción sigue usando el motor actual.",
   "browse.settingsBackendSaved": "Motor de audio guardado. Reinicia Cadence para aplicarlo.",
+  "browse.settingsKeepWebAvailable": "Mantener Cadence Web disponible",
+  "browse.settingsKeepWebAvailableHelp":
+    "Mantiene el helper conectado mientras Cadence está inactivo para que Cadence Web siga apareciendo como dispositivo de Spotify Connect. Consume más memoria.",
   "browse.soloistTitle": "Spotify Soloist",
   "browse.soloistIntro":
     "Soloist es el reproductor de audio de Spotify para cuentas Premium. Cadence lo descarga desde Spotify cuando lo solicitas; nunca se incluye en la aplicación.",
@@ -384,11 +390,11 @@ export const es: Record<MessageKey, string> = {
     "SDK oficial de reproducción web de Spotify en un entorno Chromium incluido. No requiere la aplicación de Spotify; se requiere Premium. La biblioteca y la búsqueda siguen usando go-librespot.",
   "browse.webTitle": "Reproductor web",
   "browse.webIntro":
-    "Reproduce mediante el SDK oficial de reproducción web de Spotify en un entorno Chromium incluido. Cadence descarga el entorno, inicia sesión y lo arranca automáticamente al iniciar. No usa la aplicación de escritorio de Spotify; se requiere Spotify Premium.",
+    "Reproduce mediante el SDK oficial de reproducción web de Spotify en un entorno Chromium incluido. Cadence descarga el entorno, inicia sesión y arranca el helper en la primera reproducción. Activa Mantener Cadence Web disponible si querés que esté conectado desde el inicio. No usa la aplicación de escritorio de Spotify; se requiere Spotify Premium.",
   "browse.webClientId": "ID de cliente",
   "browse.webConfigureApp": "Configurar aplicación automáticamente",
   "browse.webConfigureDone": "Aplicación de Spotify configurada.",
-  "browse.webRestartReconnect": "Reinicia Cadence y conecta Spotify con la nueva aplicación.",
+  "browse.webRestartReconnect": "Conectá Spotify con la nueva app cuando quieras.",
   "browse.webAccount": "Cuenta",
   "browse.webConnected": "Conectado",
   "browse.webDisconnected": "Sin conexión",

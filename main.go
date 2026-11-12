@@ -149,8 +149,10 @@ func main() {
 		engineSettings = defaults.Engine
 	}
 	playbackBackend := settings.BackendWeb
+	keepWebAvailable := false
 	if savedSettings.Playback != nil {
 		playbackBackend = settings.NormalizePlaybackBackend(savedSettings.Playback.Backend)
+		keepWebAvailable = savedSettings.Playback.KeepWebAvailable
 	}
 	soloistMode := playbackBackend == settings.BackendSoloist
 	webMode := playbackBackend == settings.BackendWeb
@@ -172,13 +174,13 @@ func main() {
 	demoProvider := playback.NewDemoProvider()
 	artCache := artwork.NewWithOptions(artwork.Options{
 		DiskDir:   filepath.Join(xdg.CacheHome, "cadence", "art"),
-		DiskLimit: 256 << 20,
+		DiskLimit: 128 << 20,
 	})
 
 	// The developer automation starts a hidden helper per action against the
 	// dashboard profile; the service itself holds no process between actions.
-	// It is built first because the web player routes its OAuth authorize URL
-	// through the embedded browser instead of the system browser.
+	// It is only used for one-time setup (Client ID / Soloist key). OAuth login
+	// uses the system browser through xdg-open.
 	var developerService *developer.Service
 	if !*demoMode {
 		service, err := developer.NewService(developer.Options{
@@ -198,11 +200,9 @@ func main() {
 	var webService *webplayer.Service
 	if !*demoMode {
 		options := webplayer.ServiceOptions{
-			ClientID: webClientID(),
-			Art:      artCache,
-		}
-		if developerService != nil {
-			options.OpenURL = developerService.OpenOAuthURL
+			ClientID:      webClientID(),
+			Art:           artCache,
+			KeepAvailable: keepWebAvailable,
 		}
 		service, err := webplayer.NewService(options)
 		if err != nil {
@@ -312,14 +312,15 @@ func main() {
 		developerBackend = developerService
 	}
 	audioService := audioapi.NewService(audioapi.Options{
-		Catalog:         catalogService,
-		Supervisor:      audioRuntime,
-		Settings:        settingsStore,
-		Enabled:         !*demoMode,
-		Soloist:         soloistBackend,
-		Web:             webBackend,
-		Developer:       developerBackend,
-		PlaybackBackend: playbackBackend,
+		Catalog:              catalogService,
+		Supervisor:           audioRuntime,
+		Settings:             settingsStore,
+		Enabled:              !*demoMode,
+		Soloist:              soloistBackend,
+		Web:                  webBackend,
+		Developer:            developerBackend,
+		PlaybackBackend:      playbackBackend,
+		DisableAutoProvision: strings.TrimSpace(os.Getenv("CADENCE_SPOTIFY_CLIENT_ID")) != "",
 	})
 	visualizerService := visualizerapi.NewService()
 	lyricsClient := lyrics.NewClient(lyrics.Options{
@@ -421,19 +422,6 @@ func main() {
 
 func runWebCommand(login, logout, install bool) error {
 	options := webplayer.ServiceOptions{ClientID: webClientID()}
-	if login {
-		// Route the CLI login through the same headless embedded browser as the
-		// settings UI instead of opening the system browser.
-		developerService, err := developer.NewService(developer.Options{
-			ConfigDir: filepath.Join(xdg.ConfigHome, "cadence"),
-			Root:      filepath.Join(xdg.CacheHome, "cadence", "developer"),
-			LogPath:   filepath.Join(xdg.CacheHome, "cadence", "logs", "developer.log"),
-		})
-		if err != nil {
-			return err
-		}
-		options.OpenURL = developerService.OpenOAuthURL
-	}
 	service, err := webplayer.NewService(options)
 	if err != nil {
 		return err

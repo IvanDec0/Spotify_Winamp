@@ -16,4 +16,9 @@ contextBridge.exposeInMainWorld("cadence", {
   error(code, message) {
     ipcRenderer.send("cadence:error", String(code || "sdk_error"), String(message || ""));
   },
+  state(payload) {
+    if (payload && typeof payload === "object") {
+      ipcRenderer.send("cadence:state", payload);
+    }
+  },
 });
