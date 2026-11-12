@@ -207,6 +207,8 @@
         return "errors.webWidevine";
       case "webplayer_api":
         return "errors.webApiError";
+      case "webplayer_forbidden":
+        return "errors.webForbidden";
       case "webplayer_rate_limited":
         return "errors.webRateLimited";
       case "webplayer_premium":

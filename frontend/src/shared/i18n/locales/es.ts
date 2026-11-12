@@ -75,6 +75,9 @@ export const es: Record<MessageKey, string> = {
   "errors.webWidevine": "Widevine no está disponible en el entorno del reproductor web",
   "errors.webWidevineHint": "Actualiza o reinstala el entorno desde Configuración.",
   "errors.webApiError": "Spotify rechazó la solicitud del reproductor web",
+  "errors.webForbidden": "Spotify rechazó esta aplicación",
+  "errors.webForbiddenHint":
+    "Verificá que la cuenta sea Premium, esté autorizada para la app configurada y que Cadence Web esté disponible. Podés configurar tu propia app en Configuración → Reproductor web.",
   "errors.webRateLimited": "Spotify está limitando las solicitudes",
   "errors.webRateLimitedHint": "Espera un momento y vuelve a intentarlo.",
   "errors.webPremiumRequired": "Se requiere Spotify Premium para la reproducción web",

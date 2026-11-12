@@ -73,6 +73,9 @@ export const en = {
   "errors.webWidevine": "Widevine is not available in the web player runtime",
   "errors.webWidevineHint": "Update or reinstall the runtime from Settings.",
   "errors.webApiError": "Spotify rejected the web player request",
+  "errors.webForbidden": "Spotify rejected this app",
+  "errors.webForbiddenHint":
+    "Check that the account is Premium, authorized for the configured app, and that Cadence Web is available. You can configure your own app in Settings → Web player.",
   "errors.webRateLimited": "Spotify is rate limiting requests",
   "errors.webRateLimitedHint": "Wait a moment and try again.",
   "errors.webPremiumRequired": "Spotify Premium is required for web playback",

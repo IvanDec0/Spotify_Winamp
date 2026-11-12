@@ -827,3 +827,20 @@ func TestProviderStreamPrefersSDKPush(t *testing.T) {
 		t.Fatalf("/me/player calls = %d, want 0 while the SDK is active", calls)
 	}
 }
+
+func TestWebPlayerErrorForbiddenKeepsSpotifyMessage(t *testing.T) {
+	state := webErrorState(&APIError{
+		Status:  http.StatusForbidden,
+		Reason:  "USER_NOT_AUTHORIZED",
+		Message: "The user is not registered for this application",
+	})
+	if state.Error == nil {
+		t.Fatal("Error = nil")
+	}
+	if state.Error.Code != CodeForbidden {
+		t.Fatalf("code = %q, want %q", state.Error.Code, CodeForbidden)
+	}
+	if state.Error.Message != "The user is not registered for this application" {
+		t.Fatalf("message = %q", state.Error.Message)
+	}
+}

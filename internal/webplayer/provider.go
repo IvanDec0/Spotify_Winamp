@@ -819,6 +819,18 @@ func webPlayerError(err error) *playback.PlayerError {
 				Code:    CodeLoginRequired,
 				Message: "Connect Spotify to play through the web player.",
 			}
+		case apiErr.Status == 403:
+			message := strings.TrimSpace(apiErr.Message)
+			if message == "" {
+				message = strings.TrimSpace(apiErr.Reason)
+			}
+			if message == "" {
+				message = "Spotify rejected the request (HTTP 403)."
+			}
+			return &playback.PlayerError{
+				Code:    CodeForbidden,
+				Message: message,
+			}
 		case apiErr.Status >= 500:
 			return &playback.PlayerError{
 				Code:      CodeAPI,
