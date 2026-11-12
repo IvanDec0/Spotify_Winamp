@@ -414,6 +414,15 @@ func (s *Service) StartRadio(uri string) error {
 }
 
 func (s *Service) client() (*engine.Client, error) {
+	// In web and Soloist modes go-librespot is only the catalog sidecar. Start
+	// it on the first catalog call instead of keeping it resident from boot.
+	if s.enabled && s.supervisor != nil && s.supervisor.Available() && s.supervisor.Client() == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := s.supervisor.Start(ctx); err != nil {
+			return nil, err
+		}
+	}
 	return engineClient(s.supervisor)
 }
 

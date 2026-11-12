@@ -111,6 +111,7 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 		})
 	}
 	if s.enabled {
+		libraryOnly := s.backend == settings.BackendWeb || s.backend == settings.BackendSoloist
 		if s.soloist != nil && s.backend == settings.BackendSoloist {
 			ctx, cancel := context.WithCancel(context.Background())
 			s.mu.Lock()
@@ -118,11 +119,15 @@ func (s *Service) ServiceStartup(_ context.Context, _ application.ServiceOptions
 			s.mu.Unlock()
 			go s.maintainSoloist(ctx)
 		}
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			_ = s.supervisor.Start(ctx)
-		}()
+		if !libraryOnly {
+			// In librespot mode the supervisor is the audio engine and must be
+			// ready at startup. Web/Soloist start it on the first catalog call.
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				_ = s.supervisor.Start(ctx)
+			}()
+		}
 		if s.web != nil && s.backend == settings.BackendWeb {
 			// The web backend downloads its runtime, signs in and starts the
 			// helper once at startup so a first run needs no Settings visit.
