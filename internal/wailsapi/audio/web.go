@@ -29,6 +29,8 @@ type WebBackend interface {
 	Stop(context.Context) error
 	ClientID() string
 	Status() webplayer.Status
+	SetKeepAvailable(bool)
+	KeepAvailable() bool
 }
 
 // GetWebPlayerStatus returns the web player state without starting or
@@ -77,9 +79,10 @@ func (s *Service) StopWebPlayer() (WebPlayerStatus, error) {
 }
 
 // provisionWeb prepares the web backend in the background at startup: it
-// installs the Chromium runtime when missing, signs in when no session is
-// stored and starts the helper. Failures stay in the web player status; this
-// path never blocks the application start.
+// installs the Chromium runtime when missing and signs in when no session is
+// stored. The helper itself is started lazily by the first Play/PlayContext/
+// Transfer, unless the user opted into keeping the device available. Failures
+// stay in the web player status; this path never blocks the application start.
 func (s *Service) provisionWeb(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, webProvisionTimeout)
 	defer cancel()
@@ -130,7 +133,13 @@ func (s *Service) provisionWebPlayer(ctx context.Context) error {
 	if status.Running {
 		return nil
 	}
-	return s.web.EnsureStarted(ctx)
+	// Do not start the helper here. Chromium is the largest resident cost and
+	// the SDK device is only needed when the user actually plays something.
+	// EnsureStarted is called by Play, PlayContext and Transfer("").
+	if s.web.KeepAvailable() {
+		return s.web.EnsureStarted(ctx)
+	}
+	return nil
 }
 
 // webPlayerStatus maps the domain status to the generated frontend model. The

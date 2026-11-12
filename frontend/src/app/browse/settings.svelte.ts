@@ -100,6 +100,13 @@ export class BrowseSettingsStore {
     this.error = null;
   }
 
+  updateKeepWebAvailable(value: boolean): void {
+    if (!this.playback) return;
+    this.playback = { ...this.playback, keepWebAvailable: value };
+    this.notice = null;
+    this.error = null;
+  }
+
   async saveBackend(): Promise<void> {
     if (!this.playback || this.savingBackend) return;
     this.savingBackend = true;

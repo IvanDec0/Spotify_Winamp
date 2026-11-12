@@ -15,13 +15,14 @@ import (
 type fakeWebBackend struct {
 	mu sync.Mutex
 
-	status     webplayer.Status
-	clientID   string
-	loginErr   error
-	logoutErr  error
-	installErr error
-	startErr   error
-	stopErr    error
+	status        webplayer.Status
+	clientID      string
+	keepAvailable bool
+	loginErr      error
+	logoutErr     error
+	installErr    error
+	startErr      error
+	stopErr       error
 
 	loginCalls      int
 	logoutCalls     int
@@ -112,6 +113,18 @@ func (f *fakeWebBackend) ClientID() string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.clientID
+}
+
+func (f *fakeWebBackend) SetKeepAvailable(value bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.keepAvailable = value
+}
+
+func (f *fakeWebBackend) KeepAvailable() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.keepAvailable
 }
 
 func (f *fakeWebBackend) calls() (login, logout, install, start, stop int) {
@@ -291,20 +304,20 @@ func TestWebPlayerWithoutBackendIsSafe(t *testing.T) {
 	}
 }
 
-func TestProvisionWebPlayerInstallsLogsInAndStarts(t *testing.T) {
+func TestProvisionWebPlayerInstallsAndLogsInWithoutStarting(t *testing.T) {
 	fake := &fakeWebBackend{}
 	service := NewService(Options{Web: fake})
 
 	if err := service.provisionWebPlayer(context.Background()); err != nil {
 		t.Fatalf("provisionWebPlayer() error = %v", err)
 	}
-	want := []string{"install", "login", "start"}
+	want := []string{"install", "login"}
 	if got := fake.callOrder(); !slices.Equal(got, want) {
 		t.Fatalf("call order = %v, want %v", got, want)
 	}
 }
 
-func TestProvisionWebPlayerReusesRuntimeAndSession(t *testing.T) {
+func TestProvisionWebPlayerReusesRuntimeAndSessionWithoutStarting(t *testing.T) {
 	fake := &fakeWebBackend{status: webplayer.Status{
 		RuntimeInstalled: true,
 		LoggedIn:         true,
@@ -314,9 +327,8 @@ func TestProvisionWebPlayerReusesRuntimeAndSession(t *testing.T) {
 	if err := service.provisionWebPlayer(context.Background()); err != nil {
 		t.Fatalf("provisionWebPlayer() error = %v", err)
 	}
-	want := []string{"start"}
-	if got := fake.callOrder(); !slices.Equal(got, want) {
-		t.Fatalf("call order = %v, want %v", got, want)
+	if got := fake.callOrder(); len(got) != 0 {
+		t.Fatalf("call order = %v, want no calls", got)
 	}
 }
 
@@ -381,15 +393,15 @@ func TestProvisionWebPlayerLeavesAManualLoginAlone(t *testing.T) {
 	}
 }
 
-func TestProvisionWebPlayerReturnsTheStartFailure(t *testing.T) {
+func TestProvisionWebPlayerStartsOnlyWhenKeepAvailable(t *testing.T) {
 	fake := &fakeWebBackend{
-		status:   webplayer.Status{RuntimeInstalled: true, LoggedIn: true},
-		startErr: errors.New("runtime failed"),
+		status:        webplayer.Status{RuntimeInstalled: true, LoggedIn: true},
+		keepAvailable: true,
 	}
 	service := NewService(Options{Web: fake})
 
-	if err := service.provisionWebPlayer(context.Background()); !errors.Is(err, fake.startErr) {
-		t.Fatalf("provisionWebPlayer() error = %v, want the start error", err)
+	if err := service.provisionWebPlayer(context.Background()); err != nil {
+		t.Fatalf("provisionWebPlayer() error = %v", err)
 	}
 	want := []string{"start"}
 	if got := fake.callOrder(); !slices.Equal(got, want) {

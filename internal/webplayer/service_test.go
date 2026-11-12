@@ -297,3 +297,18 @@ func TestServiceStatusTracksLastError(t *testing.T) {
 		t.Fatalf("Status().LastError after Logout() = %q", got)
 	}
 }
+
+func TestKeepAvailablePreference(t *testing.T) {
+	service := newServiceForTest(t, ServiceOptions{})
+	if service.KeepAvailable() {
+		t.Fatal("KeepAvailable() = true by default, want false")
+	}
+	service.SetKeepAvailable(true)
+	if !service.KeepAvailable() {
+		t.Fatal("KeepAvailable() = false after SetKeepAvailable(true)")
+	}
+	service.SetKeepAvailable(false)
+	if service.KeepAvailable() {
+		t.Fatal("KeepAvailable() = true after SetKeepAvailable(false)")
+	}
+}

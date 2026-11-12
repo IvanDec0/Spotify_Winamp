@@ -149,8 +149,10 @@ func main() {
 		engineSettings = defaults.Engine
 	}
 	playbackBackend := settings.BackendWeb
+	keepWebAvailable := false
 	if savedSettings.Playback != nil {
 		playbackBackend = settings.NormalizePlaybackBackend(savedSettings.Playback.Backend)
+		keepWebAvailable = savedSettings.Playback.KeepWebAvailable
 	}
 	soloistMode := playbackBackend == settings.BackendSoloist
 	webMode := playbackBackend == settings.BackendWeb
@@ -198,8 +200,9 @@ func main() {
 	var webService *webplayer.Service
 	if !*demoMode {
 		options := webplayer.ServiceOptions{
-			ClientID: webClientID(),
-			Art:      artCache,
+			ClientID:      webClientID(),
+			Art:           artCache,
+			KeepAvailable: keepWebAvailable,
 		}
 		if developerService != nil {
 			options.OpenURL = developerService.OpenOAuthURL

@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cadence/internal/artwork"
@@ -33,8 +34,15 @@ const (
 )
 
 // readyTimeout bounds how long EnsureStarted waits for the helper's ready
-// event.
+// event on a cold profile. Once Widevine is installed, a warm start uses the
+// shorter warmReadyTimeout.
 var readyTimeout = 2 * time.Minute
+
+const (
+	warmReadyTimeout  = 15 * time.Second
+	idleCheckInterval = time.Minute
+	idleStopAfter     = 10 * time.Minute
+)
 
 // ServiceOptions configures the web player service. Zero values select the
 // production defaults; NewService performs no network access, starts no
@@ -50,6 +58,9 @@ type ServiceOptions struct {
 	OpenURL     func(string) error
 	Art         *artwork.Cache
 	Now         func() time.Time
+	// KeepAvailable keeps the SDK device connected at startup and disables the
+	// idle shutdown. The default is lazy: the helper starts on first playback.
+	KeepAvailable bool
 }
 
 // Service owns the web player runtime, OAuth session and provider.
@@ -75,6 +86,8 @@ type Service struct {
 	control   *Control
 	deviceID  string
 	lastError string
+
+	keepAvailable atomic.Bool
 }
 
 // Status is the web player status shown by the settings UI. It never starts
@@ -163,8 +176,20 @@ func NewService(opts ServiceOptions) (*Service, error) {
 		api:         NewWebAPI(WebAPIOptions{Tokens: oauth, HTTPClient: client, Now: opts.Now}),
 		runtime:     NewRuntime(RuntimeOptions{Root: opts.Root, HTTPClient: opts.HTTPClient, Now: opts.Now}),
 	}
+	service.keepAvailable.Store(opts.KeepAvailable)
 	service.provider = NewProvider(service, opts.Art)
 	return service, nil
+}
+
+// SetKeepAvailable changes the keep-always-connected preference. It does not
+// start or stop the helper; the caller decides whether to call EnsureStarted.
+func (s *Service) SetKeepAvailable(value bool) {
+	s.keepAvailable.Store(value)
+}
+
+// KeepAvailable reports whether the helper should stay connected while idle.
+func (s *Service) KeepAvailable() bool {
+	return s.keepAvailable.Load()
 }
 
 // Provider returns the playback provider backed by this service.
@@ -297,7 +322,11 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 		_ = control.Close()
 		return err
 	}
-	deviceID, err := waitForReady(ctx, helperProcess, control)
+	timeout := readyTimeout
+	if s.hasWidevine() {
+		timeout = warmReadyTimeout
+	}
+	deviceID, err := waitForReady(ctx, helperProcess, control, timeout)
 	if err != nil {
 		logProcessTail(helperProcess)
 		_ = control.Close()
@@ -313,6 +342,7 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	s.deviceID = deviceID
 	s.mu.Unlock()
 	go s.watchProcess(helperProcess, control)
+	go s.watchIdle(helperProcess, deviceID)
 	return nil
 }
 
@@ -491,6 +521,58 @@ func (s *Service) ensureServer() error {
 	return nil
 }
 
+// hasWidevine reports whether the helper profile already has a Widevine CDM.
+// The first launch may need to download it, so it gets the longer timeout.
+func (s *Service) hasWidevine() bool {
+	entries, err := os.ReadDir(filepath.Join(s.root, "profile", "WidevineCdm"))
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			return true
+		}
+	}
+	return false
+}
+
+// watchIdle stops the helper after a long pause when the SDK device is not the
+// active Spotify Connect device. It never stops while the SDK device is active
+// (playing or paused), and it is disabled by keepAvailable.
+func (s *Service) watchIdle(process *Process, deviceID string) {
+	ticker := time.NewTicker(idleCheckInterval)
+	defer ticker.Stop()
+	lastActive := time.Now()
+	for {
+		select {
+		case <-process.Done():
+			return
+		case <-ticker.C:
+			if s.KeepAvailable() {
+				lastActive = time.Now()
+				continue
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			state, err := s.provider.State(ctx)
+			cancel()
+			if err != nil {
+				continue
+			}
+			if state.Device.ID == deviceID && state.Device.Active {
+				lastActive = time.Now()
+				continue
+			}
+			if time.Since(lastActive) < idleStopAfter {
+				continue
+			}
+			stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			_ = s.Stop(stopCtx)
+			stopCancel()
+			return
+		}
+	}
+}
+
 // watchProcess clears the ephemeral device id when the helper exits and keeps
 // the redacted tail for diagnostics.
 func (s *Service) watchProcess(process *Process, control *Control) {
@@ -506,8 +588,11 @@ func (s *Service) watchProcess(process *Process, control *Control) {
 	logProcessTail(process)
 }
 
-func waitForReady(ctx context.Context, process *Process, control *Control) (string, error) {
-	timer := time.NewTimer(readyTimeout)
+func waitForReady(ctx context.Context, process *Process, control *Control, timeout time.Duration) (string, error) {
+	if timeout <= 0 {
+		timeout = readyTimeout
+	}
+	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	for {
 		select {

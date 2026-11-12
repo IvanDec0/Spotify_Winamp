@@ -547,7 +547,10 @@ func (s *Service) GetPlaybackSettings() (PlaybackSettings, error) {
 	if config.Playback == nil {
 		return PlaybackSettings{Backend: settings.BackendWeb}, nil
 	}
-	return PlaybackSettings{Backend: settings.NormalizePlaybackBackend(config.Playback.Backend)}, nil
+	return PlaybackSettings{
+		Backend:          settings.NormalizePlaybackBackend(config.Playback.Backend),
+		KeepWebAvailable: config.Playback.KeepWebAvailable,
+	}, nil
 }
 
 // SetPlaybackSettings validates and persists the audio backend. It never
@@ -557,12 +560,25 @@ func (s *Service) SetPlaybackSettings(value PlaybackSettings) (PlaybackSettings,
 	if s.settings == nil {
 		return PlaybackSettings{}, errors.New("the settings store is not configured")
 	}
-	saved := PlaybackSettings{Backend: settings.NormalizePlaybackBackend(value.Backend)}
+	saved := PlaybackSettings{
+		Backend:          settings.NormalizePlaybackBackend(value.Backend),
+		KeepWebAvailable: value.KeepWebAvailable,
+	}
 	if err := s.settings.UpdatePlayback(func(state *settings.PlaybackState) error {
 		*state = saved
 		return nil
 	}); err != nil {
 		return PlaybackSettings{}, err
+	}
+	if s.web != nil {
+		s.web.SetKeepAvailable(saved.KeepWebAvailable)
+		if saved.KeepWebAvailable && saved.Backend == settings.BackendWeb {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+				defer cancel()
+				_ = s.web.EnsureStarted(ctx)
+			}()
+		}
 	}
 	return saved, nil
 }

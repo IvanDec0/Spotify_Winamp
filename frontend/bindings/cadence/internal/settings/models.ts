@@ -25,4 +25,5 @@ export interface EngineState {
  */
 export interface PlaybackState {
     "backend": string;
+    "keepWebAvailable": boolean;
 }

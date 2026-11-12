@@ -52,6 +52,10 @@ type EngineState struct {
 // effect on the next application start.
 type PlaybackState struct {
 	Backend string `json:"backend"`
+	// KeepWebAvailable keeps the SDK device connected while Cadence is idle.
+	// The default is false: the helper starts on the first playback and stops
+	// after a long pause.
+	KeepWebAvailable bool `json:"keepWebAvailable,omitempty"`
 }
 
 // Config is the root configuration document. New top-level sections can be

@@ -283,6 +283,9 @@ export const en = {
   "browse.settingsBackendRestart":
     "Restart Cadence to switch the audio backend. Playback keeps using the current engine until then.",
   "browse.settingsBackendSaved": "Audio backend saved. Restart Cadence to apply it.",
+  "browse.settingsKeepWebAvailable": "Keep Cadence Web available",
+  "browse.settingsKeepWebAvailableHelp":
+    "Keeps the browser helper connected while Cadence is idle so Cadence Web stays selectable as a Spotify Connect device. Uses more memory.",
   "browse.soloistTitle": "Spotify Soloist",
   "browse.soloistIntro":
     "Soloist is Spotify's audio player for Premium accounts. Cadence downloads it from Spotify when you ask; it is never bundled.",
@@ -372,7 +375,7 @@ export const en = {
     "Official Spotify Web Playback SDK in a bundled Chromium runtime. No Spotify app is required; Premium is required. Library and search keep using go-librespot.",
   "browse.webTitle": "Web player",
   "browse.webIntro":
-    "Plays through Spotify's official Web Playback SDK in a bundled Chromium runtime. Cadence downloads the runtime, signs in and starts it automatically at startup. It does not use the Spotify desktop app; Spotify Premium is required.",
+    "Plays through Spotify's official Web Playback SDK in a bundled Chromium runtime. Cadence downloads the runtime, signs in, and starts the helper on the first playback. Enable Keep Cadence Web available if you want it connected at startup. It does not use the Spotify desktop app; Spotify Premium is required.",
   "browse.webClientId": "Client ID",
   "browse.webConfigureApp": "Configure app automatically",
   "browse.webConfigureDone": "Spotify app configured.",
