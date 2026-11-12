@@ -735,4 +735,39 @@ EOF
 
 Resultado medido: `WIDEVINE_OK`, `rms 0.14118`, `peak 0.20000`, PSS del árbol Brave **262 MB**.
 
+## 13. Resultados de la implementación (2026-11-12)
+
+Rama `perf/runtime-optimizations`. Todo lo siguiente está implementado y probado con `go test ./...` y `npm run check`/`build`.
+
+| Cambio | Antes | Después | Ganancia |
+|---|---:|---:|---:|
+| PSS en reposo (web, sin reproducir) | 725 MB | **353 MB** | **-372 MB (-51 %)** |
+| Helper Electron en reposo | 357 MB PSS | **0** (no se lanza) | -357 MB |
+| go-librespot en reposo | 25 MB PSS | **0** (se lanza al abrir Browse) | -25 MB |
+| AppImage | 115.5 MB | **106.5 MB** | **-9.0 MB** |
+| Tarball | 16.2 MB | **14.28 MB** | **-1.9 MB** |
+| Binario `cadence` | 18.1 MB | **16.97 MB** | **-1.14 MB** |
+| Fuentes del frontend | 2.1 MB | **964 KB** | **-1.17 MB** |
+| Runtime Electron (versiones viejas) | hasta 2 versiones | **1** | hasta -283 MB |
+| Perfil developer (Widevine/crx) | 42 MB duplicados | **0** | -42 MB |
+
+### Qué quedó implementado
+
+- **Arranque lazy del helper**: `provisionWeb` instala y autentica, pero no lanza Electron. `EnsureStarted` espera el `ready` real (15 s en caliente, 2 min en frío si falta Widevine) y recién entonces el provider llama al Web API. El retry posterior es corto (3 × 500 ms) y solo cubre el device que todavía no aparece.
+- **Apagado por inactividad**: a los 10 min en pausa, si el device SDK no es el activo, el helper se detiene. Nunca mientras el device SDK está activo. El toggle **Mantener Cadence Web disponible** (default apagado) desactiva el apagado y arranca el helper al inicio.
+- **Push de estado**: `page.js` reenvía `player_state_changed` por el control WS; Go interpola la posición con `position + timestamp`. Mientras el device SDK está activo, el provider no llama `/me/player`; el polling queda como reconciliación y es adaptativo (3 s reproduciendo, 5 s pausado, 10 s detenido). `Retry-After` en 429 ya estaba implementado y sigue vigente.
+- **Developer helper**: recibe `--disable-component-update`, no llama `components.whenReady()` y poda `WidevineCdm`/`component_crx_cache` al construirse.
+- **Login OAuth**: usa el navegador del sistema (`xdg-open`), no el helper de Electron. El helper de developer queda solo para el setup único (Client ID / Soloist key).
+- **Pdeathsig**: el proceso se lanza desde una goroutine con `runtime.LockOSThread()` que vive hasta que el helper termina.
+- **Flags de memoria**: `--enable-low-end-device-mode`, `--js-flags=--max-old-space-size=64`, `--disable-features=MediaRouter,Translate,OptimizationHints`. Medición: 360 MB PSS (sin cambio significativo frente a 357 MB). `--disable-gpu` baja a **338 MB PSS (-22 MB)**, pero queda opt-in con `CADENCE_WEB_DISABLE_GPU=1` porque el ahorro es modesto y conviene medir CPU en cada equipo. Widevine siguió funcionando en ambos casos (el helper llegó a `ready`).
+- **Caches**: artwork 64 → 32 MB de RAM y 256 → 128 MB de disco; letras con tope de 2000 archivos / 16 MB y poda de las más viejas.
+- **Build**: fuentes WOFF2, screenshots fuera del tarball, AppImage con zstd-19 y bloque de 1 MB (appimagetool), y el runtime conserva una sola versión.
+
+### Pendiente / próximos pasos
+
+- **Smoke test de reproducción real** para el push de estado: la unidad está cubierta con un backend falso; falta reproducir una pista con el SDK real y verificar que `/me/player` deja de llamarse mientras el device SDK está activo.
+- **AppImage lean / `.deb`/`.rpm`**: sigue siendo la ganancia grande de tamaño (~42 MB / ~17 MB), pero toca WebKit y quedó fuera de este cambio por pedido explícito.
+- **Browser del sistema en lugar de Electron**: el PoC de la sección 12 sigue válido; no se implementó en esta rama.
+- **`--disable-gpu`**: evaluar CPU en hardware real antes de hacerlo default.
+
 **Nota final:** este documento es un diagnóstico con un plan de acción. Las P0 no cambian la arquitectura ni la experiencia; las P1 sí implican decisiones de producto (especialmente el reemplazo de Electron por el browser del sistema). Cualquier cambio de empaquetado debe validarse en una VM limpia de al menos Arch, Fedora y Ubuntu 24.04 antes de publicarse.
