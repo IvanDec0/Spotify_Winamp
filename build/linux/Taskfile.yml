@@ -37,6 +37,7 @@ tasks:
       - task: build
     cmds:
       - task: create:appimage
+      - task: create:appimage:lean
       - task: create:tarball
       - task: checksums
 
@@ -96,6 +97,19 @@ tasks:
       - '{{.APPIMAGETOOL}} --appimage-extract-and-run --no-appstream --comp zstd --mksquashfs-opt -b --mksquashfs-opt 1M --mksquashfs-opt -Xcompression-level --mksquashfs-opt 19 "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir" "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage"' 
       - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/out"
 
+  create:appimage:lean:
+    summary: Creates a lean AppImage that uses the system WebKitGTK 6.0
+    deps:
+      - task: create:appimage
+    cmds:
+      # Reuse the portable AppDir and drop the WebKit libraries and helpers.
+      # The host must provide WebKitGTK 6.0 (Arch, Fedora 40+, Ubuntu 24.04+).
+      - cp -a "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}.AppDir" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir"
+      - rm -f "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir/usr/lib/libwebkitgtk-6.0.so.4" "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir/usr/lib/libjavascriptcoregtk-6.0.so.1"
+      - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir/usr/lib/webkitgtk-6.0"
+      - '{{.APPIMAGETOOL}} --appimage-extract-and-run --no-appstream --comp zstd --mksquashfs-opt -b --mksquashfs-opt 1M --mksquashfs-opt -Xcompression-level --mksquashfs-opt 19 "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir" "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}-lean.AppImage"'
+      - rm -rf "{{.ROOT_DIR}}/build/linux/appimage/build/{{.APP_NAME}}-{{.ARCH}}-lean.AppDir"
+
   create:tarball:
     summary: Creates a portable tar.gz archive with the audio engine
     deps:
@@ -121,7 +135,7 @@ tasks:
     dir: '{{.ROOT_DIR}}/{{.BIN_DIR}}'
     cmds:
       - rm -f "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
-      - sha256sum "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage" "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.tar.gz" > "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
+      - sha256sum "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.AppImage" "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}-lean.AppImage" "{{.APP_NAME}}-{{.APP_VERSION}}-linux-{{.ARCH}}.tar.gz" > "{{.APP_NAME}}-{{.APP_VERSION}}-SHA256SUMS"
 
   generate:dotdesktop:
     summary: Generates the Linux .desktop entry

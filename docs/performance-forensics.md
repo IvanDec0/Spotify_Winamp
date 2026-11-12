@@ -399,7 +399,7 @@ RSS sumado: ~1.7 GB. El heap Go es de **4 MB** y hay **18 goroutines**; el costo
 ### P0 — Esta semana (impacto alto, riesgo bajo)
 
 **P0.1 — Publicar `.deb`/`.rpm` además del AppImage.**
-- Portar las tareas `create:deb`/`create:rpm` y `build/linux/nfpm/nfpm.yaml` desde el scaffold de Wails v3: este repo reemplazó el Taskfile de Linux y hoy solo genera AppImage + tarball.
+- Portar las tareas `create:deb`/`create:rpm` y `build/linux/nfpm/nfpm.yaml` desde el scaffold de Wails v3: este repo reemplazó el Taskfile de Linux y hoy genera AppImage portable, AppImage lean y tarball.
 - Declarar dependencias: `gtk4`, `webkitgtk-6.0`, `libsoup3`, `libmpg123`, `libFLAC`, `libvorbis`, `libogg`, `alsa-lib`.
 - Impacto esperado: **115.5 MB → ~17 MB** para usuarios de distros modernas.
 - Verificación: instalar en una VM limpia de Arch/Fedora/Ubuntu 24.04 y abrir la app.
@@ -744,7 +744,8 @@ Rama `perf/runtime-optimizations`. Todo lo siguiente está implementado y probad
 | PSS en reposo (web, sin reproducir) | 725 MB | **353 MB** | **-372 MB (-51 %)** |
 | Helper Electron en reposo | 357 MB PSS | **0** (no se lanza) | -357 MB |
 | go-librespot en reposo | 25 MB PSS | **0** (se lanza al abrir Browse) | -25 MB |
-| AppImage | 115.5 MB | **106.5 MB** | **-9.0 MB** |
+| AppImage portable | 115.5 MB | **106.5 MB** | **-9.0 MB** |
+| AppImage lean (WebKit del sistema) | — | **62.7 MB** | **-43.8 MB vs portable** |
 | Tarball | 16.2 MB | **14.28 MB** | **-1.9 MB** |
 | Binario `cadence` | 18.1 MB | **16.97 MB** | **-1.14 MB** |
 | Fuentes del frontend | 2.1 MB | **964 KB** | **-1.17 MB** |
@@ -766,7 +767,7 @@ Rama `perf/runtime-optimizations`. Todo lo siguiente está implementado y probad
 ### Pendiente / próximos pasos
 
 - **Smoke test de reproducción real** para el push de estado: la unidad está cubierta con un backend falso; falta reproducir una pista con el SDK real y verificar que `/me/player` deja de llamarse mientras el device SDK está activo.
-- **AppImage lean / `.deb`/`.rpm`**: sigue siendo la ganancia grande de tamaño (~42 MB / ~17 MB), pero toca WebKit y quedó fuera de este cambio por pedido explícito.
+- **AppImage lean**: implementado como segundo artefacto (`cadence-<version>-linux-x86_64-lean.AppImage`, 62.7 MB). Usa WebKitGTK 6.0 del sistema; requiere `gtk4`, `webkitgtk-6.0` y `libsoup3`. El `.deb`/`.rpm` (~17 MB) sigue pendiente.
 - **Browser del sistema en lugar de Electron**: el PoC de la sección 12 sigue válido; no se implementó en esta rama.
 - **`--disable-gpu`**: evaluar CPU en hardware real antes de hacerlo default.
 

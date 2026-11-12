@@ -3,20 +3,22 @@
 Cadence 0.2.0 is distributed for **Arch Linux x86_64** as:
 
 - `cadence-0.2.0-linux-x86_64.AppImage` — a self-contained bundle with the
-  patched `go-librespot` engine.
+  patched `go-librespot` engine (~107 MB). It bundles WebKitGTK and its helpers.
+- `cadence-0.2.0-linux-x86_64-lean.AppImage` — the same app without the bundled
+  WebKitGTK/JSC libraries (~63 MB). It uses the host's WebKitGTK 6.0.
 - `cadence-0.2.0-linux-x86_64.tar.gz` — Cadence, the engine, the four bundled
   skins, README, CHANGELOG, notices, licenses and `docs/`.
-- `cadence-0.2.0-SHA256SUMS` — SHA-256 checksums for both artifacts.
+- `cadence-0.2.0-SHA256SUMS` — SHA-256 checksums for all artifacts.
 
-Both artifacts are built from the repository with `task package`.
+All artifacts are built from the repository with `task package`.
 
 ## Requirements
 
 - Arch Linux x86_64.
 - A Spotify **Premium** account.
 - PipeWire with `pipewire-pulse`, or PulseAudio.
-- For the tarball: `gtk4`, `webkitgtk-6.0` and `libsoup3`. The AppImage bundles
-  these libraries.
+- For the lean AppImage and the tarball: `gtk4`, `webkitgtk-6.0` and
+  `libsoup3`. The portable AppImage bundles these libraries.
 - Engine codec libraries: `libogg`, `libvorbis`, `flac`, `mpg123`, `alsa-lib`
   and `libpulse`.
 - `parec` and `pactl` for the real visualizer. Both ship in the `libpulse`
@@ -24,7 +26,7 @@ Both artifacts are built from the repository with `task package`.
   needs it.
 
 The Spotify web player is the default playback backend, but its Chromium runtime
-is never part of the AppImage, the tarball or the release checksums. Cadence
+is never part of any AppImage, the tarball or the release checksums. Cadence
 downloads the right build at first launch (~120 MB, SHA-256 verified), opens the
 Spotify login in your system browser only when no session is stored, and starts
 the playback helper on the first play (enable **Keep Cadence Web available** to
@@ -323,9 +325,9 @@ Use this on a fresh Arch Linux x86_64 machine:
 
 - [ ] Install the system dependencies and start PipeWire with
       `pipewire-pulse`, or PulseAudio.
-- [ ] Download both artifacts and `cadence-0.2.0-SHA256SUMS`; run
+- [ ] Download all three artifacts and `cadence-0.2.0-SHA256SUMS`; run
       `sha256sum -c cadence-0.2.0-SHA256SUMS`.
-- [ ] Run `--version` from the AppImage and from the tarball; both print
+- [ ] Run `--version` from the portable AppImage, the lean AppImage and the tarball; all print
       `Cadence 0.2.0 (<short commit>)` without opening a window.
 - [ ] Start Cadence without `--demo`, wait for the Chromium runtime download,
       and complete the Spotify login in your system browser if it appears. The

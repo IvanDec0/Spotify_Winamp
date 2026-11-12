@@ -284,7 +284,7 @@ typed key list lives in `frontend/src/shared/i18n/locales/en.ts`.
 
 `.github/workflows/release.yml` builds the same artifacts on a `v*` tag and publishes a GitHub release. The tag must match `version` in `build/config.yml`.
 
-`task package` builds the engine with `task audio:build` when it is missing, bundles `go-librespot` in both artifacts and writes SHA-256 checksums. Packaging requires the audio CGO libraries listed in [`installation.md`](installation.md).
+`task package` builds the engine with `task audio:build` when it is missing, bundles `go-librespot` in all artifacts and writes SHA-256 checksums. Packaging requires the audio CGO libraries listed in [`installation.md`](installation.md).
 
 ## Troubleshooting
 
