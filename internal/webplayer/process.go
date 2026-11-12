@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -119,10 +120,6 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 	cmd.SysProcAttr = helperSysProcAttr()
 	cmd.Stdout = writer
 	cmd.Stderr = writer
-	if err := cmd.Start(); err != nil {
-		_ = writer.Close()
-		return nil, codedError(CodeStartFailed, "cannot start the web player helper", err)
-	}
 
 	process := &Process{
 		cmd:      cmd,
@@ -131,6 +128,27 @@ func (r *Runtime) Start(ctx context.Context, install Install, opts StartOptions)
 		log:      writer,
 		stopDone: make(chan struct{}),
 	}
+
+	// Pdeathsig is attached to the OS thread that forked the child, not to the
+	// process. Go may retire that thread at any time, which would send SIGTERM
+	// to a healthy helper. Start the process from a locked thread and keep the
+	// thread alive until the helper exits.
+	started := make(chan error, 1)
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		if err := cmd.Start(); err != nil {
+			started <- err
+			return
+		}
+		started <- nil
+		<-process.done
+	}()
+	if err := <-started; err != nil {
+		_ = writer.Close()
+		return nil, codedError(CodeStartFailed, "cannot start the web player helper", err)
+	}
+
 	go process.wait(cmd)
 	return process, nil
 }
