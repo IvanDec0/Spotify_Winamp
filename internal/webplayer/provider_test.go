@@ -588,13 +588,17 @@ func TestProviderRevisionOnlyChangesOnStateChange(t *testing.T) {
 func TestProviderStreamEmitsOnChangeAndSurvivesLogin(t *testing.T) {
 	previousPlayer, previousDevices := webStreamPlayerInterval, webStreamDevicesInterval
 	previousLogin, previousError := webStreamLoginInterval, webStreamErrorInterval
+	previousPaused, previousIdle := webStreamPausedInterval, webStreamIdleInterval
 	webStreamPlayerInterval = 5 * time.Millisecond
 	webStreamDevicesInterval = 10 * time.Millisecond
 	webStreamLoginInterval = 5 * time.Millisecond
 	webStreamErrorInterval = 10 * time.Millisecond
+	webStreamPausedInterval = 5 * time.Millisecond
+	webStreamIdleInterval = 5 * time.Millisecond
 	defer func() {
 		webStreamPlayerInterval, webStreamDevicesInterval = previousPlayer, previousDevices
 		webStreamLoginInterval, webStreamErrorInterval = previousLogin, previousError
+		webStreamPausedInterval, webStreamIdleInterval = previousPaused, previousIdle
 	}()
 
 	var mu sync.Mutex
@@ -670,4 +674,129 @@ func jsonEqual(left, right any) bool {
 		return false
 	}
 	return string(leftJSON) == string(rightJSON)
+}
+
+func TestMapSDKStateInterpolatesPosition(t *testing.T) {
+	backend := &fakeProviderBackend{deviceID: "sdk-dev", running: true, loggedIn: true}
+	provider := &Provider{backend: backend, deviceName: "Cadence Web"}
+	at := time.Now().Add(-2 * time.Second)
+	state := provider.mapSDKState(SDKState{
+		IsPlaying:  true,
+		PositionMS: 1000,
+		DurationMS: 10000,
+		Track: SDKTrack{
+			URI:        "spotify:track:1",
+			Name:       "Song",
+			Artists:    []string{"Artist"},
+			Album:      "Album",
+			DurationMS: 10000,
+		},
+	}, at, []apiDevice{{
+		ID:            "sdk-dev",
+		Name:          "Cadence Web",
+		Type:          "Computer",
+		IsActive:      true,
+		VolumePercent: 42,
+	}})
+
+	if state.Status != playback.StatusPlaying {
+		t.Fatalf("status = %q, want playing", state.Status)
+	}
+	if state.ProgressMS < 2500 || state.ProgressMS > 4000 {
+		t.Fatalf("progress = %d, want interpolated around 3000", state.ProgressMS)
+	}
+	if state.Track.Title != "Song" || state.Track.URI != "spotify:track:1" {
+		t.Fatalf("track = %#v", state.Track)
+	}
+	if state.Device.ID != "sdk-dev" || !state.Device.Active || state.Volume != 42 {
+		t.Fatalf("device = %#v, volume = %d", state.Device, state.Volume)
+	}
+	if !state.CanSeek {
+		t.Fatal("CanSeek = false, want true")
+	}
+}
+
+type fakeSDKProviderBackend struct {
+	*fakeProviderBackend
+	state SDKState
+}
+
+func (f *fakeSDKProviderBackend) SDKState() (SDKState, time.Time, bool) {
+	return f.state, time.Now().Add(-time.Second), true
+}
+
+func TestProviderStreamPrefersSDKPush(t *testing.T) {
+	previousPlayer, previousDevices := webStreamPlayerInterval, webStreamDevicesInterval
+	previousSDK, previousFresh := webStreamSDKInterval, webStreamSDKFreshness
+	webStreamPlayerInterval = 5 * time.Millisecond
+	webStreamDevicesInterval = time.Minute
+	webStreamSDKInterval = 5 * time.Millisecond
+	webStreamSDKFreshness = time.Minute
+	defer func() {
+		webStreamPlayerInterval, webStreamDevicesInterval = previousPlayer, previousDevices
+		webStreamSDKInterval, webStreamSDKFreshness = previousSDK, previousFresh
+	}()
+
+	var mu sync.Mutex
+	playerCalls := 0
+	server, _ := newAPITestServer(t, func(writer http.ResponseWriter, request *http.Request, _ []byte) {
+		writer.Header().Set("Content-Type", "application/json")
+		if request.URL.Path == "/me/player/devices" {
+			_, _ = writer.Write([]byte(`{"devices":[{"id":"sdk-dev","is_active":true,"name":"Cadence Web","type":"Computer","volume_percent":55}]}`))
+			return
+		}
+		if request.URL.Path == "/me/player" {
+			mu.Lock()
+			playerCalls++
+			mu.Unlock()
+			writer.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		http.NotFound(writer, request)
+	})
+
+	backend := &fakeSDKProviderBackend{
+		fakeProviderBackend: &fakeProviderBackend{loggedIn: true, running: true, deviceID: "sdk-dev"},
+		state: SDKState{
+			IsPlaying:  true,
+			PositionMS: 1000,
+			DurationMS: 10000,
+			Track:      SDKTrack{URI: "spotify:track:1", Name: "Pushed Song", DurationMS: 10000},
+		},
+	}
+	backend.api = webAPIForTest(t, server.URL, fakeTokenSource{token: "token", expiry: time.Now().Add(time.Hour)}, nil)
+	provider := NewProvider(backend, artwork.New(http.DefaultClient))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	states := make(chan playback.PlayerState, 16)
+	streamErr := make(chan error, 1)
+	go func() {
+		streamErr <- provider.Stream(ctx, func(state playback.PlayerState) {
+			states <- state
+		})
+	}()
+
+	state := waitForProviderState(t, states)
+	if state.Track.Title != "Pushed Song" {
+		t.Fatalf("track = %#v, want the pushed SDK track", state.Track)
+	}
+	if state.Volume != 55 {
+		t.Fatalf("volume = %d, want 55", state.Volume)
+	}
+	cancel()
+	select {
+	case err := <-streamErr:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Stream() error = %v, want context.Canceled", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Stream() did not return after cancellation")
+	}
+	mu.Lock()
+	calls := playerCalls
+	mu.Unlock()
+	if calls != 0 {
+		t.Fatalf("/me/player calls = %d, want 0 while the SDK is active", calls)
+	}
 }

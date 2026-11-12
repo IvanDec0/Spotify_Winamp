@@ -170,6 +170,34 @@ function connectControl() {
   });
 }
 
+function trimString(value, limit) {
+  return String(value || "").slice(0, limit);
+}
+
+function sanitizePlayerState(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const track = value.track && typeof value.track === "object" ? value.track : {};
+  const artists = Array.isArray(track.artists)
+    ? track.artists.slice(0, 8).map((artist) => trimString(artist, 128))
+    : [];
+  return {
+    isPlaying: Boolean(value.isPlaying),
+    paused: Boolean(value.paused),
+    positionMs: Math.max(0, Number(value.positionMs) || 0),
+    durationMs: Math.max(0, Number(value.durationMs) || 0),
+    track: {
+      uri: trimString(track.uri, 512),
+      name: trimString(track.name, 512),
+      artists,
+      album: trimString(track.album, 512),
+      imageUrl: trimString(track.imageUrl, 2048),
+      durationMs: Math.max(0, Number(track.durationMs) || 0),
+    },
+  };
+}
+
 function installIPC() {
   ipcMain.on("cadence:ready", (_event, deviceID) => {
     if (typeof deviceID !== "string" || deviceID.length === 0) {
@@ -179,6 +207,12 @@ function installIPC() {
   });
   ipcMain.on("cadence:error", (_event, code, message) => {
     sendError(code || "sdk_error", message || "");
+  });
+  ipcMain.on("cadence:state", (_event, value) => {
+    const state = sanitizePlayerState(value);
+    if (state) {
+      sendControl({ type: "state", player: state });
+    }
   });
 }
 

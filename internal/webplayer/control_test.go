@@ -243,6 +243,41 @@ func TestControlRejectsNonGet(t *testing.T) {
 	}
 }
 
+func TestControlAcceptsAndSanitizesState(t *testing.T) {
+	control, err := NewControl()
+	if err != nil {
+		t.Fatalf("new control: %v", err)
+	}
+	t.Cleanup(func() { _ = control.Close() })
+
+	conn, _ := dialControl(t, control.URL())
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := wsjson.Write(ctx, conn, Message{Type: "hello", Version: "1"}); err != nil {
+		t.Fatalf("hello: %v", err)
+	}
+	if err := wsjson.Write(ctx, conn, Message{
+		Type: "state",
+		Player: &SDKState{
+			IsPlaying:  true,
+			PositionMS: 1234,
+			Track:      SDKTrack{Name: strings.Repeat("x", sdkTrackStringLimit+10)},
+		},
+	}); err != nil {
+		t.Fatalf("state: %v", err)
+	}
+	message := waitForEvent(t, control)
+	if message.Type != "state" || message.Player == nil {
+		t.Fatalf("event = %+v, want a player state", message)
+	}
+	if message.Player.PositionMS != 1234 || !message.Player.IsPlaying {
+		t.Fatalf("player state = %+v", message.Player)
+	}
+	if len([]rune(message.Player.Track.Name)) != sdkTrackStringLimit {
+		t.Fatalf("track name length = %d, want %d", len([]rune(message.Player.Track.Name)), sdkTrackStringLimit)
+	}
+}
+
 func TestControlCloseIsIdempotent(t *testing.T) {
 	control, err := NewControl()
 	if err != nil {

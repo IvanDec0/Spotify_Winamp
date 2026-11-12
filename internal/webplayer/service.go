@@ -88,6 +88,10 @@ type Service struct {
 	lastError string
 
 	keepAvailable atomic.Bool
+
+	sdkMu    sync.Mutex
+	sdkState *SDKState
+	sdkAt    time.Time
 }
 
 // Status is the web player status shown by the settings UI. It never starts
@@ -190,6 +194,35 @@ func (s *Service) SetKeepAvailable(value bool) {
 // KeepAvailable reports whether the helper should stay connected while idle.
 func (s *Service) KeepAvailable() bool {
 	return s.keepAvailable.Load()
+}
+
+// SDKState returns the last player_state_changed snapshot and when it was
+// received. It is used by the provider to avoid polling while the SDK device
+// is active.
+func (s *Service) SDKState() (SDKState, time.Time, bool) {
+	s.sdkMu.Lock()
+	defer s.sdkMu.Unlock()
+	if s.sdkState == nil {
+		return SDKState{}, time.Time{}, false
+	}
+	return *s.sdkState, s.sdkAt, true
+}
+
+func (s *Service) setSDKState(state *SDKState) {
+	if state == nil {
+		return
+	}
+	s.sdkMu.Lock()
+	s.sdkState = state
+	s.sdkAt = time.Now()
+	s.sdkMu.Unlock()
+}
+
+func (s *Service) clearSDKState() {
+	s.sdkMu.Lock()
+	s.sdkState = nil
+	s.sdkAt = time.Time{}
+	s.sdkMu.Unlock()
 }
 
 // Provider returns the playback provider backed by this service.
@@ -310,6 +343,7 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	s.clearSDKState()
 	control, err := NewControl()
 	if err != nil {
 		return codedError(CodeRuntimeFailed, "cannot start the web player control socket", err)
@@ -342,6 +376,7 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	s.deviceID = deviceID
 	s.mu.Unlock()
 	go s.watchProcess(helperProcess, control)
+	go s.consumeControl(control, helperProcess)
 	go s.watchIdle(helperProcess, deviceID)
 	return nil
 }
@@ -423,6 +458,7 @@ func (s *Service) Stop(ctx context.Context) error {
 	s.server = nil
 	s.deviceID = ""
 	s.mu.Unlock()
+	s.clearSDKState()
 
 	var errs []error
 	if control != nil {
@@ -573,6 +609,28 @@ func (s *Service) watchIdle(process *Process, deviceID string) {
 	}
 }
 
+// consumeControl keeps reading push snapshots after the ready handshake. The
+// channel is buffered, so events that arrive between ready and this goroutine
+// are not lost.
+func (s *Service) consumeControl(control *Control, process *Process) {
+	for {
+		select {
+		case <-process.Done():
+			return
+		case message, ok := <-control.Events():
+			if !ok {
+				return
+			}
+			switch message.Type {
+			case "state":
+				s.setSDKState(message.Player)
+			case "error":
+				s.setLastError(readyError(message))
+			}
+		}
+	}
+}
+
 // watchProcess clears the ephemeral device id when the helper exits and keeps
 // the redacted tail for diagnostics.
 func (s *Service) watchProcess(process *Process, control *Control) {
@@ -584,6 +642,7 @@ func (s *Service) watchProcess(process *Process, control *Control) {
 		s.deviceID = ""
 	}
 	s.mu.Unlock()
+	s.clearSDKState()
 	_ = control.Close()
 	logProcessTail(process)
 }

@@ -25,7 +25,11 @@ const (
 // Tunable polling intervals. They are variables so tests stay fast without
 // changing the production behavior.
 var (
-	webStreamPlayerInterval  = time.Second
+	webStreamPlayerInterval  = 3 * time.Second
+	webStreamPausedInterval  = 5 * time.Second
+	webStreamIdleInterval    = 10 * time.Second
+	webStreamSDKInterval     = time.Second
+	webStreamSDKFreshness    = 30 * time.Second
 	webStreamDevicesInterval = 10 * time.Second
 	webStreamLoginInterval   = 2 * time.Second
 	webStreamErrorInterval   = 5 * time.Second
@@ -149,6 +153,37 @@ func (p *Provider) Stream(ctx context.Context, emit func(playback.PlayerState)) 
 			continue
 		}
 
+		if !haveDevices || time.Since(devicesAt) >= webStreamDevicesInterval {
+			fetched, err := api.Devices(ctx)
+			if err != nil {
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					return ctxErr
+				}
+				p.publish(webErrorState(err), p.fetchSeq.Add(1), emit)
+				if err := sleepContext(ctx, webStreamErrorInterval); err != nil {
+					return err
+				}
+				continue
+			}
+			devices = fetched
+			devicesAt = time.Now()
+			haveDevices = true
+		}
+
+		// Prefer the SDK push while its device is the active Spotify Connect
+		// target. The SDK emits only state changes, so the position is
+		// interpolated from the snapshot timestamp.
+		if snapshot, at, ok := p.sdkState(); ok &&
+			time.Since(at) <= webStreamSDKFreshness &&
+			sdkDeviceActive(devices, p.backend.DeviceID()) {
+			state := p.mapSDKState(snapshot, at, devices)
+			p.publish(state, p.fetchSeq.Add(1), emit)
+			if err := sleepContext(ctx, webStreamSDKInterval); err != nil {
+				return err
+			}
+			continue
+		}
+
 		seq := p.fetchSeq.Add(1)
 		player, err := api.Player(ctx)
 		if err != nil {
@@ -161,27 +196,41 @@ func (p *Provider) Stream(ctx context.Context, emit func(playback.PlayerState)) 
 			}
 			continue
 		}
-		if !haveDevices || time.Since(devicesAt) >= webStreamDevicesInterval {
-			fetched, err := api.Devices(ctx)
-			if err != nil {
-				if ctxErr := ctx.Err(); ctxErr != nil {
-					return ctxErr
-				}
-				p.publish(webErrorState(err), seq, emit)
-				if err := sleepContext(ctx, webStreamErrorInterval); err != nil {
-					return err
-				}
-				continue
-			}
-			devices = fetched
-			devicesAt = time.Now()
-			haveDevices = true
+		state := p.mapState(player, devices)
+		p.publish(state, seq, emit)
+		interval := webStreamPlayerInterval
+		switch state.Status {
+		case playback.StatusPaused:
+			interval = webStreamPausedInterval
+		case playback.StatusStopped:
+			interval = webStreamIdleInterval
 		}
-		p.publish(p.mapState(player, devices), seq, emit)
-		if err := sleepContext(ctx, webStreamPlayerInterval); err != nil {
+		if err := sleepContext(ctx, interval); err != nil {
 			return err
 		}
 	}
+}
+
+// sdkState returns the last push snapshot when the backend supports it.
+func (p *Provider) sdkState() (SDKState, time.Time, bool) {
+	provider, ok := p.backend.(SDKStateProvider)
+	if !ok {
+		return SDKState{}, time.Time{}, false
+	}
+	return provider.SDKState()
+}
+
+func sdkDeviceActive(devices []apiDevice, deviceID string) bool {
+	deviceID = strings.TrimSpace(deviceID)
+	if deviceID == "" {
+		return false
+	}
+	for _, device := range devices {
+		if device.ID == deviceID {
+			return device.IsActive
+		}
+	}
+	return false
 }
 
 // Queue returns the current item followed by the upcoming items, capped at 50.
@@ -472,6 +521,81 @@ func (p *Provider) publish(state playback.PlayerState, seq uint64, emit func(pla
 		emit(published)
 	}
 	return published
+}
+
+// mapSDKState builds a player state from a pushed SDK snapshot. The SDK does
+// not emit progress ticks, so position is snapshot.PositionMS plus the time
+// elapsed since the snapshot was received.
+func (p *Provider) mapSDKState(snapshot SDKState, at time.Time, devices []apiDevice) playback.PlayerState {
+	state := webBaseState()
+	state.Status = playback.StatusPaused
+	if snapshot.IsPlaying {
+		state.Status = playback.StatusPlaying
+	}
+	position := snapshot.PositionMS
+	if snapshot.IsPlaying {
+		position += time.Since(at).Milliseconds()
+	}
+	if position < 0 {
+		position = 0
+	}
+	if snapshot.DurationMS > 0 && position > snapshot.DurationMS {
+		position = snapshot.DurationMS
+	}
+	state.ProgressMS = int(position)
+	state.DurationMS = int(snapshot.DurationMS)
+	state.Track = playback.Track{
+		URI:        snapshot.Track.URI,
+		Title:      snapshot.Track.Name,
+		Artists:    append([]string(nil), snapshot.Track.Artists...),
+		Album:      snapshot.Track.Album,
+		DurationMS: int(snapshot.Track.DurationMS),
+	}
+	if state.Track.DurationMS == 0 && state.DurationMS > 0 {
+		state.Track.DurationMS = state.DurationMS
+	}
+	if p.art != nil && snapshot.Track.ImageURL != "" {
+		if key := p.art.Register(snapshot.Track.ImageURL); key != "" {
+			state.Track.Cover = "/art/" + key
+		}
+	}
+	for _, device := range devices {
+		state.Devices = append(state.Devices, mapDevice(device))
+	}
+	selected := playback.Device{
+		ID:            p.backend.DeviceID(),
+		Name:          p.deviceName,
+		Type:          webDeviceType,
+		Active:        true,
+		VolumePercent: p.lastVolume(),
+	}
+	for _, device := range state.Devices {
+		if device.ID == selected.ID {
+			selected = device
+			break
+		}
+	}
+	found := false
+	for _, device := range state.Devices {
+		if device.ID == selected.ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		state.Devices = append(state.Devices, selected)
+	}
+	state.Device = selected
+	state.Volume = selected.VolumePercent
+	state.CanControl = p.backend.LoggedIn()
+	state.CanSeek = state.Track.URI != "" && state.DurationMS > 0
+	return state
+}
+
+func (p *Provider) lastVolume() int {
+	p.streamMu.Lock()
+	defer p.streamMu.Unlock()
+	return p.lastState.Volume
 }
 
 func (p *Provider) mapState(player *playerResponse, devices []apiDevice) playback.PlayerState {
